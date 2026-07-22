@@ -14,7 +14,7 @@ PATH_PIX_QRCODE = "pix.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
-# --- ESTADO ---
+# --- ESTADO INICIAL ---
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "itens" not in st.session_state: st.session_state.itens = []
 if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
@@ -43,17 +43,36 @@ st.title("📄 ORÇAMENTOS ALPHAFEST")
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios"])
 
 with aba1:
-    # ... [Aqui vai o seu formulário original de Novo Orçamento] ...
-    # IMPORTANTE: Ao salvar o dado (no botão Gerar), certifique-se de salvar:
-    # "entregue": False
-    pass
+    st.subheader("Novo Orçamento")
+    cliente_nome = st.text_input("Nome do Cliente", key=f"n_{st.session_state.form_key}")
+    cpf_cnpj = st.text_input("CPF/CNPJ", key=f"d_{st.session_state.form_key}")
+    wa = st.text_input("WhatsApp", key=f"w_{st.session_state.form_key}")
+    
+    if st.button("Adicionar Item de Exemplo"):
+        st.session_state.itens.append({"produto": "Copo Personalizado", "quantidade": 1, "valor_unitario": 10.0})
+    
+    st.write("Itens atuais:", st.session_state.itens)
+    
+    if st.button("Gerar Proposta Final"):
+        dados = {
+            "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
+            "data_entrega": date.today().strftime("%d/%m/%Y"), # Simplificado para teste
+            "cliente_nome": cliente_nome,
+            "itens": st.session_state.itens,
+            "entregue": False
+        }
+        salvar_historico_completo(carregar_historico() + [dados])
+        st.session_state.itens = []
+        st.session_state.form_key += 1
+        st.success("Proposta salva!")
+        st.rerun()
 
 with aba2:
     st.subheader("Histórico de Pedidos")
     historico = carregar_historico()
     hoje_str = date.today().strftime("%d/%m/%Y")
     
-    # Alerta apenas para não entregues
+    # Alerta
     pendentes_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and not p.get("entregue", False)]
     if pendentes_hoje:
         st.error(f"🚨 {len(pendentes_hoje)} entrega(s) pendente(s) para hoje!")
@@ -66,4 +85,6 @@ with aba2:
                 if st.button("📦 Marcar como ENTREGUE", key=f"ent_{prop['numero_proposta']}"):
                     atualizar_pedido(prop['numero_proposta'], "entregue", True)
                     st.rerun()
-            # ... [Aqui vai o restante dos botões de WhatsApp, Baixar, Excluir que já tínhamos] ...
+
+with aba3:
+    st.write("Relatórios de venda...")
