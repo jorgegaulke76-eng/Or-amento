@@ -2,8 +2,10 @@ import streamlit as st
 import base64
 import os
 import re
+import json
 from datetime import datetime
 
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Orçamento Alphafest",
     page_icon="📄",
@@ -12,6 +14,22 @@ st.set_page_config(
 
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
+ARQUIVO_HISTORICO = "historico_orcamentos.json"
+
+# --- FUNÇÕES DE BANCO DE DADOS / HISTÓRICO ---
+def carregar_historico():
+    if os.path.exists(ARQUIVO_HISTORICO):
+        try:
+            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except: return []
+    return []
+
+def salvar_no_historico(dados_proposta):
+    historico = carregar_historico()
+    historico.insert(0, dados_proposta)
+    with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
+        json.dump(historico, f, ensure_ascii=False, indent=4)
 
 def carregar_logo_base64():
     if os.path.exists(PATH_LOGO_OFICIAL):
@@ -24,7 +42,7 @@ def carregar_logo_base64():
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
     logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ""
-    data_hoje = datetime.now().strftime("%d/%m/%Y")
+    data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -138,103 +156,139 @@ def gerar_proposta_html(dados):
     """
     return html_content
 
-st.title("📄 ORÇAMENTO ALPHAFEST")
+# --- INTERFACE COM ABAS ---
+st.title("📄 SISTEMA DE ORÇAMENTOS ALPHAFEST")
 
-if "itens" not in st.session_state:
-    st.session_state.itens = []
+aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico de Propostas"])
 
-st.subheader("1. Cliente / Empresa")
-col1, col2 = st.columns(2)
-with col1:
-    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Evento XV Anos / Empresa X")
-with col2:
-    cliente_doc = st.text_input("CPF / CNPJ / Telefone", placeholder="Ex: 11 99999-9999")
-
-st.divider()
-
-st.subheader("2. Adicionar Itens ao Orçamento")
-with st.form("form_item", clear_on_submit=True):
-    col_p, col_e = st.columns([2, 2])
-    with col_p:
-        prod = st.text_input("Produto", value="Copo Térmico 360ml")
-    with col_e:
-        espec = st.text_input("Especificações", value="Gravação Laser Aço Inox")
-        
-    col_q, col_v = st.columns(2)
-    with col_q:
-        qtd = st.number_input("Quantidade", min_value=1, value=180)
-    with col_v:
-        v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=35.0, step=0.50)
-        
-    btn_add = st.form_submit_button("➕ Adicionar Item")
-    
-    if btn_add:
-        st.session_state.itens.append({
-            "produto": prod,
-            "especificacoes": espec,
-            "quantidade": int(qtd),
-            "valor_unitario": float(v_unit)
-        })
-        st.success(f"Item '{prod}' adicionado com sucesso!")
-
-if st.session_state.itens:
-    st.write("### 📦 Itens no Orçamento:")
-    subtotal_acumulado = 0.0
-    for idx, item in enumerate(st.session_state.itens, 1):
-        sub = item["quantidade"] * item["valor_unitario"]
-        subtotal_acumulado += sub
-        st.write(f"**{idx}. {item['produto']}** — {item['quantidade']}un x R${item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
-        
-    st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
-    
-    if st.button("🗑️ Limpar Todos os Itens"):
+with aba1:
+    if "itens" not in st.session_state:
         st.session_state.itens = []
-        st.rerun()
 
-st.divider()
+    st.subheader("1. Cliente / Empresa")
+    col1, col2 = st.columns(2)
+    with col1:
+        cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Nome do Cliente / Empresa")
+    with col2:
+        cliente_doc = st.text_input("CPF / CNPJ / Telefone", placeholder="Ex: 11 99999-9999")
 
-st.subheader("3. Condições Comerciais")
-col_d, col_s = st.columns(2)
-with col_d:
-    desconto = st.number_input("Desconto (%)", min_value=0.0, value=5.0)
-with col_s:
-    sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, value=50.0)
+    st.divider()
 
-col_pr, col_fr = st.columns(2)
-with col_pr:
-    prazo = st.text_input("Prazo (Dias Úteis)", value="10")
-with col_fr:
-    frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba")
+    st.subheader("2. Adicionar Itens ao Orçamento")
+    with st.form("form_item", clear_on_submit=True):
+        col_p, col_e = st.columns([2, 2])
+        with col_p:
+            prod = st.text_input("Produto", placeholder="Digite o produto (ex: Copo Térmico 360ml)")
+        with col_e:
+            espec = st.text_input("Especificações", placeholder="Digite os detalhes (ex: Gravação Laser Inox)")
+            
+        col_q, col_v = st.columns(2)
+        with col_q:
+            qtd = st.number_input("Quantidade", min_value=1, value=1)
+        with col_v:
+            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50)
+            
+        btn_add = st.form_submit_button("➕ Adicionar Item")
+        
+        if btn_add:
+            if not prod.strip():
+                st.error("Informe o nome do produto!")
+            else:
+                st.session_state.itens.append({
+                    "produto": prod,
+                    "especificacoes": espec or "Conforme informado",
+                    "quantidade": int(qtd),
+                    "valor_unitario": float(v_unit)
+                })
+                st.success(f"Item '{prod}' adicionado!")
 
-st.divider()
+    if st.session_state.itens:
+        st.write("### 📦 Itens no Orçamento:")
+        subtotal_acumulado = 0.0
+        for idx, item in enumerate(st.session_state.itens, 1):
+            sub = item["quantidade"] * item["valor_unitario"]
+            subtotal_acumulado += sub
+            st.write(f"**{idx}. {item['produto']}** — {item['quantidade']}un x R${item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
+            
+        st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
+        
+        if st.button("🗑️ Limpar Todos os Itens"):
+            st.session_state.itens = []
+            st.rerun()
 
-if st.button("🚀 GERAR PROPOSTA COMERCIAL", type="primary", use_container_width=True):
-    if not st.session_state.itens:
-        st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
+    st.divider()
+
+    st.subheader("3. Condições Comerciais")
+    col_d, col_s = st.columns(2)
+    with col_d:
+        desconto = st.number_input("Desconto (%)", min_value=0.0, value=0.0)
+    with col_s:
+        sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, value=50.0)
+
+    col_pr, col_fr = st.columns(2)
+    with col_pr:
+        prazo = st.text_input("Prazo (Dias Úteis)", value="10")
+    with col_fr:
+        frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba")
+
+    st.divider()
+
+    if st.button("🚀 GERAR E SALVAR PROPOSTA", type="primary", use_container_width=True):
+        if not st.session_state.itens:
+            st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
+        else:
+            dados = {
+                "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
+                "data_geracao": datetime.now().strftime("%d/%m/%Y"),
+                "cliente_nome": cliente_nome or "Cliente Não Informado",
+                "cliente_doc": cliente_doc or "Não informado",
+                "itens": st.session_state.itens,
+                "desconto": desconto,
+                "sinal_pct": sinal,
+                "prazo_dias": prazo,
+                "frete_tipo": frete
+            }
+            
+            salvar_no_historico(dados)
+            html_gerado = gerar_proposta_html(dados)
+            st.success("✅ Proposta Gerada e Salva no Histórico Automático!")
+            
+            nome_arquivo = f"Proposta_{dados['numero_proposta']}.html"
+            st.download_button(
+                label="📥 Baixar Proposta Comercial (HTML)",
+                data=html_gerado,
+                file_name=nome_arquivo,
+                mime="text/html",
+                use_container_width=True
+            )
+
+with aba2:
+    st.subheader("📋 Central de Propostas Geradas")
+    historico = carregar_historico()
+    
+    if not historico:
+        st.info("Nenhuma proposta gerada até o momento.")
     else:
-        dados = {
-            "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
-            "cliente_nome": cliente_nome or "Cliente Não Informado",
-            "cliente_doc": cliente_doc or "Não informado",
-            "itens": st.session_state.itens,
-            "desconto": desconto,
-            "sinal_pct": sinal,
-            "prazo_dias": prazo,
-            "frete_tipo": frete
-        }
+        st.write(f"**Total de propostas registradas:** {len(historico)}")
         
-        html_gerado = gerar_proposta_html(dados)
-        
-        st.success("✅ Proposta Gerada com Sucesso!")
-        
-        nome_arquivo = f"Proposta_{dados['numero_proposta']}.html"
-        st.download_button(
-            label="📥 Baixar Proposta Comercial (HTML)",
-            data=html_gerado,
-            file_name=nome_arquivo,
-            mime="text/html",
-            use_container_width=True
-        )
-        
-        with st.expander("👁️ Visualizar Prévia do Documento"):
-            st.components.v1.html(html_gerado, height=800, scrolling=True)
+        for prop in historico:
+            sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
+            tot_final = sub_total * (1 - prop["desconto"]/100)
+            
+            with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} (R$ {tot_final:.2f})"):
+                st.write(f"**Data:** {prop.get('data_geracao', 'N/A')}")
+                st.write(f"**Documento/Contato:** {prop['cliente_doc']}")
+                st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
+                
+                st.write("**Itens:**")
+                for it in prop["itens"]:
+                    st.write(f"• {it['produto']} ({it['quantidade']}un x R${it['valor_unitario']:.2f})")
+                
+                html_prop = gerar_proposta_html(prop)
+                st.download_button(
+                    label="📥 Baixar esta proposta novamente",
+                    data=html_prop,
+                    file_name=f"Proposta_{prop['numero_proposta']}.html",
+                    mime="text/html",
+                    key=f"dl_{prop['numero_proposta']}"
+                )
