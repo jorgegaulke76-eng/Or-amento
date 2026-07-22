@@ -600,7 +600,8 @@ with aba2:
         hoje = date.today()
         hoje_str = hoje.strftime("%d/%m/%Y")
         
-        entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and not p.get("aprovado", False)]
+       # Alerta todos os pedidos de hoje que AINDA NÃO FORAM ENTREGUES (supondo que você use o status 'aprovado' como sua marca de entrega)
+    entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and p.get("aprovado", False) == False]
         if entregas_hoje:
             st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
             for e_hoje in entregas_hoje:
