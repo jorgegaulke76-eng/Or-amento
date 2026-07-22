@@ -635,7 +635,7 @@ for p in historico:
         termo_busca = st.text_input(
             "🔍 Filtrar por Palavra-Chave",
             placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)",
-            key="busca_geral_2026"
+            key="busca_definitiva_v1"
         ).strip().lower()
 
         if termo_busca:
