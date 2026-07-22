@@ -106,7 +106,7 @@ def gerar_proposta_html(dados):
     
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
-    msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} da Alphafest e gostaria de enviar o comprovante de pagamento."
+    msg_wa = f"Olá! Gostei da Proposta {dados['numero_proposta']} da Alphafest e gostaria de enviar o comprovante de pagamento."
     link_wa = f"https://wa.me/{dest_wa}?text={re.sub(r' ', '%20', msg_wa)}"
 
     html_content = f"""
@@ -114,7 +114,7 @@ def gerar_proposta_html(dados):
     <html>
     <head>
         <meta charset="utf-8">
-        <title>Proposta Comercial - {dados['numero_proposta']}</title>
+        <title>Proposta - {dados['numero_proposta']}</title>
         <style>
             @page {{
                 size: A4 portrait;
@@ -303,7 +303,7 @@ def gerar_proposta_html(dados):
             </div>
             
             <div class="title-box">
-                <h2>Proposta Comercial</h2>
+                <h2>Proposta</h2>
                 <span>Nº {dados['numero_proposta']}</span>
             </div>
             
