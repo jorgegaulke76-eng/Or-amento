@@ -613,24 +613,24 @@ key="filtro_periodo"
 )
 
 propostas_periodo = []
-for p in historico:
-data_emissao_str = p.get("data_geracao", "")
-try:
-    dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
-except:
-    dt_emissao = hoje
-
-if opcao_periodo == "📅 Hoje":
-    if dt_emissao == hoje: propostas_periodo.append(p)
-elif opcao_periodo == "🗓️ Esta Semana":
-    inicio_semana = hoje - timedelta(days=hoje.weekday())
-                if dt_emissao >= inicio_semana: propostas_periodo.append(p)
-            elif opcao_periodo == "📆 Este Mês":
-                if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year: propostas_periodo.append(p)
-            elif opcao_periodo == "📊 Este Ano":
-                if dt_emissao.year == hoje.year: propostas_periodo.append(p)
-            else:
-                propostas_periodo.append(p)
+    for p in historico:
+        data_emissao_str = p.get("data_geracao", "")
+        try:
+            dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
+        except:
+            dt_emissao = hoje
+        
+        if opcao_periodo == "📅 Hoje":
+            if dt_emissao == hoje: propostas_periodo.append(p)
+        elif opcao_periodo == "📅 Esta Semana":
+            inicio_semana = hoje - timedelta(days=hoje.weekday())
+            if dt_emissao >= inicio_semana: propostas_periodo.append(p)
+        elif opcao_periodo == "📅 Este Mês":
+            if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year: propostas_periodo.append(p)
+        elif opcao_periodo == "📅 Este Ano":
+            if dt_emissao.year == hoje.year: propostas_periodo.append(p)
+        else:
+            propostas_periodo.append(p)
 
         termo_busca = st.text_input(
             "🔍 Filtrar por Palavra-Chave",
