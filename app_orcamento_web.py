@@ -597,18 +597,13 @@ with aba2:
     hoje_str = date.today().strftime("%d/%m/%Y")
     
     # Alerta de entrega - Filtra propostas onde data é hoje E NÃO foi entregue
-    entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and not p.get("entregue", False)]
-    
-    if entregas_hoje:
+    entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and p.get("entregue") != True]
+
+  if entregas_hoje:
         st.error(f"🚨 **ALERTA: {len(entregas_hoje)} entrega(s) para hoje pendente(s)!**")
         for e_hoje in entregas_hoje:
             st.markdown(f"👉 **{e_hoje.get('cliente_nome', 'Cliente')}** ({e_hoje.get('numero_proposta', 'N/A')})")
         st.divider()
-            st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
-            for e_hoje in entregas_hoje:
-                st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
-            st.divider()
-
         st.write("### 📊 Agrupar por Período de Emissão:")
         opcao_periodo = st.radio(
             "Selecione o período:",
