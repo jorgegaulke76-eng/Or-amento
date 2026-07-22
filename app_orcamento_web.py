@@ -164,13 +164,15 @@ aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico de Propostas
 with aba1:
     if "itens" not in st.session_state:
         st.session_state.itens = []
+    if "ultima_proposta" not in st.session_state:
+        st.session_state.ultima_proposta = None
 
     st.subheader("1. Cliente / Empresa")
     col1, col2 = st.columns(2)
     with col1:
-        cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Nome do Cliente / Empresa")
+        cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Nome do Cliente / Empresa", key="txt_cliente")
     with col2:
-        cliente_doc = st.text_input("CPF / CNPJ / Telefone", placeholder="Ex: 11 99999-9999")
+        cliente_doc = st.text_input("CPF / CNPJ / Telefone", placeholder="Ex: 11 99999-9999", key="txt_doc")
 
     st.divider()
 
@@ -212,7 +214,7 @@ with aba1:
             
         st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
         
-        if st.button("🗑️ Limpar Todos os Itens"):
+        if st.button("🗑️ Limpar Itens Selecionados"):
             st.session_state.itens = []
             st.rerun()
 
@@ -221,19 +223,19 @@ with aba1:
     st.subheader("3. Condições Comerciais")
     col_d, col_s = st.columns(2)
     with col_d:
-        desconto = st.number_input("Desconto (%)", min_value=0.0, value=0.0)
+        desconto = st.number_input("Desconto (%)", min_value=0.0, value=0.0, key="num_desconto")
     with col_s:
-        sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, value=50.0)
+        sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, value=50.0, key="num_sinal")
 
     col_pr, col_fr = st.columns(2)
     with col_pr:
-        prazo = st.text_input("Prazo (Dias Úteis)", value="10")
+        prazo = st.text_input("Prazo (Dias Úteis)", value="10", key="txt_prazo")
     with col_fr:
-        frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba")
+        frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key="txt_frete")
 
     st.divider()
 
-    if st.button("🚀 GERAR E SALVAR PROPOSTA", type="primary", use_container_width=True):
+    if st.button("🚀 GERAR, SALVAR E ZERAR PARA PRÓXIMO", type="primary", use_container_width=True):
         if not st.session_state.itens:
             st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
         else:
@@ -249,18 +251,32 @@ with aba1:
                 "frete_tipo": frete
             }
             
+            # 1. Salva no Histórico
             salvar_no_historico(dados)
-            html_gerado = gerar_proposta_html(dados)
-            st.success("✅ Proposta Gerada e Salva no Histórico Automático!")
             
-            nome_arquivo = f"Proposta_{dados['numero_proposta']}.html"
-            st.download_button(
-                label="📥 Baixar Proposta Comercial (HTML)",
-                data=html_gerado,
-                file_name=nome_arquivo,
-                mime="text/html",
-                use_container_width=True
-            )
+            # 2. Gera o HTML e guarda para download
+            html_gerado = gerar_proposta_html(dados)
+            st.session_state.ultima_proposta = {
+                "numero": dados["numero_proposta"],
+                "cliente": dados["cliente_nome"],
+                "html": html_gerado
+            }
+            
+            # 3. Zera todos os itens para o próximo orçamento
+            st.session_state.itens = []
+            st.rerun()
+
+    # Exibe a caixa de download e mensagem de sucesso da última proposta gerada
+    if st.session_state.ultima_proposta:
+        p_info = st.session_state.ultima_proposta
+        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) gerada e salva no histórico!")
+        st.download_button(
+            label=f"📥 Baixar Proposta Comercial ({p_info['numero']})",
+            data=p_info["html"],
+            file_name=f"Proposta_{p_info['numero']}.html",
+            mime="text/html",
+            use_container_width=True
+        )
 
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
