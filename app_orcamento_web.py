@@ -98,12 +98,10 @@ def gerar_proposta_html(dados):
     desconto_pct = dados["desconto"]
     valor_desconto = subtotal_geral * (desconto_pct / 100)
     total_final = subtotal_geral - valor_desconto
-    sinal = total_final * (dados["sinal_pct"] / 100)
-    restante = total_final - sinal
     
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
-    msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} da Alphafest e gostaria de aprovar o pedido."
+    msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} da Alphafest e gostaria de enviar o comprovante de pagamento."
     link_wa = f"https://wa.me/{dest_wa}?text={re.sub(r' ', '%20', msg_wa)}"
 
     html_content = f"""
@@ -126,11 +124,12 @@ def gerar_proposta_html(dados):
             table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
             th {{ background: #334155; color: white; padding: 10px; text-align: left; font-size: 12px; }}
             td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }}
-            .summary-box {{ margin-left: auto; width: 280px; margin-bottom: 20px; }}
+            .summary-box {{ margin-left: auto; width: 300px; margin-bottom: 20px; }}
             .summary-row {{ display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569; }}
             .summary-row.total {{ font-size: 16px; font-weight: bold; color: #22c55e; border-top: 2px solid #e2e8f0; padding-top: 8px; }}
-            .conditions {{ background: #fffbe3; border-left: 4px solid #eab308; padding: 12px; border-radius: 4px; margin-bottom: 20px; font-size: 12px; }}
-            .terms-box {{ border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; font-size: 11px; color: #475569; line-height: 1.4; margin-bottom: 20px; background: #fafafa; }}
+            .conditions {{ background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0284c7; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; color: #334155; line-height: 1.5; }}
+            .bank-box {{ background: #f1f5f9; border: 1px dashed #94a3b8; padding: 12px; border-radius: 6px; margin: 10px 0; font-size: 12px; }}
+            .terms-box {{ border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; font-size: 11px; color: #64748b; line-height: 1.4; margin-bottom: 20px; background: #fafafa; }}
             .btn-wa {{ display: block; width: 100%; background: #22c55e; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 15px; }}
         </style>
     </head>
@@ -167,25 +166,40 @@ def gerar_proposta_html(dados):
             <div class="summary-box">
                 <div class="summary-row"><span>Subtotal:</span><span>R$ {subtotal_geral:.2f}</span></div>
                 <div class="summary-row"><span>Desconto ({desconto_pct}%):</span><span>- R$ {valor_desconto:.2f}</span></div>
-                <div class="summary-row total"><span>VALOR TOTAL:</span><span>R$ {total_final:.2f}</span></div>
-                <div class="summary-row" style="font-weight: bold; color: #0284c7; margin-top:5px;"><span>Entrada Sinal ({dados['sinal_pct']}%):</span><span>R$ {sinal:.2f}</span></div>
-                <div class="summary-row"><span>Restante na Entrega:</span><span>R$ {restante:.2f}</span></div>
+                <div class="summary-row total"><span>VALOR TOTAL DO PEDIDO:</span><span>R$ {total_final:.2f}</span></div>
             </div>
             
             <div class="conditions">
-                <strong>📌 Condições de Produção:</strong><br>
-                • Produção iniciada mediante sinal de R$ {sinal:.2f} e aprovação da arte.<br>
-                • Prazo de Produção: {dados['prazo_dias']} dias úteis (Previsão de Entrega: {data_entrega}).<br>
-                • Frete/Entrega: {dados['frete_tipo']}.
+                <strong>📌 Condições de Produção & Pagamento:</strong><br>
+                🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br><br>
+                *Tivemos algumas mudanças devido ao novo regime de tributação.<br>
+                Envie também seu CPF ou CNPJ, para envio do cupom fiscal/NF caso queira.<br>
+                
+                <div class="bank-box">
+                    <strong>Segue abaixo nossa conta e PIX 👇</strong><br>
+                    💳💳 <strong>PIX:</strong> 24374857000130 (CNPJ)<br>
+                    <strong>Titular:</strong> Ana Lúcia Zepelini<br><br>
+                    <strong>Conta Jurídica:</strong><br>
+                    Agência: 0001 | Conta: 2515972-5<br>
+                    Instituição: 403 - Cora SCD<br>
+                    Nome da Empresa: ANA LUCIA VIEIRA ZEPELINI 29480359880<br>
+                    CNPJ: 24.374.857/0001-30
+                </div>
+                
+                👇<br>
+                <strong>Somente após realizado pagamento e nos enviando o comprovante que daremos seguimento ao seu pedido !!🥰</strong><br><br>
+                • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Previsão de Entrega: {data_entrega}).<br>
+                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']}.<br>
+                • <strong>Validade do Orçamento:</strong> 5 dias corridos.
             </div>
             
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
-                1. A produção seguirá o layout aprovado.<br>
-                2. Produto personalizado não cabe devolução por desistência após o início da confecção.
+                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
+                2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             
-            <a href="{link_wa}" class="btn-wa" target="_blank">✅ Aprovar Proposta no WhatsApp</a>
+            <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
         </div>
     </body>
     </html>
@@ -217,7 +231,7 @@ with aba1:
     
     col_doc, col_wa = st.columns(2)
     with col_doc:
-        cliente_cpf_cnpj = st.text_input("CPF / CNPJ", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
+        cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
     with col_wa:
         cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
 
@@ -268,11 +282,7 @@ with aba1:
     st.divider()
 
     st.subheader("3. Condições Comerciais & Prazos")
-    col_d, col_s = st.columns(2)
-    with col_d:
-        desconto = st.number_input("Desconto (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0, format="%.1f", key=f"desc_{fk}")
-    with col_s:
-        sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, max_value=100.0, value=50.0, step=5.0, format="%.1f", key=f"sinal_{fk}")
+    desconto = st.number_input("Desconto (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0, format="%.1f", key=f"desc_{fk}")
 
     col_pr, col_dt = st.columns(2)
     with col_pr:
@@ -297,7 +307,7 @@ with aba1:
                 "cliente_wa": cliente_wa or "Não informado",
                 "itens": list(st.session_state.itens),
                 "desconto": desconto,
-                "sinal_pct": sinal,
+                "sinal_pct": 100.0,
                 "prazo_dias": prazo,
                 "frete_tipo": frete,
                 "aprovado": False
@@ -387,15 +397,14 @@ with aba2:
                 dt_ent = prop.get('data_entrega', 'Não informada')
                 tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
                 is_aprovado = prop.get("aprovado", False)
-                status_tag = " ✅ [APROVADA]" if is_aprovado else " ⏳ [PENDENTE]"
+                status_tag = " ✅ [PAGO / APROVADO]" if is_aprovado else " ⏳ [PENDENTE]"
                 
                 with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
                     st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
                     st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                     
-                    # CAMPO DE ASSINALAR APROVAÇÃO DA PROPOSTA
                     check_aprovado = st.checkbox(
-                        "✅ Marcar como PROPOSTA ACEITA / EFETIVADA",
+                        "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
                         value=is_aprovado,
                         key=f"chk_aprov_{prop['numero_proposta']}"
                     )
@@ -437,7 +446,6 @@ with aba3:
     if not historico:
         st.info("Nenhuma proposta registrada para gerar relatórios.")
     else:
-        # --- CÁLCULO DE MÉTRICAS GERAIS ---
         tot_orçado = 0.0
         tot_efetivado = 0.0
         qtd_total = len(historico)
@@ -464,13 +472,12 @@ with aba3:
         with col_r1:
             st.metric("Total Orçado", f"R$ {tot_orçado:.2f}")
         with col_r2:
-            st.metric("Total Efetivado (Aceito)", f"R$ {tot_efetivado:.2f}")
+            st.metric("Total Pago / Efetivado", f"R$ {tot_efetivado:.2f}")
         with col_r3:
             st.metric("Taxa de Conversão", f"{taxa_conversao:.1f}%")
 
         st.divider()
 
-        # --- GRÁFICO DE VALORES POR DIA, MÊS E ANO ---
         st.write("### 📈 Desempenho Financeiro por Período")
         visao_grafico = st.radio("Agrupar gráficos por:", ["Dia", "Mês", "Ano"], horizontal=True)
 
@@ -498,19 +505,17 @@ with aba3:
             if p.get("aprovado", False):
                 agrupado_efetivado[chave] = agrupado_efetivado.get(chave, 0.0) + val
 
-        # Monta dados para gráfico
         chaves_ordenadas = sorted(agrupado_orcado.keys())
         dados_grafico = {
             "Período": chaves_ordenadas,
             "Total Orçado (R$)": [agrupado_orcado[k] for k in chaves_ordenadas],
-            "Efetivado / Aceito (R$)": [agrupado_efetivado.get(k, 0.0) for k in chaves_ordenadas]
+            "Pago / Efetivado (R$)": [agrupado_efetivado.get(k, 0.0) for k in chaves_ordenadas]
         }
         
-        st.bar_chart(dados_grafico, x="Período", y=["Total Orçado (R$)", "Efetivado / Aceito (R$)"])
+        st.bar_chart(dados_grafico, x="Período", y=["Total Orçado (R$)", "Pago / Efetivado (R$)"])
 
         st.divider()
 
-        # --- RANKING DE PRODUTOS MAIS ORÇADOS ---
         st.write("### 🏆 Produtos Mais Orçados (Quantidade em Peças)")
         if produtos_dict:
             prod_ordenados = dict(sorted(produtos_dict.items(), key=lambda item: item[1], reverse=True))
