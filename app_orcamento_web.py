@@ -73,20 +73,49 @@ def exibir_logo_interface():
         with col_l2:
             st.image(PATH_LOGO_OFICIAL, use_container_width=True)
 
-def extrair_link_whatsapp(cliente_wa, cliente_nome, numero_proposta, valor_total, dt_entrega):
-    num_wa = re.sub(r'\D', '', cliente_wa or '')
+def extrair_link_whatsapp_completo(dados):
+    num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"):
         num_wa = "55" + num_wa
     
+    subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
+    desc_v = dados.get("desconto_valor", 0.0)
+    total_final = max(0.0, subtotal_geral - desc_v)
+    
+    # Monta a lista formatada de todos os itens
+    texto_itens = ""
+    for idx, item in enumerate(dados["itens"], 1):
+        sub_item = item["quantidade"] * item["valor_unitario"]
+        texto_itens += f"  *{idx}. {item['produto']}*\n"
+        if item.get('especificacoes'):
+            texto_itens += f"     └ Detalhes: {item['especificacoes']}\n"
+        texto_itens += f"     └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
+
     msg = (
-        f"Olá, *{cliente_nome}*!\n\n"
-        f"Segue a sua *Proposta Alphafest* (Nº {numero_proposta}):\n"
-        f"💰 *Valor Total:* R$ {valor_total:.2f}\n"
-        f"📅 *Previsão de Entrega:* {dt_entrega}\n\n"
-        f"💳 *Dados para Pagamento via PIX:*\n"
-        f"Chave PIX (CNPJ): `24374857000130`\n"
-        f"Titular: Ana Lúcia Zepelini (Banco Cora)\n\n"
-        f"Assim que realizar o pagamento, por favor nos envie o comprovante para darmos início à produção! 🥰"
+        f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n"
+        f"📄 *Nº:* {dados['numero_proposta']}\n"
+        f"🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
+        f"👤 *CLIENTE:* {dados['cliente_nome']}\n"
+        f"🪪 *CPF/CNPJ:* {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
+        f"-----------------------------------\n"
+        f"📦 *ITENS DO PEDIDO:*\n\n"
+        f"{texto_itens}"
+        f"-----------------------------------\n"
+        f"💵 *Subtotal:* R$ {subtotal_geral:.2f}\n"
+        f"🏷️ *Desconto:* - R$ {desc_v:.2f}\n"
+        f"✅ *VALOR TOTAL DO PEDIDO:* R$ {total_final:.2f}\n"
+        f"-----------------------------------\n"
+        f"📅 *Previsão de Entrega:* {dados.get('data_entrega', 'A combinar')}\n"
+        f"⏳ *Prazo de Produção:* {dados.get('prazo_dias', '10')} dias úteis\n"
+        f"🚚 *Frete/Entrega:* {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
+        f"⏰ *Validade:* 5 dias corridos\n\n"
+        f"💳 *DADOS PARA PAGAMENTO (PIX 100%):*\n"
+        f"👉 *PIX (CNPJ):* `24374857000130`\n"
+        f"• *Titular:* Ana Lúcia Zepelini\n"
+        f"• *Banco:* Cora SCD (403)\n"
+        f"• *Agência:* 0001 | *Conta:* 2515972-5\n"
+        f"• *Empresa:* ANA LUCIA VIEIRA ZEPELINI 29480359880\n\n"
+        f"👇 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!🥰*"
     )
     
     msg_enc = urllib.parse.quote(msg)
@@ -127,13 +156,7 @@ def gerar_proposta_html(dados):
     valor_desconto = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - valor_desconto)
     
-    link_wa = extrair_link_whatsapp(
-        dados.get('cliente_wa', ''),
-        dados.get('cliente_nome', ''),
-        dados.get('numero_proposta', ''),
-        total_final,
-        data_entrega
-    )
+    link_wa = extrair_link_whatsapp_completo(dados)
 
     html_content = f"""
     <!DOCTYPE html>
@@ -408,7 +431,7 @@ with aba1:
             )
         with col_wsp:
             st.link_button(
-                label="📱 Enviar no WhatsApp do Cliente",
+                label="📱 Enviar Proposta Completa no WhatsApp",
                 url=p_info["link_wa"],
                 type="primary",
                 use_container_width=True
@@ -507,10 +530,7 @@ with aba1:
             
             salvar_no_historico(dados)
             html_gerado = gerar_proposta_html(dados)
-            
-            sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
-            tot_f = max(0.0, sub_total - desconto_valor)
-            link_wa_direto = extrair_link_whatsapp(dados["cliente_wa"], dados["cliente_nome"], dados["numero_proposta"], tot_f, dados["data_entrega"])
+            link_wa_direto = extrair_link_whatsapp_completo(dados)
 
             st.session_state.ultima_proposta = {
                 "numero": dados["numero_proposta"],
@@ -625,13 +645,7 @@ with aba2:
                             key=f"dl_{prop['numero_proposta']}"
                         )
                     with col_wa:
-                        link_w = extrair_link_whatsapp(
-                            prop.get('cliente_wa', ''),
-                            prop.get('cliente_nome', ''),
-                            prop.get('numero_proposta', ''),
-                            tot_final,
-                            dt_ent
-                        )
+                        link_w = extrair_link_whatsapp_completo(prop)
                         st.link_button(
                             label="📱 Enviar WhatsApp",
                             url=link_w,
