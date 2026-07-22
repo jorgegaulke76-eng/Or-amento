@@ -82,7 +82,6 @@ def extrair_link_whatsapp_completo(dados):
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
     
-    # Monta a lista formatada de todos os itens
     texto_itens = ""
     for idx, item in enumerate(dados["itens"], 1):
         sub_item = item["quantidade"] * item["valor_unitario"]
@@ -92,30 +91,30 @@ def extrair_link_whatsapp_completo(dados):
         texto_itens += f"     └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
 
     msg = (
-        f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n"
-        f"📄 *Nº:* {dados['numero_proposta']}\n"
-        f"🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
-        f"👤 *CLIENTE:* {dados['cliente_nome']}\n"
-        f"🪪 *CPF/CNPJ:* {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
+        f"*PROPOSTA ALPHAFEST ITATIBA*\n"
+        f"Nº: {dados['numero_proposta']}\n"
+        f"Emissão: {dados.get('data_geracao', '')}\n\n"
+        f"CLIENTE: {dados['cliente_nome']}\n"
+        f"CPF/CNPJ: {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
         f"-----------------------------------\n"
-        f"📦 *ITENS DO PEDIDO:*\n\n"
+        f"ITENS DO PEDIDO:\n\n"
         f"{texto_itens}"
         f"-----------------------------------\n"
-        f"💵 *Subtotal:* R$ {subtotal_geral:.2f}\n"
-        f"🏷️ *Desconto:* - R$ {desc_v:.2f}\n"
-        f"✅ *VALOR TOTAL DO PEDIDO:* R$ {total_final:.2f}\n"
+        f"Subtotal: R$ {subtotal_geral:.2f}\n"
+        f"Desconto: - R$ {desc_v:.2f}\n"
+        f"*VALOR TOTAL DO PEDIDO: R$ {total_final:.2f}*\n"
         f"-----------------------------------\n"
-        f"📅 *Previsão de Entrega:* {dados.get('data_entrega', 'A combinar')}\n"
-        f"⏳ *Prazo de Produção:* {dados.get('prazo_dias', '10')} dias úteis\n"
-        f"🚚 *Frete/Entrega:* {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
-        f"⏰ *Validade:* 5 dias corridos\n\n"
-        f"💳 *DADOS PARA PAGAMENTO (PIX 100%):*\n"
-        f"👉 *PIX (CNPJ):* `24374857000130`\n"
-        f"• *Titular:* Ana Lúcia Zepelini\n"
-        f"• *Banco:* Cora SCD (403)\n"
-        f"• *Agência:* 0001 | *Conta:* 2515972-5\n"
-        f"• *Empresa:* ANA LUCIA VIEIRA ZEPELINI 29480359880\n\n"
-        f"👇 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!🥰*"
+        f"Previsão de Entrega: {dados.get('data_entrega', 'A combinar')}\n"
+        f"Prazo de Produção: {dados.get('prazo_dias', '10')} dias úteis\n"
+        f"Frete/Entrega: {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
+        f"Validade: 5 dias corridos\n\n"
+        f"DADOS PARA PAGAMENTO (PIX 100%):\n"
+        f"PIX (CNPJ): 24374857000130\n"
+        f"Titular: Ana Lúcia Zepelini\n"
+        f"Banco: Cora SCD (403)\n"
+        f"Agência: 0001 | Conta: 2515972-5\n"
+        f"Empresa: ANA LUCIA VIEIRA ZEPELINI\n\n"
+        f"Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!"
     )
     
     msg_enc = urllib.parse.quote(msg)
@@ -130,7 +129,7 @@ def gerar_proposta_html(dados):
     if logo_base64:
         logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
     else:
-        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
+        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">ALPHAFEST ITATIBA</div>'
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
@@ -363,7 +362,7 @@ def gerar_proposta_html(dados):
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
                 <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
                 <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
-                <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">📅 {data_entrega}</span></div>
+                <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">{data_entrega}</span></div>
             </div>
             
             <table>
@@ -380,18 +379,18 @@ def gerar_proposta_html(dados):
             </div>
             
             <div class="conditions">
-                <strong>📌 Condições de Produção & Pagamento:</strong><br>
-                🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br>
+                <strong>Condições de Produção & Pagamento:</strong><br>
+                Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!<br>
                 *Tivemos algumas mudanças devido ao novo regime de tributação. Envie seu CPF ou CNPJ para emissão de cupom fiscal/NF.<br>
                 
                 <div class="bank-box">
-                    <strong>Segue abaixo nossa conta e PIX 👇</strong><br>
-                    💳 <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
+                    <strong>Segue abaixo nossa conta e PIX:</strong><br>
+                    <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
                     <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
-                    <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880
+                    <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI
                 </div>
                 
-                👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!🥰</strong><br>
+                <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
                 • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
             </div>
@@ -402,7 +401,7 @@ def gerar_proposta_html(dados):
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             
-            <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
+            <a href="{link_wa}" class="btn-wa" target="_blank">Enviar Comprovante de Pagamento no WhatsApp</a>
         </div>
     </body>
     </html>
