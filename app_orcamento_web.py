@@ -17,11 +17,19 @@ MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
+# --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+if "itens" not in st.session_state:
+    st.session_state.itens = []
+if "ultima_proposta" not in st.session_state:
+    st.session_state.ultima_proposta = None
+
 # --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
 def formatar_doc_para_wa(doc):
     apenas_num = re.sub(r'\D', '', str(doc or ''))
     if len(apenas_num) == 11:
-        # Adiciona espaços após os pontos/traços para que o WhatsApp não detecte como telefone (11 dígitos seguidos)
+        # Espaçamento para evitar que o WhatsApp detecte como telefone de 11 dígitos
         return f"{apenas_num[:3]}. {apenas_num[3:6]}. {apenas_num[6:9]} - {apenas_num[9:]}"
     elif len(apenas_num) == 14:
         return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
@@ -122,7 +130,7 @@ def extrair_link_whatsapp_completo(dados):
         f"Validade: 5 dias corridos\n\n"
         f"DADOS PARA PAGAMENTO:\n"
         f"CHAVE PIX (CNPJ):\n"
-        f"`24374857000130`\n\n"
+        f"24374857000130\n\n"
         f"Titular: Ana Lúcia Zepelini\n"
         f"Banco: Cora SCD (403)\n"
         f"Agência: 0001 | Conta: 2515972-5\n"
@@ -411,7 +419,7 @@ def gerar_proposta_html(dados):
             
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
-                1. A produção seguirá estritamente o layout approved pelo cliente.<br>
+                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             
@@ -429,8 +437,8 @@ st.title("📄 ORÇAMENTOS ALPHAFEST")
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
 with aba1:
-    if st.session_state.ultima_proposta:
-        p_info = st.session_state.ultima_proposta
+    if st.session_state.get("ultima_proposta"):
+        p_info = st.session_state["ultima_proposta"]
         st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
         
         col_down, col_wsp = st.columns(2)
