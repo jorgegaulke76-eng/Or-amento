@@ -3,6 +3,7 @@ import base64
 import os
 import re
 import json
+import urllib.parse
 from datetime import datetime, date, timedelta
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -72,6 +73,28 @@ def exibir_logo_interface():
         with col_l2:
             st.image(PATH_LOGO_OFICIAL, use_container_width=True)
 
+def extrair_link_whatsapp(cliente_wa, cliente_nome, numero_proposta, valor_total, dt_entrega):
+    num_wa = re.sub(r'\D', '', cliente_wa or '')
+    if len(num_wa) <= 11 and not num_wa.startswith("55"):
+        num_wa = "55" + num_wa
+    
+    msg = (
+        f"Olá, *{cliente_nome}*!\n\n"
+        f"Segue a sua *Proposta Alphafest* (Nº {numero_proposta}):\n"
+        f"💰 *Valor Total:* R$ {valor_total:.2f}\n"
+        f"📅 *Previsão de Entrega:* {dt_entrega}\n\n"
+        f"💳 *Dados para Pagamento via PIX:*\n"
+        f"Chave PIX (CNPJ): `24374857000130`\n"
+        f"Titular: Ana Lúcia Zepelini (Banco Cora)\n\n"
+        f"Assim que realizar o pagamento, por favor nos envie o comprovante para darmos início à produção! 🥰"
+    )
+    
+    msg_enc = urllib.parse.quote(msg)
+    if num_wa and len(num_wa) >= 12:
+        return f"https://wa.me/{num_wa}?text={msg_enc}"
+    else:
+        return f"https://api.whatsapp.com/send?text={msg_enc}"
+
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
     
@@ -104,10 +127,13 @@ def gerar_proposta_html(dados):
     valor_desconto = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - valor_desconto)
     
-    num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
-    dest_wa = num_wa if len(num_wa) >= 10 else "5511997249533"
-    msg_wa = f"Olá! Gostei da Proposta {dados['numero_proposta']} da Alphafest e gostaria de enviar o comprovante de pagamento."
-    link_wa = f"https://wa.me/{dest_wa}?text={re.sub(r' ', '%20', msg_wa)}"
+    link_wa = extrair_link_whatsapp(
+        dados.get('cliente_wa', ''),
+        dados.get('cliente_nome', ''),
+        dados.get('numero_proposta', ''),
+        total_final,
+        data_entrega
+    )
 
     html_content = f"""
     <!DOCTYPE html>
@@ -370,13 +396,23 @@ with aba1:
     if st.session_state.ultima_proposta:
         p_info = st.session_state.ultima_proposta
         st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
-        st.download_button(
-            label=f"📥 Baixar Proposta Gerada ({p_info['numero']})",
-            data=p_info["html"],
-            file_name=f"Proposta_{p_info['numero']}.html",
-            mime="text/html",
-            use_container_width=True
-        )
+        
+        col_down, col_wsp = st.columns(2)
+        with col_down:
+            st.download_button(
+                label=f"📥 Baixar Proposta ({p_info['numero']})",
+                data=p_info["html"],
+                file_name=f"Proposta_{p_info['numero']}.html",
+                mime="text/html",
+                use_container_width=True
+            )
+        with col_wsp:
+            st.link_button(
+                label="📱 Enviar no WhatsApp do Cliente",
+                url=p_info["link_wa"],
+                type="primary",
+                use_container_width=True
+            )
         st.divider()
 
     fk = st.session_state.form_key
@@ -459,7 +495,7 @@ with aba1:
                 "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
                 "cliente_nome": cliente_nome or "Cliente Não Informado",
                 "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
-                "cliente_wa": cliente_wa or "Não informado",
+                "cliente_wa": cliente_wa or "",
                 "itens": list(st.session_state.itens),
                 "desconto_valor": desconto_valor,
                 "desconto": 0.0,
@@ -472,10 +508,15 @@ with aba1:
             salvar_no_historico(dados)
             html_gerado = gerar_proposta_html(dados)
             
+            sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
+            tot_f = max(0.0, sub_total - desconto_valor)
+            link_wa_direto = extrair_link_whatsapp(dados["cliente_wa"], dados["cliente_nome"], dados["numero_proposta"], tot_f, dados["data_entrega"])
+
             st.session_state.ultima_proposta = {
                 "numero": dados["numero_proposta"],
                 "cliente": dados["cliente_nome"],
-                "html": html_gerado
+                "html": html_gerado,
+                "link_wa": link_wa_direto
             }
             
             st.session_state.itens = []
@@ -573,15 +614,28 @@ with aba2:
                     for it in prop["itens"]:
                         st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
                     
-                    col_dl, col_del = st.columns([3, 1])
+                    col_dl, col_wa, col_del = st.columns([2, 2, 1])
                     with col_dl:
                         html_prop = gerar_proposta_html(prop)
                         st.download_button(
-                            label="📥 Baixar proposta",
+                            label="📥 Baixar Proposta",
                             data=html_prop,
                             file_name=f"Proposta_{prop['numero_proposta']}.html",
                             mime="text/html",
                             key=f"dl_{prop['numero_proposta']}"
+                        )
+                    with col_wa:
+                        link_w = extrair_link_whatsapp(
+                            prop.get('cliente_wa', ''),
+                            prop.get('cliente_nome', ''),
+                            prop.get('numero_proposta', ''),
+                            tot_final,
+                            dt_ent
+                        )
+                        st.link_button(
+                            label="📱 Enviar WhatsApp",
+                            url=link_w,
+                            use_container_width=True
                         )
                     with col_del:
                         if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"):
