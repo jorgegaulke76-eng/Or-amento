@@ -3,7 +3,7 @@ import base64
 import os
 import re
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -177,7 +177,7 @@ def gerar_proposta_html(dados):
 # --- INTERFACE PRINCIPAL ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico & Entregas"])
+aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico & Agrupamento"])
 
 with aba1:
     if st.session_state.ultima_proposta:
@@ -310,44 +310,90 @@ with aba1:
             st.rerun()
 
 with aba2:
-    st.subheader("📋 Central de Propostas & Controle de Entregas")
+    st.subheader("📋 Central de Propostas Geradas")
     historico = carregar_historico()
     
     if not historico:
         st.info("Nenhuma proposta gerada até o momento.")
     else:
-        hoje_str = date.today().strftime("%d/%m/%Y")
+        hoje = date.today()
+        hoje_str = hoje.strftime("%d/%m/%Y")
         
-        # --- PAINEL DE ALERTAS DE ENTREGA ---
+        # --- PAINEL DE ALERTAS DE ENTREGA DO DIA ---
         entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str]
-        
         if entregas_hoje:
-            st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) para entregar hoje!")
+            st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
             for e_hoje in entregas_hoje:
-                st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — Contacto: {e_hoje.get('cliente_wa', 'N/A')}")
+                st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
             st.divider()
 
-        # --- CAMPO DE BUSCA ---
+        # --- FILTRO POR AGRUPAMENTO TEMPORAL ---
+        st.write("### 📊 Agrupar por Período de Emissão:")
+        opcao_periodo = st.radio(
+            "Selecione o período:",
+            ["Todas", "📅 Hoje", "🗓️ Esta Semana", "📆 Este Mês", "📊 Este Ano"],
+            horizontal=True,
+            key="filtro_periodo"
+        )
+
+        # Filtragem por Período
+        propostas_periodo = []
+        for p in historico:
+            data_emissao_str = p.get("data_geracao", "")
+            try:
+                dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
+            except:
+                dt_emissao = hoje
+            
+            if opcao_periodo == "📅 Hoje":
+                if dt_emissao == hoje:
+                    propostas_periodo.append(p)
+            elif opcao_periodo == "🗓️ Esta Semana":
+                inicio_semana = hoje - timedelta(days=hoje.weekday())
+                if dt_emissao >= inicio_semana:
+                    propostas_periodo.append(p)
+            elif opcao_periodo == "📆 Este Mês":
+                if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year:
+                    propostas_periodo.append(p)
+            elif opcao_periodo == "📊 Este Ano":
+                if dt_emissao.year == hoje.year:
+                    propostas_periodo.append(p)
+            else:
+                propostas_periodo.append(p)
+
+        # --- BUSCA POR PALAVRA-CHAVE ---
         termo_busca = st.text_input(
-            "🔍 Buscar Proposta",
-            placeholder="Digite nome, produto, telefone/WhatsApp, CPF/CNPJ ou data de entrega (ex: 22/07/2026)",
+            "🔍 Filtrar por Palavra-Chave",
+            placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)",
             key="busca_historico"
         ).strip().lower()
 
         if termo_busca:
             propostas_filtradas = []
-            for prop in historico:
+            for prop in propostas_periodo:
                 produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
                 texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {prop.get('data_entrega', '')} {produtos_concat}".lower()
                 if termo_busca in texto_pesquisa:
                     propostas_filtradas.append(prop)
         else:
-            propostas_filtradas = historico
+            propostas_filtradas = propostas_periodo
 
-        st.write(f"**Exibindo:** {len(propostas_filtradas)} de {len(historico)} proposta(s)")
+        # --- RESUMO FINANCEIRO DO PERÍODO SELECIONADO ---
+        valor_acumulado_periodo = 0.0
+        for prop in propostas_filtradas:
+            sub = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
+            valor_acumulado_periodo += sub * (1 - prop["desconto"]/100)
+
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.metric("Total de Propostas", f"{len(propostas_filtradas)} un.")
+        with col_m2:
+            st.metric("Valor Total Orçado", f"R$ {valor_acumulado_periodo:.2f}")
+
+        st.divider()
 
         if not propostas_filtradas:
-            st.warning(f"Nenhum orçamento encontrado para o termo: **'{termo_busca}'**")
+            st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
         else:
             for prop in propostas_filtradas:
                 sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
@@ -356,7 +402,7 @@ with aba2:
                 dt_ent = prop.get('data_entrega', 'Não informada')
                 tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
                 
-                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | Entrega: {dt_ent}{tag_hoje}"):
+                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | Total: R$ {tot_final:.2f}{tag_hoje}"):
                     st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
                     st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                     st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
