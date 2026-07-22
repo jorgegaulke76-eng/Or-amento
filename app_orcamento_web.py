@@ -33,11 +33,22 @@ def carregar_historico():
         except: return []
     return []
 
+def salvar_historico_completo(historico):
+    with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
+        json.dump(historico, f, ensure_ascii=False, indent=4)
+
 def salvar_no_historico(dados_proposta):
     historico = carregar_historico()
     historico.insert(0, dados_proposta)
-    with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
-        json.dump(historico, f, ensure_ascii=False, indent=4)
+    salvar_historico_completo(historico)
+
+def excluir_proposta_por_id(num_proposta):
+    historico = carregar_historico()
+    historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
+    salvar_historico_completo(historico_atualizado)
+
+def zerar_todo_historico():
+    salvar_historico_completo([])
 
 def carregar_logo_base64():
     if os.path.exists(PATH_LOGO_OFICIAL):
@@ -177,7 +188,7 @@ def gerar_proposta_html(dados):
 # --- INTERFACE PRINCIPAL ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico & Agrupamento"])
+aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico & Gerenciamento"])
 
 with aba1:
     if st.session_state.ultima_proposta:
@@ -336,7 +347,6 @@ with aba2:
             key="filtro_periodo"
         )
 
-        # Filtragem por Período
         propostas_periodo = []
         for p in historico:
             data_emissao_str = p.get("data_geracao", "")
@@ -411,11 +421,27 @@ with aba2:
                     for it in prop["itens"]:
                         st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
                     
-                    html_prop = gerar_proposta_html(prop)
-                    st.download_button(
-                        label="📥 Baixar esta proposta novamente",
-                        data=html_prop,
-                        file_name=f"Proposta_{prop['numero_proposta']}.html",
-                        mime="text/html",
-                        key=f"dl_{prop['numero_proposta']}"
-                    )
+                    col_dl, col_del = st.columns([3, 1])
+                    with col_dl:
+                        html_prop = gerar_proposta_html(prop)
+                        st.download_button(
+                            label="📥 Baixar proposta",
+                            data=html_prop,
+                            file_name=f"Proposta_{prop['numero_proposta']}.html",
+                            mime="text/html",
+                            key=f"dl_{prop['numero_proposta']}"
+                        )
+                    with col_del:
+                        if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}", help="Cancelar/Apagar este orçamento"):
+                            excluir_proposta_por_id(prop['numero_proposta'])
+                            st.success(f"Proposta {prop['numero_proposta']} removida!")
+                            st.rerun()
+
+        # --- ZONA DE SEGURANÇA: ZERAR TODO O HISTÓRICO DE TESTES ---
+        st.divider()
+        with st.expander("⚙️ Zona de Segurança / Limpeza Geral de Testes"):
+            st.warning("Esta opção apagará TODAS as propostas registradas no sistema de uma só vez.")
+            if st.button("🔥 ZERAR TODO O HISTÓRICO DE TESTES", type="secondary"):
+                zerar_todo_historico()
+                st.success("Histórico completamente zerado!")
+                st.rerun()
