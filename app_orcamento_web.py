@@ -17,16 +17,17 @@ MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
-# --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
-if "form_key" not in st.session_state:
-    st.session_state.form_key = 0
-if "itens" not in st.session_state:
-    st.session_state.itens = []
-if "ultima_proposta" not in st.session_state:
-    st.session_state.ultima_proposta = None
-
 # --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
-def formatar_cpf_cnpj(doc):
+def formatar_doc_para_wa(doc):
+    apenas_num = re.sub(r'\D', '', str(doc or ''))
+    if len(apenas_num) == 11:
+        # Adiciona espaços após os pontos/traços para que o WhatsApp não detecte como telefone (11 dígitos seguidos)
+        return f"{apenas_num[:3]}. {apenas_num[3:6]}. {apenas_num[6:9]} - {apenas_num[9:]}"
+    elif len(apenas_num) == 14:
+        return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
+    return doc or "Não informado"
+
+def formatar_cpf_cnpj_padrao(doc):
     apenas_num = re.sub(r'\D', '', str(doc or ''))
     if len(apenas_num) == 11:
         return f"{apenas_num[:3]}.{apenas_num[3:6]}.{apenas_num[6:9]}-{apenas_num[9:]}"
@@ -91,7 +92,7 @@ def extrair_link_whatsapp_completo(dados):
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
     
-    doc_formatado = formatar_cpf_cnpj(dados.get('cliente_cpf_cnpj', ''))
+    doc_wa = formatar_doc_para_wa(dados.get('cliente_cpf_cnpj', ''))
 
     texto_itens = ""
     for idx, item in enumerate(dados["itens"], 1):
@@ -106,7 +107,7 @@ def extrair_link_whatsapp_completo(dados):
         f"Nº: {dados['numero_proposta']}\n"
         f"Emissão: {dados.get('data_geracao', '')}\n\n"
         f"CLIENTE: {dados['cliente_nome']}\n"
-        f"CPF/CNPJ: {doc_formatado}\n"
+        f"CPF/CNPJ: {doc_wa}\n"
         f"-----------------------------------\n"
         f"ITENS DO PEDIDO:\n\n"
         f"{texto_itens}"
@@ -121,7 +122,7 @@ def extrair_link_whatsapp_completo(dados):
         f"Validade: 5 dias corridos\n\n"
         f"DADOS PARA PAGAMENTO:\n"
         f"CHAVE PIX (CNPJ):\n"
-        f"24374857000130\n\n"
+        f"`24374857000130`\n\n"
         f"Titular: Ana Lúcia Zepelini\n"
         f"Banco: Cora SCD (403)\n"
         f"Agência: 0001 | Conta: 2515972-5\n"
@@ -145,7 +146,7 @@ def gerar_proposta_html(dados):
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
-    doc_formatado = formatar_cpf_cnpj(dados.get('cliente_cpf_cnpj', ''))
+    doc_formatado = formatar_cpf_cnpj_padrao(dados.get('cliente_cpf_cnpj', ''))
     
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -410,7 +411,7 @@ def gerar_proposta_html(dados):
             
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
-                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
+                1. A produção seguirá estritamente o layout approved pelo cliente.<br>
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             
@@ -631,7 +632,7 @@ with aba2:
                 
                 with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
                     st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
-                    st.write(f"**CPF/CNPJ:** {formatar_cpf_cnpj(prop.get('cliente_cpf_cnpj', ''))} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
+                    st.write(f"**CPF/CNPJ:** {formatar_cpf_cnpj_padrao(prop.get('cliente_cpf_cnpj', ''))} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                     
                     check_aprovado = st.checkbox(
                         "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
