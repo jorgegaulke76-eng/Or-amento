@@ -604,26 +604,26 @@ with aba2:
         for e_hoje in entregas_hoje:
             st.markdown(f"👉 **{e_hoje.get('cliente_nome', 'Cliente')}** ({e_hoje.get('numero_proposta', 'N/A')})")
         st.divider()
-    st.write("### 📊 Agrupar por Período de Emissão:")
-        opcao_periodo = st.radio(
-            "Selecione o período:",
-            ["Todas", "📅 Hoje", "🗓️ Esta Semana", "📆 Este Mês", "📊 Este Ano"],
-            horizontal=True,
-            key="filtro_periodo"
-        )
+st.write("### 📊 Agrupar por Período de Emissão:")
+opcao_periodo = st.radio(
+"Selecione o período:",
+["Todas", "📅 Hoje", "🗓️ Esta Semana", "📆 Este Mês", "📊 Este Ano"],
+horizontal=True,
+key="filtro_periodo"
+)
 
-        propostas_periodo = []
-        for p in historico:
-            data_emissao_str = p.get("data_geracao", "")
-            try:
-                dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
-            except:
-                dt_emissao = hoje
-            
-            if opcao_periodo == "📅 Hoje":
-                if dt_emissao == hoje: propostas_periodo.append(p)
-            elif opcao_periodo == "🗓️ Esta Semana":
-                inicio_semana = hoje - timedelta(days=hoje.weekday())
+propostas_periodo = []
+for p in historico:
+data_emissao_str = p.get("data_geracao", "")
+try:
+    dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
+except:
+    dt_emissao = hoje
+
+if opcao_periodo == "📅 Hoje":
+    if dt_emissao == hoje: propostas_periodo.append(p)
+elif opcao_periodo == "🗓️ Esta Semana":
+    inicio_semana = hoje - timedelta(days=hoje.weekday())
                 if dt_emissao >= inicio_semana: propostas_periodo.append(p)
             elif opcao_periodo == "📆 Este Mês":
                 if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year: propostas_periodo.append(p)
