@@ -25,6 +25,15 @@ if "itens" not in st.session_state:
 if "ultima_proposta" not in st.session_state:
     st.session_state.ultima_proposta = None
 
+# --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
+def formatar_cpf_cnpj(doc):
+    apenas_num = re.sub(r'\D', '', str(doc or ''))
+    if len(apenas_num) == 11:
+        return f"{apenas_num[:3]}.{apenas_num[3:6]}.{apenas_num[6:9]}-{apenas_num[9:]}"
+    elif len(apenas_num) == 14:
+        return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
+    return doc or "Não informado"
+
 # --- FUNÇÕES DE BANCO DE DADOS / HISTÓRICO ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
@@ -82,6 +91,8 @@ def extrair_link_whatsapp_completo(dados):
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
     
+    doc_formatado = formatar_cpf_cnpj(dados.get('cliente_cpf_cnpj', ''))
+
     texto_itens = ""
     for idx, item in enumerate(dados["itens"], 1):
         sub_item = item["quantidade"] * item["valor_unitario"]
@@ -95,7 +106,7 @@ def extrair_link_whatsapp_completo(dados):
         f"Nº: {dados['numero_proposta']}\n"
         f"Emissão: {dados.get('data_geracao', '')}\n\n"
         f"CLIENTE: {dados['cliente_nome']}\n"
-        f"CPF/CNPJ: {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
+        f"CPF/CNPJ: {doc_formatado}\n"
         f"-----------------------------------\n"
         f"ITENS DO PEDIDO:\n\n"
         f"{texto_itens}"
@@ -134,6 +145,7 @@ def gerar_proposta_html(dados):
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
+    doc_formatado = formatar_cpf_cnpj(dados.get('cliente_cpf_cnpj', ''))
     
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -361,7 +373,7 @@ def gerar_proposta_html(dados):
             
             <div class="info-grid">
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
-                <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
+                <div class="info-item"><label>CPF / CNPJ</label><span>{doc_formatado}</span></div>
                 <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
                 <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">{data_entrega}</span></div>
             </div>
@@ -517,7 +529,7 @@ with aba1:
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
                 "cliente_nome": cliente_nome or "Cliente Não Informado",
-                "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
+                "cliente_cpf_cnpj": cliente_cpf_cnpj or "",
                 "cliente_wa": cliente_wa or "",
                 "itens": list(st.session_state.itens),
                 "desconto_valor": desconto_valor,
@@ -619,7 +631,7 @@ with aba2:
                 
                 with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
                     st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
-                    st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
+                    st.write(f"**CPF/CNPJ:** {formatar_cpf_cnpj(prop.get('cliente_cpf_cnpj', ''))} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                     
                     check_aprovado = st.checkbox(
                         "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
