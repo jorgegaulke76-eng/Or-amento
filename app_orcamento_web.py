@@ -15,8 +15,9 @@ st.set_page_config(
 
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
-PATH_PIX_QRCODE = "pix.png"  # Salve a imagem do seu QR Code com o nome pix.png na raiz do GitHub
+PATH_PIX_QRCODE = "pix.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
+LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
 # --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
 if "form_key" not in st.session_state:
@@ -30,6 +31,7 @@ if "ultima_proposta" not in st.session_state:
 def formatar_doc_para_wa(doc):
     apenas_num = re.sub(r'\D', '', str(doc or ''))
     if len(apenas_num) == 11:
+        # Espaçamento para o WhatsApp não criar link de telefone sobre o CPF do cliente
         return f"{apenas_num[:3]}. {apenas_num[3:6]}. {apenas_num[6:9]} - {apenas_num[9:]}"
     elif len(apenas_num) == 14:
         return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
@@ -129,8 +131,9 @@ def extrair_link_whatsapp_completo(dados):
         f"Frete/Entrega: {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
         f"Validade: 5 dias corridos\n\n"
         f"DADOS PARA PAGAMENTO:\n"
-        f"CHAVE PIX (CNPJ):\n"
-        f"24374857000130\n\n"
+        f"🔗 *PAGAR VIA PIX (Clique no link abaixo):*\n"
+        f"{LINK_PIX_DIRETO}\n\n"
+        f"PIX (CNPJ): 24374857000130\n"
         f"Titular: Ana Lúcia Zepelini\n"
         f"Banco: Cora SCD (403)\n"
         f"Agência: 0001 | Conta: 2515972-5\n"
@@ -154,9 +157,10 @@ def gerar_proposta_html(dados):
         logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">ALPHAFEST ITATIBA</div>'
         
     if pix_qr_base64:
-        pix_qr_tag = f'<div style="text-align:center; margin-top:8px;"><img src="data:image/png;base64,{pix_qr_base64}" style="max-width:140px; border-radius:4px;" alt="QR Code Pix"><br><small style="color:#64748b; font-size:9px;">Escanear no App do Banco</small></div>'
+        pix_qr_tag = f'<div style="text-align:center; margin-left:15px;"><img src="data:image/png;base64,{pix_qr_base64}" style="max-width:130px; border-radius:4px;" alt="QR Code Pix"><br><small style="color:#64748b; font-size:9px;">Escanear no App do Banco</small></div>'
     else:
-        pix_qr_tag = ''
+        url_qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=130x130&data={urllib.parse.quote(LINK_PIX_DIRETO)}"
+        pix_qr_tag = f'<div style="text-align:center; margin-left:15px;"><a href="{LINK_PIX_DIRETO}" target="_blank"><img src="{url_qr_api}" style="max-width:130px; border-radius:4px;" alt="QR Code Pix"></a><br><small style="color:#64748b; font-size:9px;">Escanear ou Clicar para Pagar</small></div>'
 
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
@@ -417,6 +421,7 @@ def gerar_proposta_html(dados):
                 <div class="bank-box">
                     <div>
                         <strong>Segue abaixo nossa conta e PIX:</strong><br>
+                        <strong>Link Direto Pix:</strong> <a href="{LINK_PIX_DIRETO}" target="_blank">{LINK_PIX_DIRETO}</a><br>
                         <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
                         <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
                         <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI
