@@ -42,6 +42,14 @@ def salvar_no_historico(dados_proposta):
     historico.insert(0, dados_proposta)
     salvar_historico_completo(historico)
 
+def alternar_status_aprovado(num_proposta, status_atual):
+    historico = carregar_historico()
+    for p in historico:
+        if p.get("numero_proposta") == num_proposta:
+            p["aprovado"] = not status_atual
+            break
+    salvar_historico_completo(historico)
+
 def excluir_proposta_por_id(num_proposta):
     historico = carregar_historico()
     historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
@@ -93,7 +101,6 @@ def gerar_proposta_html(dados):
     sinal = total_final * (dados["sinal_pct"] / 100)
     restante = total_final - sinal
     
-    # Extrai números do WhatsApp informado
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
     msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} da Alphafest e gostaria de aprovar o pedido."
@@ -188,7 +195,7 @@ def gerar_proposta_html(dados):
 # --- INTERFACE PRINCIPAL ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico & Gerenciamento"])
+aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
 with aba1:
     if st.session_state.ultima_proposta:
@@ -206,25 +213,13 @@ with aba1:
     fk = st.session_state.form_key
 
     st.subheader("1. Dados do Cliente")
-    cliente_nome = st.text_input(
-        "Nome / Razão Social",
-        placeholder="Ex: Ana Silva / Empresa X",
-        key=f"cliente_{fk}"
-    )
+    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
     
     col_doc, col_wa = st.columns(2)
     with col_doc:
-        cliente_cpf_cnpj = st.text_input(
-            "CPF / CNPJ",
-            placeholder="Ex: 000.000.000-00",
-            key=f"cpf_cnpj_{fk}"
-        )
+        cliente_cpf_cnpj = st.text_input("CPF / CNPJ", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
     with col_wa:
-        cliente_wa = st.text_input(
-            "WhatsApp / Telefone (com DDD)",
-            placeholder="Ex: (11) 99999-9999",
-            key=f"wa_{fk}"
-        )
+        cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
 
     st.divider()
 
@@ -304,7 +299,8 @@ with aba1:
                 "desconto": desconto,
                 "sinal_pct": sinal,
                 "prazo_dias": prazo,
-                "frete_tipo": frete
+                "frete_tipo": frete,
+                "aprovado": False
             }
             
             salvar_no_historico(dados)
@@ -330,7 +326,6 @@ with aba2:
         hoje = date.today()
         hoje_str = hoje.strftime("%d/%m/%Y")
         
-        # --- PAINEL DE ALERTAS DE ENTREGA DO DIA ---
         entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str]
         if entregas_hoje:
             st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
@@ -338,7 +333,6 @@ with aba2:
                 st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
             st.divider()
 
-        # --- FILTRO POR AGRUPAMENTO TEMPORAL ---
         st.write("### 📊 Agrupar por Período de Emissão:")
         opcao_periodo = st.radio(
             "Selecione o período:",
@@ -356,22 +350,17 @@ with aba2:
                 dt_emissao = hoje
             
             if opcao_periodo == "📅 Hoje":
-                if dt_emissao == hoje:
-                    propostas_periodo.append(p)
+                if dt_emissao == hoje: propostas_periodo.append(p)
             elif opcao_periodo == "🗓️ Esta Semana":
                 inicio_semana = hoje - timedelta(days=hoje.weekday())
-                if dt_emissao >= inicio_semana:
-                    propostas_periodo.append(p)
+                if dt_emissao >= inicio_semana: propostas_periodo.append(p)
             elif opcao_periodo == "📆 Este Mês":
-                if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year:
-                    propostas_periodo.append(p)
+                if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year: propostas_periodo.append(p)
             elif opcao_periodo == "📊 Este Ano":
-                if dt_emissao.year == hoje.year:
-                    propostas_periodo.append(p)
+                if dt_emissao.year == hoje.year: propostas_periodo.append(p)
             else:
                 propostas_periodo.append(p)
 
-        # --- BUSCA POR PALAVRA-CHAVE ---
         termo_busca = st.text_input(
             "🔍 Filtrar por Palavra-Chave",
             placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)",
@@ -388,20 +377,6 @@ with aba2:
         else:
             propostas_filtradas = propostas_periodo
 
-        # --- RESUMO FINANCEIRO DO PERÍODO SELECIONADO ---
-        valor_acumulado_periodo = 0.0
-        for prop in propostas_filtradas:
-            sub = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
-            valor_acumulado_periodo += sub * (1 - prop["desconto"]/100)
-
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.metric("Total de Propostas", f"{len(propostas_filtradas)} un.")
-        with col_m2:
-            st.metric("Valor Total Orçado", f"R$ {valor_acumulado_periodo:.2f}")
-
-        st.divider()
-
         if not propostas_filtradas:
             st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
         else:
@@ -411,12 +386,23 @@ with aba2:
                 
                 dt_ent = prop.get('data_entrega', 'Não informada')
                 tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
+                is_aprovado = prop.get("aprovado", False)
+                status_tag = " ✅ [APROVADA]" if is_aprovado else " ⏳ [PENDENTE]"
                 
-                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | Total: R$ {tot_final:.2f}{tag_hoje}"):
+                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
                     st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
                     st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
-                    st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
                     
+                    # CAMPO DE ASSINALAR APROVAÇÃO DA PROPOSTA
+                    check_aprovado = st.checkbox(
+                        "✅ Marcar como PROPOSTA ACEITA / EFETIVADA",
+                        value=is_aprovado,
+                        key=f"chk_aprov_{prop['numero_proposta']}"
+                    )
+                    if check_aprovado != is_aprovado:
+                        alternar_status_aprovado(prop['numero_proposta'], is_aprovado)
+                        st.rerun()
+
                     st.write("**Itens do Orçamento:**")
                     for it in prop["itens"]:
                         st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
@@ -432,16 +418,104 @@ with aba2:
                             key=f"dl_{prop['numero_proposta']}"
                         )
                     with col_del:
-                        if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}", help="Cancelar/Apagar este orçamento"):
+                        if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"):
                             excluir_proposta_por_id(prop['numero_proposta'])
                             st.success(f"Proposta {prop['numero_proposta']} removida!")
                             st.rerun()
 
-        # --- ZONA DE SEGURANÇA: ZERAR TODO O HISTÓRICO DE TESTES ---
         st.divider()
-        with st.expander("⚙️ Zona de Segurança / Limpeza Geral de Testes"):
-            st.warning("Esta opção apagará TODAS as propostas registradas no sistema de uma só vez.")
-            if st.button("🔥 ZERAR TODO O HISTÓRICO DE TESTES", type="secondary"):
+        with st.expander("⚙️ Zona de Segurança / Limpeza Geral"):
+            if st.button("🔥 ZERAR TODO O HISTÓRICO DE TESTES"):
                 zerar_todo_historico()
                 st.success("Histórico completamente zerado!")
                 st.rerun()
+
+with aba3:
+    st.subheader("📊 Relatórios Financeiros & Comercial")
+    historico = carregar_historico()
+    
+    if not historico:
+        st.info("Nenhuma proposta registrada para gerar relatórios.")
+    else:
+        # --- CÁLCULO DE MÉTRICAS GERAIS ---
+        tot_orçado = 0.0
+        tot_efetivado = 0.0
+        qtd_total = len(historico)
+        qtd_aprovadas = 0
+        
+        produtos_dict = {}
+
+        for p in historico:
+            sub = sum(i["quantidade"] * i["valor_unitario"] for i in p["itens"])
+            v_final = sub * (1 - p["desconto"]/100)
+            tot_orçado += v_final
+            
+            if p.get("aprovado", False):
+                tot_efetivado += v_final
+                qtd_aprovadas += 1
+                
+            for item in p["itens"]:
+                p_nome = item["produto"].strip().capitalize()
+                produtos_dict[p_nome] = produtos_dict.get(p_nome, 0) + item["quantidade"]
+
+        taxa_conversao = (qtd_aprovadas / qtd_total * 100) if qtd_total > 0 else 0.0
+
+        col_r1, col_r2, col_r3 = st.columns(3)
+        with col_r1:
+            st.metric("Total Orçado", f"R$ {tot_orçado:.2f}")
+        with col_r2:
+            st.metric("Total Efetivado (Aceito)", f"R$ {tot_efetivado:.2f}")
+        with col_r3:
+            st.metric("Taxa de Conversão", f"{taxa_conversao:.1f}%")
+
+        st.divider()
+
+        # --- GRÁFICO DE VALORES POR DIA, MÊS E ANO ---
+        st.write("### 📈 Desempenho Financeiro por Período")
+        visao_grafico = st.radio("Agrupar gráficos por:", ["Dia", "Mês", "Ano"], horizontal=True)
+
+        agrupado_orcado = {}
+        agrupado_efetivado = {}
+
+        for p in historico:
+            dt_str = p.get("data_geracao", "")
+            try:
+                dt_obj = datetime.strptime(dt_str, "%d/%m/%Y")
+            except:
+                dt_obj = datetime.now()
+
+            if visao_grafico == "Dia":
+                chave = dt_obj.strftime("%d/%m/%Y")
+            elif visao_grafico == "Mês":
+                chave = dt_obj.strftime("%m/%Y")
+            else:
+                chave = dt_obj.strftime("%Y")
+
+            sub = sum(i["quantidade"] * i["valor_unitario"] for i in p["itens"])
+            val = sub * (1 - p["desconto"]/100)
+
+            agrupado_orcado[chave] = agrupado_orcado.get(chave, 0.0) + val
+            if p.get("aprovado", False):
+                agrupado_efetivado[chave] = agrupado_efetivado.get(chave, 0.0) + val
+
+        # Monta dados para gráfico
+        chaves_ordenadas = sorted(agrupado_orcado.keys())
+        dados_grafico = {
+            "Período": chaves_ordenadas,
+            "Total Orçado (R$)": [agrupado_orcado[k] for k in chaves_ordenadas],
+            "Efetivado / Aceito (R$)": [agrupado_efetivado.get(k, 0.0) for k in chaves_ordenadas]
+        }
+        
+        st.bar_chart(dados_grafico, x="Período", y=["Total Orçado (R$)", "Efetivado / Aceito (R$)"])
+
+        st.divider()
+
+        # --- RANKING DE PRODUTOS MAIS ORÇADOS ---
+        st.write("### 🏆 Produtos Mais Orçados (Quantidade em Peças)")
+        if produtos_dict:
+            prod_ordenados = dict(sorted(produtos_dict.items(), key=lambda item: item[1], reverse=True))
+            dados_prod = {
+                "Produto": list(prod_ordenados.keys())[:10],
+                "Qtd Peças": list(prod_ordenados.values())[:10]
+            }
+            st.bar_chart(dados_prod, x="Produto", y="Qtd Peças")
