@@ -15,6 +15,7 @@ st.set_page_config(
 
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
+PATH_PIX_QRCODE = "pix.png"  # Salve a imagem do seu QR Code com o nome pix.png na raiz do GitHub
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
 # --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
@@ -29,7 +30,6 @@ if "ultima_proposta" not in st.session_state:
 def formatar_doc_para_wa(doc):
     apenas_num = re.sub(r'\D', '', str(doc or ''))
     if len(apenas_num) == 11:
-        # Espaçamento para evitar que o WhatsApp detecte como telefone de 11 dígitos
         return f"{apenas_num[:3]}. {apenas_num[3:6]}. {apenas_num[6:9]} - {apenas_num[9:]}"
     elif len(apenas_num) == 14:
         return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
@@ -77,10 +77,10 @@ def excluir_proposta_por_id(num_proposta):
 def zerar_todo_historico():
     salvar_historico_completo([])
 
-def carregar_logo_base64():
-    if os.path.exists(PATH_LOGO_OFICIAL):
+def carregar_imagem_base64(path_imagem):
+    if os.path.exists(path_imagem):
         try:
-            with open(PATH_LOGO_OFICIAL, "rb") as image_file:
+            with open(path_imagem, "rb") as image_file:
                 return base64.b64encode(image_file.read()).decode('utf-8')
         except: pass
     return ""
@@ -145,13 +145,19 @@ def extrair_link_whatsapp_completo(dados):
         return f"https://api.whatsapp.com/send?text={msg_enc}"
 
 def gerar_proposta_html(dados):
-    logo_base64 = carregar_logo_base64()
+    logo_base64 = carregar_imagem_base64(PATH_LOGO_OFICIAL)
+    pix_qr_base64 = carregar_imagem_base64(PATH_PIX_QRCODE)
     
     if logo_base64:
         logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
     else:
         logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">ALPHAFEST ITATIBA</div>'
         
+    if pix_qr_base64:
+        pix_qr_tag = f'<div style="text-align:center; margin-top:8px;"><img src="data:image/png;base64,{pix_qr_base64}" style="max-width:140px; border-radius:4px;" alt="QR Code Pix"><br><small style="color:#64748b; font-size:9px;">Escanear no App do Banco</small></div>'
+    else:
+        pix_qr_tag = ''
+
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
     doc_formatado = formatar_cpf_cnpj_padrao(dados.get('cliente_cpf_cnpj', ''))
@@ -320,6 +326,9 @@ def gerar_proposta_html(dados):
                 border-radius: 5px;
                 margin: 6px 0;
                 font-size: 10.5px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             }}
             .terms-box {{
                 border: 1px solid #cbd5e1;
@@ -406,10 +415,13 @@ def gerar_proposta_html(dados):
                 *Tivemos algumas mudanças devido ao novo regime de tributação. Envie seu CPF ou CNPJ para emissão de cupom fiscal/NF.<br>
                 
                 <div class="bank-box">
-                    <strong>Segue abaixo nossa conta e PIX:</strong><br>
-                    <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
-                    <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
-                    <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI
+                    <div>
+                        <strong>Segue abaixo nossa conta e PIX:</strong><br>
+                        <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
+                        <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
+                        <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI
+                    </div>
+                    {pix_qr_tag}
                 </div>
                 
                 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!</strong><br>
