@@ -3,7 +3,7 @@ import base64
 import os
 import re
 import json
-from datetime import datetime
+from datetime import datetime, date
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -56,6 +56,7 @@ def gerar_proposta_html(dados):
         logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
+    data_entrega = dados.get("data_entrega", "A combinar")
     
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -122,7 +123,7 @@ def gerar_proposta_html(dados):
                 <div class="company-info">
                     <strong>{MARCA_FABRICANTE}</strong><br>
                     Produção Digital e Personalização<br>
-                    Itatiba / SP &bull; Data: {data_hoje}
+                    Itatiba / SP &bull; Emissão: {data_hoje}
                 </div>
             </div>
             
@@ -135,7 +136,7 @@ def gerar_proposta_html(dados):
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
                 <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
                 <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
-                <div class="info-item"><label>Prazo de Produção</label><span>{dados['prazo_dias']} dias úteis (pós-aprovação)</span></div>
+                <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">📅 {data_entrega}</span></div>
             </div>
             
             <table>
@@ -156,6 +157,7 @@ def gerar_proposta_html(dados):
             <div class="conditions">
                 <strong>📌 Condições de Produção:</strong><br>
                 • Produção iniciada mediante sinal de R$ {sinal:.2f} e aprovação da arte.<br>
+                • Prazo de Produção: {dados['prazo_dias']} dias úteis (Previsão de Entrega: {data_entrega}).<br>
                 • Frete/Entrega: {dados['frete_tipo']}.
             </div>
             
@@ -175,7 +177,7 @@ def gerar_proposta_html(dados):
 # --- INTERFACE PRINCIPAL ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico de Propostas"])
+aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico & Entregas"])
 
 with aba1:
     if st.session_state.ultima_proposta:
@@ -259,18 +261,20 @@ with aba1:
 
     st.divider()
 
-    st.subheader("3. Condições Comerciais")
+    st.subheader("3. Condições Comerciais & Prazos")
     col_d, col_s = st.columns(2)
     with col_d:
         desconto = st.number_input("Desconto (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0, format="%.1f", key=f"desc_{fk}")
     with col_s:
         sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, max_value=100.0, value=50.0, step=5.0, format="%.1f", key=f"sinal_{fk}")
 
-    col_pr, col_fr = st.columns(2)
+    col_pr, col_dt = st.columns(2)
     with col_pr:
         prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
-    with col_fr:
-        frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
+    with col_dt:
+        dt_entrega_input = st.date_input("📅 Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fk}")
+
+    frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
 
     st.divider()
 
@@ -281,6 +285,7 @@ with aba1:
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
+                "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
                 "cliente_nome": cliente_nome or "Cliente Não Informado",
                 "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
                 "cliente_wa": cliente_wa or "Não informado",
@@ -305,27 +310,35 @@ with aba1:
             st.rerun()
 
 with aba2:
-    st.subheader("📋 Central de Propostas Geradas")
+    st.subheader("📋 Central de Propostas & Controle de Entregas")
     historico = carregar_historico()
     
     if not historico:
         st.info("Nenhuma proposta gerada até o momento.")
     else:
-        # --- CAMPO DE BUSCA POR PALAVRA-CHAVE ---
+        hoje_str = date.today().strftime("%d/%m/%Y")
+        
+        # --- PAINEL DE ALERTAS DE ENTREGA ---
+        entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str]
+        
+        if entregas_hoje:
+            st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) para entregar hoje!")
+            for e_hoje in entregas_hoje:
+                st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — Contacto: {e_hoje.get('cliente_wa', 'N/A')}")
+            st.divider()
+
+        # --- CAMPO DE BUSCA ---
         termo_busca = st.text_input(
             "🔍 Buscar Proposta",
-            placeholder="Digite nome, produto, telefone/WhatsApp, CPF/CNPJ ou data (ex: Copo, 11999, 22/07/2026)",
+            placeholder="Digite nome, produto, telefone/WhatsApp, CPF/CNPJ ou data de entrega (ex: 22/07/2026)",
             key="busca_historico"
         ).strip().lower()
 
-        # Filtragem das propostas
         if termo_busca:
             propostas_filtradas = []
             for prop in historico:
-                # Junta todas as informações da proposta em um texto único para pesquisa rápida
                 produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
-                texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {produtos_concat}".lower()
-                
+                texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {prop.get('data_entrega', '')} {produtos_concat}".lower()
                 if termo_busca in texto_pesquisa:
                     propostas_filtradas.append(prop)
         else:
@@ -340,8 +353,11 @@ with aba2:
                 sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
                 tot_final = sub_total * (1 - prop["desconto"]/100)
                 
-                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} (R$ {tot_final:.2f})"):
-                    st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')}")
+                dt_ent = prop.get('data_entrega', 'Não informada')
+                tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
+                
+                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | Entrega: {dt_ent}{tag_hoje}"):
+                    st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
                     st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                     st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
                     
