@@ -604,7 +604,7 @@ with aba2:
         for e_hoje in entregas_hoje:
             st.markdown(f"👉 **{e_hoje.get('cliente_nome', 'Cliente')}** ({e_hoje.get('numero_proposta', 'N/A')})")
         st.divider()
-        st.write("### 📊 Agrupar por Período de Emissão:")
+    st.write("### 📊 Agrupar por Período de Emissão:")
         opcao_periodo = st.radio(
             "Selecione o período:",
             ["Todas", "📅 Hoje", "🗓️ Esta Semana", "📆 Este Mês", "📊 Este Ano"],
