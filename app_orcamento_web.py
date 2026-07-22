@@ -613,7 +613,7 @@ key="filtro_periodo"
 )
 
 propostas_periodo = []
-    for p in historico:
+for p in historico:
         data_emissao_str = p.get("data_geracao", "")
         try:
             dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
