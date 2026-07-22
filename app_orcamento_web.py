@@ -501,9 +501,9 @@ with aba1:
     with st.form(f"form_item_{fk}", clear_on_submit=True):
         col_p, col_e = st.columns([2, 2])
         with col_p:
-            prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D")
+            prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D", key="input_produto_unico")
         with col_e:
-            espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA")
+            espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA", key="input_espec_unico")
             
         col_q, col_v = st.columns(2)
         with col_q:
