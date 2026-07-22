@@ -108,7 +108,7 @@ def extrair_link_whatsapp_completo(dados):
         f"Prazo de Produção: {dados.get('prazo_dias', '10')} dias úteis\n"
         f"Frete/Entrega: {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
         f"Validade: 5 dias corridos\n\n"
-        f"DADOS PARA PAGAMENTO (PIX 100%):\n"
+        f"DADOS PARA PAGAMENTO:\n"
         f"PIX (CNPJ): 24374857000130\n"
         f"Titular: Ana Lúcia Zepelini\n"
         f"Banco: Cora SCD (403)\n"
