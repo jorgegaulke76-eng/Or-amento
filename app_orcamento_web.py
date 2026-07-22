@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import base64
 import os
 import re
@@ -599,10 +599,10 @@ with aba2:
     # Alerta de entrega - Filtra propostas onde data é hoje E NÃO foi entregue
     entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and p.get("entregue") != True]
 
-            if entregas_hoje:
+        if entregas_hoje:
         st.error(f"🚨 **ALERTA: {len(entregas_hoje)} entrega(s) para hoje pendente(s)!**")
         for e_hoje in entregas_hoje:
-            st.markdown(f"👉 **{e_hoje.get('cliente_nome', 'Cliente')}** ({e_hoje.get('numero_proposta', 'N/A')})")
+        st.markdown(f"👉 **{e_hoje.get('cliente_nome', 'Cliente')}** ({e_hoje.get('numero_proposta', 'N/A')})")
         st.divider()
         st.write("### 📊 Agrupar por Período de Emissão:")
         opcao_periodo = st.radio(
