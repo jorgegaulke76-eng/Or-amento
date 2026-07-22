@@ -70,6 +70,14 @@ def alternar_status_aprovado(num_proposta, status_atual):
             p["aprovado"] = not status_atual
             break
     salvar_historico_completo(historico)
+    
+def alternar_status_entregue(num_proposta, status_atual):
+    historico = carregar_historico()
+    for p in historico:
+        if p.get("numero_proposta") == num_proposta:
+            p["entregue"] = not status_atual
+            break
+    salvar_historico_completo(historico)
 
 def excluir_proposta_por_id(num_proposta):
     historico = carregar_historico()
@@ -564,6 +572,7 @@ with aba1:
                 "prazo_dias": prazo,
                 "frete_tipo": frete,
                 "aprovado": False
+                "entregue": False
             }
             
             salvar_no_historico(dados)
@@ -655,9 +664,23 @@ with aba2:
                 is_aprovado = prop.get("aprovado", False)
                 status_tag = " ✅ [PAGO / APROVADO]" if is_aprovado else " ⏳ [PENDENTE]"
                 
-                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
-                    st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
-                    st.write(f"**CPF/CNPJ:** {formatar_cpf_cnpj_padrao(prop.get('cliente_cpf_cnpj', ''))} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
+                # Definir o status visual
+                tag_entregue = " ✅ [ENTREGUE]" if prop.get("entregue", False) else " ⏳ [PENDENTE]"
+                
+                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}{tag_entregue}"):
+                    # ... (manter o código original de CPF, WhatsApp aqui) ...
+                    
+                    # ADICIONE ESTE NOVO BOTÃO
+                    check_entregue = st.checkbox(
+                        "📦 Marcar como ENTREGUE",
+                        value=prop.get("entregue", False),
+                        key=f"chk_ent_{prop['numero_proposta']}"
+                    )
+                    if check_entregue != prop.get("entregue", False):
+                        alternar_status_entregue(prop['numero_proposta'], prop.get("entregue", False))
+                        st.rerun()
+                    
+                    # ... (manter os botões de download, whats e excluir originais abaixo) ...
                     
                     check_aprovado = st.checkbox(
                         "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
