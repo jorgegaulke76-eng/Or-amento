@@ -571,7 +571,7 @@ with aba1:
                 "sinal_pct": 100.0,
                 "prazo_dias": prazo,
                 "frete_tipo": frete,
-                "aprovado": False
+                "aprovado": False,
                 "entregue": False
             }
             
