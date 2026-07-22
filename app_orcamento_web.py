@@ -311,26 +311,49 @@ with aba2:
     if not historico:
         st.info("Nenhuma proposta gerada até o momento.")
     else:
-        st.write(f"**Total de propostas registradas:** {len(historico)}")
-        
-        for prop in historico:
-            sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
-            tot_final = sub_total * (1 - prop["desconto"]/100)
-            
-            with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} (R$ {tot_final:.2f})"):
-                st.write(f"**Data:** {prop.get('data_geracao', 'N/A')}")
-                st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
-                st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
+        # --- CAMPO DE BUSCA POR PALAVRA-CHAVE ---
+        termo_busca = st.text_input(
+            "🔍 Buscar Proposta",
+            placeholder="Digite nome, produto, telefone/WhatsApp, CPF/CNPJ ou data (ex: Copo, 11999, 22/07/2026)",
+            key="busca_historico"
+        ).strip().lower()
+
+        # Filtragem das propostas
+        if termo_busca:
+            propostas_filtradas = []
+            for prop in historico:
+                # Junta todas as informações da proposta em um texto único para pesquisa rápida
+                produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
+                texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {produtos_concat}".lower()
                 
-                st.write("**Itens:**")
-                for it in prop["itens"]:
-                    st.write(f"• {it['produto']} ({it['quantidade']}un x R${it['valor_unitario']:.2f})")
+                if termo_busca in texto_pesquisa:
+                    propostas_filtradas.append(prop)
+        else:
+            propostas_filtradas = historico
+
+        st.write(f"**Exibindo:** {len(propostas_filtradas)} de {len(historico)} proposta(s)")
+
+        if not propostas_filtradas:
+            st.warning(f"Nenhum orçamento encontrado para o termo: **'{termo_busca}'**")
+        else:
+            for prop in propostas_filtradas:
+                sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
+                tot_final = sub_total * (1 - prop["desconto"]/100)
                 
-                html_prop = gerar_proposta_html(prop)
-                st.download_button(
-                    label="📥 Baixar esta proposta novamente",
-                    data=html_prop,
-                    file_name=f"Proposta_{prop['numero_proposta']}.html",
-                    mime="text/html",
-                    key=f"dl_{prop['numero_proposta']}"
-                )
+                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} (R$ {tot_final:.2f})"):
+                    st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')}")
+                    st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
+                    st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
+                    
+                    st.write("**Itens do Orçamento:**")
+                    for it in prop["itens"]:
+                        st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
+                    
+                    html_prop = gerar_proposta_html(prop)
+                    st.download_button(
+                        label="📥 Baixar esta proposta novamente",
+                        data=html_prop,
+                        file_name=f"Proposta_{prop['numero_proposta']}.html",
+                        mime="text/html",
+                        key=f"dl_{prop['numero_proposta']}"
+                    )
