@@ -105,7 +105,7 @@ def gerar_proposta_html(dados):
     total_final = max(0.0, subtotal_geral - valor_desconto)
     
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
-    dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
+    dest_wa = num_wa if len(num_wa) >= 10 else "5511997249533"
     msg_wa = f"Olá! Gostei da Proposta {dados['numero_proposta']} da Alphafest e gostaria de enviar o comprovante de pagamento."
     link_wa = f"https://wa.me/{dest_wa}?text={re.sub(r' ', '%20', msg_wa)}"
 
@@ -155,9 +155,9 @@ def gerar_proposta_html(dados):
             }}
             .company-info {{
                 text-align: right;
-                font-size: 11px;
-                color: #64748b;
-                line-height: 1.3;
+                font-size: 10.5px;
+                color: #475569;
+                line-height: 1.35;
             }}
             .title-box {{
                 background: #1e293b !important;
@@ -297,8 +297,11 @@ def gerar_proposta_html(dados):
                 {logo_tag}
                 <div class="company-info">
                     <strong>{MARCA_FABRICANTE}</strong><br>
-                    Produção Digital e Personalização<br>
-                    Itatiba / SP &bull; Emissão: {data_hoje}
+                    <strong>CNPJ:</strong> 24.374.857/0001-30 &bull; <strong>IE:</strong> 382105300112<br>
+                    Av. Manoel Verginio de Almeida, 442 - Alto Santa Cruz<br>
+                    Itatiba - SP &bull; CEP: 13251-530<br>
+                    <strong>E-mail:</strong> alphafesti@gmail.com &bull; <strong>Celular:</strong> (11) 9724-9533<br>
+                    <strong>Emissão:</strong> {data_hoje}
                 </div>
             </div>
             
