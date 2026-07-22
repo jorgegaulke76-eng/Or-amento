@@ -66,13 +66,19 @@ def carregar_logo_base64():
         except: pass
     return ""
 
+def exibir_logo_interface():
+    if os.path.exists(PATH_LOGO_OFICIAL):
+        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+        with col_l2:
+            st.image(PATH_LOGO_OFICIAL, use_container_width=True)
+
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
     
     if logo_base64:
         logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
     else:
-        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
+        logo_tag = f'<div style="font-size:28px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
@@ -113,7 +119,7 @@ def gerar_proposta_html(dados):
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 20px; }}
             .container {{ max-width: 800px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; }}
             .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }}
-            .logo {{ max-height: 80px; max-width: 220px; object-fit: contain; }}
+            .logo {{ max-height: 120px; max-width: 320px; object-fit: contain; }}
             .company-info {{ text-align: right; font-size: 12px; color: #64748b; line-height: 1.4; }}
             .title-box {{ background: #1e293b; color: white; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }}
             .title-box h2 {{ margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px; }}
@@ -206,6 +212,7 @@ def gerar_proposta_html(dados):
     return html_content
 
 # --- INTERFACE PRINCIPAL ---
+exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
