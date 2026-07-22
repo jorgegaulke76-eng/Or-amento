@@ -78,7 +78,7 @@ def gerar_proposta_html(dados):
     if logo_base64:
         logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
     else:
-        logo_tag = f'<div style="font-size:28px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
+        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
@@ -95,9 +95,9 @@ def gerar_proposta_html(dados):
                 <strong>{item['produto']}</strong><br>
                 <small style="color: #64748b;">{item['especificacoes']}</small>
             </td>
-            <td>{item['quantidade']} un.</td>
-            <td>R$ {item['valor_unitario']:.2f}</td>
-            <td>R$ {subtotal_item:.2f}</td>
+            <td style="text-align:center;">{item['quantidade']} un.</td>
+            <td style="text-align:right;">R$ {item['valor_unitario']:.2f}</td>
+            <td style="text-align:right;">R$ {subtotal_item:.2f}</td>
         </tr>
         """
         
@@ -118,153 +118,148 @@ def gerar_proposta_html(dados):
         <style>
             @page {{
                 size: A4 portrait;
-                margin: 12mm;
+                margin: 8mm;
+            }}
+            * {{
+                box-sizing: border-box;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }}
             body {{
                 font-family: 'Segoe UI', Arial, sans-serif;
                 background-color: #f8fafc;
                 color: #1e293b;
                 margin: 0;
-                padding: 20px;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                padding: 10px;
             }}
             .container {{
-                max-width: 800px;
+                max-width: 780px;
                 margin: 0 auto;
                 background: #ffffff;
-                padding: 30px;
-                border-radius: 12px;
+                padding: 20px;
+                border-radius: 8px;
                 border: 1px solid #e2e8f0;
-                box-sizing: border-box;
             }}
             .header {{
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                border-bottom: 3px solid #1e293b;
-                padding-bottom: 15px;
-                margin-bottom: 20px;
+                border-bottom: 2px solid #1e293b;
+                padding-bottom: 10px;
+                margin-bottom: 12px;
             }}
             .logo {{
-                max-height: 110px;
-                max-width: 300px;
+                max-height: 85px;
+                max-width: 280px;
                 object-fit: contain;
             }}
             .company-info {{
                 text-align: right;
-                font-size: 12px;
+                font-size: 11px;
                 color: #64748b;
-                line-height: 1.4;
+                line-height: 1.3;
             }}
             .title-box {{
-                background: #1e293b;
-                color: white;
-                padding: 12px 18px;
-                border-radius: 8px;
-                margin-bottom: 20px;
+                background: #1e293b !important;
+                color: white !important;
+                padding: 8px 14px;
+                border-radius: 6px;
+                margin-bottom: 12px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
             }}
             .title-box h2 {{
                 margin: 0;
-                font-size: 18px;
+                font-size: 15px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
             }}
             .info-grid {{
                 display: grid;
                 grid-template-columns: 1fr 1fr;
-                gap: 15px;
-                margin-bottom: 20px;
+                gap: 8px 15px;
+                margin-bottom: 12px;
                 background: #f1f5f9;
-                padding: 15px;
-                border-radius: 8px;
+                padding: 10px 14px;
+                border-radius: 6px;
             }}
             .info-item label {{
-                font-size: 10px;
+                font-size: 9px;
                 text-transform: uppercase;
                 color: #64748b;
                 font-weight: bold;
                 display: block;
             }}
             .info-item span {{
-                font-size: 14px;
+                font-size: 12px;
                 font-weight: 600;
                 color: #0f172a;
             }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                margin-bottom: 20px;
-                page-break-inside: auto;
-            }}
-            tr {{
-                page-break-inside: avoid;
-                page-break-after: auto;
+                margin-bottom: 12px;
             }}
             th {{
-                background: #334155;
-                color: white;
-                padding: 10px;
+                background: #334155 !important;
+                color: white !important;
+                padding: 6px 10px;
                 text-align: left;
-                font-size: 12px;
+                font-size: 11px;
             }}
             td {{
-                padding: 10px;
+                padding: 6px 10px;
                 border-bottom: 1px solid #e2e8f0;
-                font-size: 13px;
+                font-size: 11px;
             }}
             .summary-box {{
                 margin-left: auto;
-                width: 300px;
-                margin-bottom: 20px;
+                width: 260px;
+                margin-bottom: 12px;
             }}
             .summary-row {{
                 display: flex;
                 justify-content: space-between;
-                padding: 6px 0;
-                font-size: 13px;
+                padding: 3px 0;
+                font-size: 11px;
                 color: #475569;
             }}
             .summary-row.total {{
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
-                color: #22c55e;
+                color: #16a34a;
                 border-top: 2px solid #e2e8f0;
-                padding-top: 8px;
+                padding-top: 5px;
             }}
             .conditions {{
                 background: #f8fafc;
                 border: 1px solid #cbd5e1;
                 border-left: 4px solid #0284c7;
-                padding: 15px;
+                padding: 10px 12px;
                 border-radius: 6px;
-                margin-bottom: 20px;
-                font-size: 12px;
+                margin-bottom: 12px;
+                font-size: 10.5px;
                 color: #334155;
-                line-height: 1.5;
-                page-break-inside: avoid;
+                line-height: 1.4;
             }}
             .bank-box {{
                 background: #f1f5f9;
                 border: 1px dashed #94a3b8;
-                padding: 12px;
-                border-radius: 6px;
-                margin: 10px 0;
-                font-size: 12px;
+                padding: 8px 10px;
+                border-radius: 5px;
+                margin: 6px 0;
+                font-size: 10.5px;
             }}
             .terms-box {{
                 border: 1px solid #cbd5e1;
-                padding: 12px;
-                border-radius: 8px;
-                font-size: 11px;
+                padding: 8px 10px;
+                border-radius: 6px;
+                font-size: 9.5px;
                 color: #64748b;
-                line-height: 1.4;
-                margin-bottom: 20px;
+                line-height: 1.3;
+                margin-bottom: 12px;
                 background: #fafafa;
-                page-break-inside: avoid;
             }}
             .btn-wa {{
                 display: block;
@@ -272,16 +267,17 @@ def gerar_proposta_html(dados):
                 background: #22c55e;
                 color: white;
                 text-align: center;
-                padding: 14px;
-                border-radius: 8px;
+                padding: 10px;
+                border-radius: 6px;
                 font-weight: bold;
                 text-decoration: none;
-                font-size: 15px;
+                font-size: 13px;
             }}
             @media print {{
-                body {{
-                    background-color: #ffffff;
+                html, body {{
+                    background: #ffffff;
                     padding: 0;
+                    margin: 0;
                 }}
                 .container {{
                     border: none;
@@ -320,7 +316,7 @@ def gerar_proposta_html(dados):
             
             <table>
                 <thead>
-                    <tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>VALOR UNIT.</th><th>SUBTOTAL</th></tr>
+                    <tr><th>ITEM / DESCRIÇÃO</th><th style="text-align:center;">QTD</th><th style="text-align:right;">VALOR UNIT.</th><th style="text-align:right;">SUBTOTAL</th></tr>
                 </thead>
                 <tbody>{linhas_tabela}</tbody>
             </table>
@@ -333,26 +329,19 @@ def gerar_proposta_html(dados):
             
             <div class="conditions">
                 <strong>📌 Condições de Produção & Pagamento:</strong><br>
-                🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br><br>
-                *Tivemos algumas mudanças devido ao novo regime de tributação.<br>
-                Envie também seu CPF ou CNPJ, para envio do cupom fiscal/NF caso queira.<br>
+                🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br>
+                *Tivemos algumas mudanças devido ao novo regime de tributação. Envie seu CPF ou CNPJ para emissão de cupom fiscal/NF.<br>
                 
                 <div class="bank-box">
                     <strong>Segue abaixo nossa conta e PIX 👇</strong><br>
-                    💳💳 <strong>PIX:</strong> 24374857000130 (CNPJ)<br>
-                    <strong>Titular:</strong> Ana Lúcia Zepelini<br><br>
-                    <strong>Conta Jurídica:</strong><br>
-                    Agência: 0001 | Conta: 2515972-5<br>
-                    Instituição: 403 - Cora SCD<br>
-                    Nome da Empresa: ANA LUCIA VIEIRA ZEPELINI 29480359880<br>
-                    CNPJ: 24.374.857/0001-30
+                    💳 <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
+                    <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
+                    <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880
                 </div>
                 
-                👇<br>
-                <strong>Somente após realizado pagamento e nos enviando o comprovante que daremos seguimento ao seu pedido !!🥰</strong><br><br>
-                • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Previsão de Entrega: {data_entrega}).<br>
-                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']}.<br>
-                • <strong>Validade do Orçamento:</strong> 5 dias corridos.
+                👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!🥰</strong><br>
+                • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
+                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
             </div>
             
             <div class="terms-box">
