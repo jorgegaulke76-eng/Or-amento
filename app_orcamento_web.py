@@ -40,6 +40,7 @@ def salvar_no_historico(dados_proposta):
         json.dump(historico, f, ensure_ascii=False, indent=4)
 
 def carregar_logo_base64():
+    # Verifica se a logo existe no repositório ou no carregamento local
     if os.path.exists(PATH_LOGO_OFICIAL):
         try:
             with open(PATH_LOGO_OFICIAL, "rb") as image_file:
@@ -49,7 +50,14 @@ def carregar_logo_base64():
 
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
-    logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ""
+    
+    # Cabeçalho da logo com visual profissional
+    if logo_base64:
+        logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
+    else:
+        # Fallback elegante caso a imagem logo.png ainda não esteja na pasta
+        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
+        
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     
     linhas_tabela = ""
@@ -76,8 +84,11 @@ def gerar_proposta_html(dados):
     sinal = total_final * (dados["sinal_pct"] / 100)
     restante = total_final - sinal
     
-    msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} e gostaria de aprovar o pedido."
-    link_wa = f"https://wa.me/5511999999999?text={re.sub(r' ', '%20', msg_wa)}"
+    # Limpa apenas números para o link do WhatsApp
+    num_wa = re.sub(r'\D', '', dados['cliente_doc'])
+    dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
+    msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} da Alphafest e gostaria de aprovar o pedido."
+    link_wa = f"https://wa.me/{dest_wa}?text={re.sub(r' ', '%20', msg_wa)}"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -89,10 +100,10 @@ def gerar_proposta_html(dados):
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 20px; }}
             .container {{ max-width: 800px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; }}
             .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }}
-            .logo {{ max-height: 70px; max-width: 200px; object-fit: contain; }}
-            .company-info {{ text-align: right; font-size: 12px; color: #64748b; }}
+            .logo {{ max-height: 80px; max-width: 220px; object-fit: contain; }}
+            .company-info {{ text-align: right; font-size: 12px; color: #64748b; line-height: 1.4; }}
             .title-box {{ background: #1e293b; color: white; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }}
-            .title-box h2 {{ margin: 0; font-size: 18px; text-transform: uppercase; }}
+            .title-box h2 {{ margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px; }}
             .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; background: #f1f5f9; padding: 15px; border-radius: 8px; }}
             .info-item label {{ font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; display: block; }}
             .info-item span {{ font-size: 14px; font-weight: 600; color: #0f172a; }}
@@ -165,15 +176,14 @@ def gerar_proposta_html(dados):
     return html_content
 
 # --- INTERFACE PRINCIPAL ---
-st.title("📄 SISTEMA DE ORÇAMENTOS ALPHAFEST")
+st.title("📄 ORÇAMENTOS ALPHAFEST")
 
 aba1, aba2 = st.tabs(["➕ Criar Novo Orçamento", "📋 Histórico de Propostas"])
 
 with aba1:
-    # Se houver proposta gerada recentemente, exibe a opção de download no topo
     if st.session_state.ultima_proposta:
         p_info = st.session_state.ultima_proposta
-        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso no histórico!")
+        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
         st.download_button(
             label=f"📥 Baixar Proposta Gerada ({p_info['numero']})",
             data=p_info["html"],
@@ -185,12 +195,20 @@ with aba1:
 
     fk = st.session_state.form_key
 
-    st.subheader("1. Cliente / Empresa")
+    st.subheader("1. Dados do Cliente")
     col1, col2 = st.columns(2)
     with col1:
-        cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Nome do Cliente / Empresa", key=f"cliente_{fk}")
+        cliente_nome = st.text_input(
+            "Nome / Razão Social",
+            placeholder="Ex: Ana Silva / Empresa X",
+            key=f"cliente_{fk}"
+        )
     with col2:
-        cliente_doc = st.text_input("CPF / CNPJ / Telefone", placeholder="Ex: 11 99999-9999", key=f"doc_{fk}")
+        cliente_doc = st.text_input(
+            "CPF / CNPJ / WhatsApp (com DDD)",
+            placeholder="Ex: (11) 99999-9999 ou 00.000.000/0001-00",
+            key=f"doc_{fk}"
+        )
 
     st.divider()
 
@@ -198,15 +216,15 @@ with aba1:
     with st.form(f"form_item_{fk}", clear_on_submit=True):
         col_p, col_e = st.columns([2, 2])
         with col_p:
-            prod = st.text_input("Produto", placeholder="Digite o produto (ex: Copo Térmico 360ml)")
+            prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D")
         with col_e:
-            espec = st.text_input("Especificações", placeholder="Digite os detalhes (ex: Gravação Laser Inox)")
+            espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA")
             
         col_q, col_v = st.columns(2)
         with col_q:
-            qtd = st.number_input("Quantidade", min_value=1, value=1)
+            qtd = st.number_input("Quantidade", min_value=1, value=1, step=1)
         with col_v:
-            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50)
+            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f")
             
         btn_add = st.form_submit_button("➕ Adicionar Item")
         
@@ -216,7 +234,7 @@ with aba1:
             else:
                 st.session_state.itens.append({
                     "produto": prod,
-                    "especificacoes": espec or "Conforme informado",
+                    "especificacoes": espec or "Conforme alinhado",
                     "quantidade": int(qtd),
                     "valor_unitario": float(v_unit)
                 })
@@ -228,11 +246,11 @@ with aba1:
         for idx, item in enumerate(st.session_state.itens, 1):
             sub = item["quantidade"] * item["valor_unitario"]
             subtotal_acumulado += sub
-            st.write(f"**{idx}. {item['produto']}** — {item['quantidade']}un x R${item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
+            st.write(f"**{idx}. {item['produto']}** — {item['quantidade']} un. x R$ {item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
             
         st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
         
-        if st.button("🗑️ Limpar Itens"):
+        if st.button("🗑️ Limpar Lista de Itens"):
             st.session_state.itens = []
             st.rerun()
 
@@ -241,9 +259,9 @@ with aba1:
     st.subheader("3. Condições Comerciais")
     col_d, col_s = st.columns(2)
     with col_d:
-        desconto = st.number_input("Desconto (%)", min_value=0.0, value=0.0, key=f"desc_{fk}")
+        desconto = st.number_input("Desconto (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0, format="%.1f", key=f"desc_{fk}")
     with col_s:
-        sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, value=50.0, key=f"sinal_{fk}")
+        sinal = st.number_input("Entrada / Sinal (%)", min_value=0.0, max_value=100.0, value=50.0, step=5.0, format="%.1f", key=f"sinal_{fk}")
 
     col_pr, col_fr = st.columns(2)
     with col_pr:
@@ -272,14 +290,12 @@ with aba1:
             salvar_no_historico(dados)
             html_gerado = gerar_proposta_html(dados)
             
-            # Salva dados do arquivo para o botão de download
             st.session_state.ultima_proposta = {
                 "numero": dados["numero_proposta"],
                 "cliente": dados["cliente_nome"],
                 "html": html_gerado
             }
             
-            # Zera a lista de itens e incrementa a chave para limpar todos os campos
             st.session_state.itens = []
             st.session_state.form_key += 1
             st.rerun()
