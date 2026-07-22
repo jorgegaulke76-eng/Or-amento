@@ -591,18 +591,19 @@ with aba1:
             st.rerun()
 
 with aba2:
+    
     st.subheader("📋 Central de Propostas Geradas")
     historico = carregar_historico()
+    hoje_str = date.today().strftime("%d/%m/%Y")
     
-    if not historico:
-        st.info("Nenhuma proposta gerada até o momento.")
-    else:
-        hoje = date.today()
-        hoje_str = hoje.strftime("%d/%m/%Y")
-        
-       # Alerta todos os pedidos de hoje que AINDA NÃO FORAM ENTREGUES (supondo que você use o status 'aprovado' como sua marca de entrega)
-    entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and p.get("aprovado", False) == False]
-        if entregas_hoje:
+    # Alerta de entrega - Filtra propostas onde data é hoje E NÃO foi entregue
+    entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str and not p.get("entregue", False)]
+    
+    if entregas_hoje:
+        st.error(f"🚨 **ALERTA: {len(entregas_hoje)} entrega(s) para hoje pendente(s)!**")
+        for e_hoje in entregas_hoje:
+            st.markdown(f"👉 **{e_hoje.get('cliente_nome', 'Cliente')}** ({e_hoje.get('numero_proposta', 'N/A')})")
+        st.divider()
             st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
             for e_hoje in entregas_hoje:
                 st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
