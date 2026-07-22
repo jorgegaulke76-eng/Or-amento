@@ -116,26 +116,183 @@ def gerar_proposta_html(dados):
         <meta charset="utf-8">
         <title>Proposta Comercial - {dados['numero_proposta']}</title>
         <style>
-            body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 20px; }}
-            .container {{ max-width: 800px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; }}
-            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }}
-            .logo {{ max-height: 120px; max-width: 320px; object-fit: contain; }}
-            .company-info {{ text-align: right; font-size: 12px; color: #64748b; line-height: 1.4; }}
-            .title-box {{ background: #1e293b; color: white; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }}
-            .title-box h2 {{ margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px; }}
-            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; background: #f1f5f9; padding: 15px; border-radius: 8px; }}
-            .info-item label {{ font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: bold; display: block; }}
-            .info-item span {{ font-size: 14px; font-weight: 600; color: #0f172a; }}
-            table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
-            th {{ background: #334155; color: white; padding: 10px; text-align: left; font-size: 12px; }}
-            td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }}
-            .summary-box {{ margin-left: auto; width: 300px; margin-bottom: 20px; }}
-            .summary-row {{ display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569; }}
-            .summary-row.total {{ font-size: 16px; font-weight: bold; color: #22c55e; border-top: 2px solid #e2e8f0; padding-top: 8px; }}
-            .conditions {{ background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0284c7; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; color: #334155; line-height: 1.5; }}
-            .bank-box {{ background: #f1f5f9; border: 1px dashed #94a3b8; padding: 12px; border-radius: 6px; margin: 10px 0; font-size: 12px; }}
-            .terms-box {{ border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; font-size: 11px; color: #64748b; line-height: 1.4; margin-bottom: 20px; background: #fafafa; }}
-            .btn-wa {{ display: block; width: 100%; background: #22c55e; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 15px; }}
+            @page {{
+                size: A4 portrait;
+                margin: 12mm;
+            }}
+            body {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                background-color: #f8fafc;
+                color: #1e293b;
+                margin: 0;
+                padding: 20px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }}
+            .container {{
+                max-width: 800px;
+                margin: 0 auto;
+                background: #ffffff;
+                padding: 30px;
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+                box-sizing: border-box;
+            }}
+            .header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 3px solid #1e293b;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }}
+            .logo {{
+                max-height: 110px;
+                max-width: 300px;
+                object-fit: contain;
+            }}
+            .company-info {{
+                text-align: right;
+                font-size: 12px;
+                color: #64748b;
+                line-height: 1.4;
+            }}
+            .title-box {{
+                background: #1e293b;
+                color: white;
+                padding: 12px 18px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+            .title-box h2 {{
+                margin: 0;
+                font-size: 18px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            .info-grid {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+                margin-bottom: 20px;
+                background: #f1f5f9;
+                padding: 15px;
+                border-radius: 8px;
+            }}
+            .info-item label {{
+                font-size: 10px;
+                text-transform: uppercase;
+                color: #64748b;
+                font-weight: bold;
+                display: block;
+            }}
+            .info-item span {{
+                font-size: 14px;
+                font-weight: 600;
+                color: #0f172a;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+                page-break-inside: auto;
+            }}
+            tr {{
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }}
+            th {{
+                background: #334155;
+                color: white;
+                padding: 10px;
+                text-align: left;
+                font-size: 12px;
+            }}
+            td {{
+                padding: 10px;
+                border-bottom: 1px solid #e2e8f0;
+                font-size: 13px;
+            }}
+            .summary-box {{
+                margin-left: auto;
+                width: 300px;
+                margin-bottom: 20px;
+            }}
+            .summary-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 6px 0;
+                font-size: 13px;
+                color: #475569;
+            }}
+            .summary-row.total {{
+                font-size: 16px;
+                font-weight: bold;
+                color: #22c55e;
+                border-top: 2px solid #e2e8f0;
+                padding-top: 8px;
+            }}
+            .conditions {{
+                background: #f8fafc;
+                border: 1px solid #cbd5e1;
+                border-left: 4px solid #0284c7;
+                padding: 15px;
+                border-radius: 6px;
+                margin-bottom: 20px;
+                font-size: 12px;
+                color: #334155;
+                line-height: 1.5;
+                page-break-inside: avoid;
+            }}
+            .bank-box {{
+                background: #f1f5f9;
+                border: 1px dashed #94a3b8;
+                padding: 12px;
+                border-radius: 6px;
+                margin: 10px 0;
+                font-size: 12px;
+            }}
+            .terms-box {{
+                border: 1px solid #cbd5e1;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 11px;
+                color: #64748b;
+                line-height: 1.4;
+                margin-bottom: 20px;
+                background: #fafafa;
+                page-break-inside: avoid;
+            }}
+            .btn-wa {{
+                display: block;
+                width: 100%;
+                background: #22c55e;
+                color: white;
+                text-align: center;
+                padding: 14px;
+                border-radius: 8px;
+                font-weight: bold;
+                text-decoration: none;
+                font-size: 15px;
+            }}
+            @media print {{
+                body {{
+                    background-color: #ffffff;
+                    padding: 0;
+                }}
+                .container {{
+                    border: none;
+                    padding: 0;
+                    width: 100%;
+                    max-width: 100%;
+                }}
+                .btn-wa {{
+                    display: none !important;
+                }}
+            }}
         </style>
     </head>
     <body>
