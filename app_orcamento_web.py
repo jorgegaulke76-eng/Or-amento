@@ -40,7 +40,6 @@ def salvar_no_historico(dados_proposta):
         json.dump(historico, f, ensure_ascii=False, indent=4)
 
 def carregar_logo_base64():
-    # Verifica se a logo existe no repositório ou no carregamento local
     if os.path.exists(PATH_LOGO_OFICIAL):
         try:
             with open(PATH_LOGO_OFICIAL, "rb") as image_file:
@@ -51,11 +50,9 @@ def carregar_logo_base64():
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
     
-    # Cabeçalho da logo com visual profissional
     if logo_base64:
         logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
     else:
-        # Fallback elegante caso a imagem logo.png ainda não esteja na pasta
         logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
         
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
@@ -84,8 +81,8 @@ def gerar_proposta_html(dados):
     sinal = total_final * (dados["sinal_pct"] / 100)
     restante = total_final - sinal
     
-    # Limpa apenas números para o link do WhatsApp
-    num_wa = re.sub(r'\D', '', dados['cliente_doc'])
+    # Extrai números do WhatsApp informado
+    num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
     msg_wa = f"Olá! Gostei da Proposta Comercial {dados['numero_proposta']} da Alphafest e gostaria de aprovar o pedido."
     link_wa = f"https://wa.me/{dest_wa}?text={re.sub(r' ', '%20', msg_wa)}"
@@ -136,9 +133,9 @@ def gerar_proposta_html(dados):
             
             <div class="info-grid">
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
-                <div class="info-item"><label>CPF / CNPJ / Contato</label><span>{dados['cliente_doc']}</span></div>
+                <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
+                <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
                 <div class="info-item"><label>Prazo de Produção</label><span>{dados['prazo_dias']} dias úteis (pós-aprovação)</span></div>
-                <div class="info-item"><label>Validade</label><span>7 dias corridos</span></div>
             </div>
             
             <table>
@@ -196,18 +193,24 @@ with aba1:
     fk = st.session_state.form_key
 
     st.subheader("1. Dados do Cliente")
-    col1, col2 = st.columns(2)
-    with col1:
-        cliente_nome = st.text_input(
-            "Nome / Razão Social",
-            placeholder="Ex: Ana Silva / Empresa X",
-            key=f"cliente_{fk}"
+    cliente_nome = st.text_input(
+        "Nome / Razão Social",
+        placeholder="Ex: Ana Silva / Empresa X",
+        key=f"cliente_{fk}"
+    )
+    
+    col_doc, col_wa = st.columns(2)
+    with col_doc:
+        cliente_cpf_cnpj = st.text_input(
+            "CPF / CNPJ",
+            placeholder="Ex: 000.000.000-00",
+            key=f"cpf_cnpj_{fk}"
         )
-    with col2:
-        cliente_doc = st.text_input(
-            "CPF / CNPJ / WhatsApp (com DDD)",
-            placeholder="Ex: (11) 99999-9999 ou 00.000.000/0001-00",
-            key=f"doc_{fk}"
+    with col_wa:
+        cliente_wa = st.text_input(
+            "WhatsApp / Telefone (com DDD)",
+            placeholder="Ex: (11) 99999-9999",
+            key=f"wa_{fk}"
         )
 
     st.divider()
@@ -279,7 +282,8 @@ with aba1:
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "cliente_nome": cliente_nome or "Cliente Não Informado",
-                "cliente_doc": cliente_doc or "Não informado",
+                "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
+                "cliente_wa": cliente_wa or "Não informado",
                 "itens": list(st.session_state.itens),
                 "desconto": desconto,
                 "sinal_pct": sinal,
@@ -315,7 +319,7 @@ with aba2:
             
             with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} (R$ {tot_final:.2f})"):
                 st.write(f"**Data:** {prop.get('data_geracao', 'N/A')}")
-                st.write(f"**Documento/Contato:** {prop['cliente_doc']}")
+                st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                 st.write(f"**Prazo:** {prop['prazo_dias']} dias úteis | **Frete:** {prop['frete_tipo']}")
                 
                 st.write("**Itens:**")
