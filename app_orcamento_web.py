@@ -109,7 +109,7 @@ def extrair_link_whatsapp_completo(dados):
         f"Frete/Entrega: {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
         f"Validade: 5 dias corridos\n\n"
         f"DADOS PARA PAGAMENTO:\n"
-        f"PIX (CNPJ): 24374857000130\n"
+        f"🔑 CHAVE PIX (CNPJ): 24374857000130\n"
         f"Titular: Ana Lúcia Zepelini\n"
         f"Banco: Cora SCD (403)\n"
         f"Agência: 0001 | Conta: 2515972-5\n"
@@ -385,7 +385,7 @@ def gerar_proposta_html(dados):
                 
                 <div class="bank-box">
                     <strong>Segue abaixo nossa conta e PIX:</strong><br>
-                    <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
+                    <strong>PIX (CNPJ):</strong> <code>24374857000130</code> &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
                     <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
                     <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI
                 </div>
