@@ -95,9 +95,8 @@ def gerar_proposta_html(dados):
         </tr>
         """
         
-    desconto_pct = dados["desconto"]
-    valor_desconto = subtotal_geral * (desconto_pct / 100)
-    total_final = subtotal_geral - valor_desconto
+    valor_desconto = dados.get("desconto_valor", 0.0)
+    total_final = max(0.0, subtotal_geral - valor_desconto)
     
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     dest_wa = num_wa if len(num_wa) >= 10 else "5511999999999"
@@ -165,7 +164,7 @@ def gerar_proposta_html(dados):
             
             <div class="summary-box">
                 <div class="summary-row"><span>Subtotal:</span><span>R$ {subtotal_geral:.2f}</span></div>
-                <div class="summary-row"><span>Desconto ({desconto_pct}%):</span><span>- R$ {valor_desconto:.2f}</span></div>
+                <div class="summary-row"><span>Desconto:</span><span>- R$ {valor_desconto:.2f}</span></div>
                 <div class="summary-row total"><span>VALOR TOTAL DO PEDIDO:</span><span>R$ {total_final:.2f}</span></div>
             </div>
             
@@ -282,7 +281,7 @@ with aba1:
     st.divider()
 
     st.subheader("3. Condições Comerciais & Prazos")
-    desconto = st.number_input("Desconto (%)", min_value=0.0, max_value=100.0, value=0.0, step=1.0, format="%.1f", key=f"desc_{fk}")
+    desconto_valor = st.number_input("Desconto em Valor (R$)", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"desc_{fk}")
 
     col_pr, col_dt = st.columns(2)
     with col_pr:
@@ -306,7 +305,8 @@ with aba1:
                 "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
                 "cliente_wa": cliente_wa or "Não informado",
                 "itens": list(st.session_state.itens),
-                "desconto": desconto,
+                "desconto_valor": desconto_valor,
+                "desconto": 0.0,
                 "sinal_pct": 100.0,
                 "prazo_dias": prazo,
                 "frete_tipo": frete,
@@ -392,7 +392,8 @@ with aba2:
         else:
             for prop in propostas_filtradas:
                 sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
-                tot_final = sub_total * (1 - prop["desconto"]/100)
+                desc_v = prop.get("desconto_valor", sub_total * (prop.get("desconto", 0.0) / 100))
+                tot_final = max(0.0, sub_total - desc_v)
                 
                 dt_ent = prop.get('data_entrega', 'Não informada')
                 tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
@@ -455,7 +456,8 @@ with aba3:
 
         for p in historico:
             sub = sum(i["quantidade"] * i["valor_unitario"] for i in p["itens"])
-            v_final = sub * (1 - p["desconto"]/100)
+            desc_v = p.get("desconto_valor", sub * (p.get("desconto", 0.0) / 100))
+            v_final = max(0.0, sub - desc_v)
             tot_orçado += v_final
             
             if p.get("aprovado", False):
@@ -499,7 +501,8 @@ with aba3:
                 chave = dt_obj.strftime("%Y")
 
             sub = sum(i["quantidade"] * i["valor_unitario"] for i in p["itens"])
-            val = sub * (1 - p["desconto"]/100)
+            desc_v = p.get("desconto_valor", sub * (p.get("desconto", 0.0) / 100))
+            val = max(0.0, sub - desc_v)
 
             agrupado_orcado[chave] = agrupado_orcado.get(chave, 0.0) + val
             if p.get("aprovado", False):
