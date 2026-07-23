@@ -16,6 +16,7 @@ st.set_page_config(
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
+LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 
 # --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
 if "form_key" not in st.session_state:
@@ -108,13 +109,13 @@ def extrair_link_whatsapp_completo(dados):
         f"⏳ *Prazo de Produção:* {dados.get('prazo_dias', '10')} dias úteis\n"
         f"🚚 *Frete/Entrega:* {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
         f"⏰ *Validade:* 5 dias corridos\n\n"
-        f"💳 *DADOS PARA PAGAMENTO (PIX 100%):*\n"
-        f"👉 *PIX (CNPJ):* `24374857000130`\n"
+        f"💳 *PAGAMENTO VIA PIX (100%):*\n"
+        f"👉 *Clique no link para pagar:* {LINK_PIX_OFICIAL}\n\n"
         f"• *Titular:* Ana Lúcia Zepelini\n"
         f"• *Banco:* Cora SCD (403)\n"
         f"• *Agência:* 0001 | *Conta:* 2515972-5\n"
         f"• *Empresa:* ANA LUCIA VIEIRA ZEPELINI 29480359880\n\n"
-        f"👇 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!🥰*"
+        f"👇 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido ! 🥰*"
     )
     
     msg_enc = urllib.parse.quote(msg)
@@ -156,6 +157,7 @@ def gerar_proposta_html(dados):
     total_final = max(0.0, subtotal_geral - valor_desconto)
     
     link_wa = extrair_link_whatsapp_completo(dados)
+    qr_code_pix_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={urllib.parse.quote(LINK_PIX_OFICIAL)}"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -291,13 +293,23 @@ def gerar_proposta_html(dados):
                 color: #334155;
                 line-height: 1.4;
             }}
-            .bank-box {{
+            .bank-container {{
+                display: flex;
+                align-items: center;
+                gap: 15px;
                 background: #f1f5f9;
                 border: 1px dashed #94a3b8;
-                padding: 8px 10px;
-                border-radius: 5px;
-                margin: 6px 0;
-                font-size: 10.5px;
+                padding: 10px;
+                border-radius: 6px;
+                margin: 8px 0;
+            }}
+            .qr-code {{
+                width: 100px;
+                height: 100px;
+                border-radius: 4px;
+                border: 1px solid #cbd5e1;
+                background: #ffffff;
+                padding: 3px;
             }}
             .terms-box {{
                 border: 1px solid #cbd5e1;
@@ -383,14 +395,18 @@ def gerar_proposta_html(dados):
                 🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br>
                 *Tivemos algumas mudanças devido ao novo regime de tributação. Envie seu CPF ou CNPJ para emissão de cupom fiscal/NF.<br>
                 
-                <div class="bank-box">
-                    <strong>Segue abaixo nossa conta e PIX 👇</strong><br>
-                    💳 <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
-                    <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
-                    <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880
+                <div class="bank-container">
+                    <img src="{qr_code_pix_url}" class="qr-code" alt="QR Code PIX">
+                    <div>
+                        <strong style="font-size: 11px; color: #0f172a;">📱 Escaneie o QR Code ou acesse nosso link PIX:</strong><br>
+                        👉 <a href="{LINK_PIX_OFICIAL}" target="_blank" style="color: #0284c7; font-weight: bold;">{LINK_PIX_OFICIAL}</a><br>
+                        💳 <strong>Titular:</strong> Ana Lúcia Zepelini &bull; <strong>Banco:</strong> Cora SCD (403)<br>
+                        <strong>Agência:</strong> 0001 | <strong>Conta:</strong> 2515972-5<br>
+                        <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880
+                    </div>
                 </div>
                 
-                👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!🥰</strong><br>
+                👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido ! 🥰</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
                 • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
             </div>
@@ -452,10 +468,8 @@ with aba1:
 
     st.subheader("2. Adicionar Itens ao Orçamento")
     
-    # Camadas de dados do item
     prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
     
-    # Detalhes opcionais organizados
     with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
         col_esp1, col_esp2 = st.columns(2)
         with col_esp1:
@@ -472,7 +486,6 @@ with aba1:
     with col_v:
         v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
 
-    # Monta a frase da especificação dinâmica
     partes_espec = []
     if esp_tema.strip(): partes_espec.append(f"Tema: {esp_tema.strip()}")
     if esp_nome.strip(): partes_espec.append(f"Nome: {esp_nome.strip()}")
@@ -482,7 +495,6 @@ with aba1:
     
     espec_final_str = " | ".join(partes_espec) if partes_espec else "Conforme alinhado"
 
-    # --- BOX DE PRÉVIA EM TEMPO REAL ---
     prod_temp = prod.strip() or "Nome do Produto"
     sub_temp = float(qtd) * float(v_unit)
     
@@ -784,7 +796,6 @@ with aba3:
 
         st.divider()
 
-        # --- NOVO GRÁFICO: TOP CLIENTES ---
         st.write("### 👑 Ranking de Clientes (Quem Mais Compra / Orça)")
         visao_cliente = st.radio("Ordenar ranking por:", ["Valor Total Orçado (R$)", "Quantidade de Pedidos"], horizontal=True)
 
