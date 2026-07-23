@@ -689,7 +689,6 @@ else:
             with col_d1:
                 html_prop = gerar_proposta_html(prop)
                 st.download_button("📥 Baixar PDF", html_prop, f"orcamento_{prop['numero_proposta']}.html", "text/html")
-                    )
                     if check_entregue != prop.get("entregue", False):
                         alternar_status_entregue(prop['numero_proposta'], prop.get("entregue", False))
                         st.rerun()
