@@ -19,13 +19,30 @@ PATH_PIX_QRCODE = "pix.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
-# --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
-if "form_key" not in st.session_state:
-    st.session_state.form_key = 0
-if "itens" not in st.session_state:
-    st.session_state.itens = []
-if "ultima_proposta" not in st.session_state:
-    st.session_state.ultima_proposta = None
+with aba1:
+    if st.session_state.get("ultima_proposta"):
+        p_info = st.session_state["ultima_proposta"]
+        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
+        
+        col_down, col_wsp = st.columns(2)
+        with col_down:
+            st.download_button(
+                label=f"📥 Baixar Proposta ({p_info['numero']})",
+                data=p_info["html"],
+                file_name=f"Proposta_{p_info['numero']}.html",
+                mime="text/html",
+                use_container_width=True
+            )
+        with col_wsp:
+            st.link_button(
+                label="📱 Enviar Proposta Completa no WhatsApp",
+                url=p_info["link_wa"],
+                type="primary",
+                use_container_width=True
+            )
+        st.divider()
+    
+    # ... resto do código da aba1 (formulário, inputs, etc)
 
 # --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
 def formatar_doc_para_wa(doc):
