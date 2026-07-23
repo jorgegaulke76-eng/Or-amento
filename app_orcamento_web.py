@@ -487,13 +487,13 @@ with aba1:
     fk = st.session_state.form_key
 
     st.subheader("1. Dados do Cliente")
-    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
+   
     
     col_doc, col_wa = st.columns(2)
     with col_doc:
-        cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
+      
     with col_wa:
-        cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
+       
 
     st.divider()
 
@@ -501,9 +501,9 @@ with aba1:
     with st.form(f"form_item_{fk}", clear_on_submit=True):
         col_p, col_e = st.columns([2, 2])
         with col_p:
-            prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D", key="input_produto_unico")
+          
         with col_e:
-            espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA", key="input_espec_unico")
+           
             
         col_q, col_v = st.columns(2)
         with col_q:
@@ -632,7 +632,7 @@ for p in historico:
         else:
             propostas_periodo.append(p)
 
-        termo_busca = st.text_input(
+       termo_busca = st.text_input("🔍 Filtrar por Palavra-Chave", key="busca_definitiva_v1")
             "🔍 Filtrar por Palavra-Chave",
             placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)",
             key="busca_definitiva_v1"
