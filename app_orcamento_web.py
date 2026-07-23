@@ -20,15 +20,6 @@ ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
    
-        st.link_button(
-                label="📱 Enviar Proposta Completa no WhatsApp",
-                url=p_info["link_wa"],
-                type="primary",
-                use_container_width=True
-            )
-        st.divider()
-    
-    # ... resto do código da aba1 (formulário, inputs, etc)
 
 # --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
 def formatar_doc_para_wa(doc):
