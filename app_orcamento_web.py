@@ -545,12 +545,12 @@ with aba1:
     desconto_valor = st.number_input("Desconto em Valor (R$)", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"desc_{fk}")
 
     col_pr, col_dt = st.columns(2)
-    with col_pr:
-        prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
-    with col_dt:
-if not propostas_filtradas:
-    st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
-    frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
+with col_pr:
+    prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
+with col_dt:
+    dt_entrega_input = st.date_input("Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fk}")
+
+frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
 
     st.divider()
 
@@ -648,8 +648,8 @@ if termo_busca:
 else:
     propostas_filtradas = propostas_periodo
 
-        if not propostas_filtradas:
-            st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
+if not propostas_filtradas:
+    st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
         else:
             for prop in propostas_filtradas:
                 sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
