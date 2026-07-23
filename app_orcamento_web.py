@@ -552,9 +552,9 @@ with col_dt:
 
 frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
 
-    st.divider()
+st.divider()
 
-    if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary", use_container_width=True):
+if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary", use_container_width=True):
         if not st.session_state.itens:
             st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
         else:
