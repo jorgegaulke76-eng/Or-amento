@@ -463,6 +463,23 @@ with aba1:
     
 
     # --- Resto do seu código da Aba 2 (Histórico) ---
+    
+    with aba2:
+    st.subheader("📋 Central de Propostas Geradas")
+    historico = carregar_historico()
+    
+    # --- COLE O ALERTA AQUI ---
+    hoje = date.today()
+    hoje_str = hoje.strftime("%d/%m/%Y")
+    entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
+    
+    if entregas_hoje:
+        st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
+        for e_hoje in entregas_hoje:
+            st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
+        st.divider()
+    # --------------------------
+
     if not historico:
         st.info("Nenhuma proposta gerada até o momento.")
     else:
