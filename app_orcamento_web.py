@@ -68,12 +68,6 @@ def carregar_logo_base64():
         except: pass
     return ""
 
-def exibir_logo_interface():
-    if os.path.exists(PATH_LOGO_OFICIAL):
-        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-        with col_l2:
-            st.image(PATH_LOGO_OFICIAL, use_container_width=True)
-
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"):
@@ -425,7 +419,9 @@ def gerar_proposta_html(dados):
     return html_content
 
 # --- NAVEGAÇÃO / MENU LATERAL ---
-st.sidebar.image(PATH_LOGO_OFICIAL, use_container_width=True) if os.path.exists(PATH_LOGO_OFICIAL) else None
+if os.path.exists(PATH_LOGO_OFICIAL):
+    st.sidebar.image(PATH_LOGO_OFICIAL, use_container_width=True)
+
 st.sidebar.title("🔥 ALPHAFEST")
 st.sidebar.markdown("---")
 
