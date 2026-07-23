@@ -664,16 +664,31 @@ else:
         # Definir o status visual
         tag_entregue = "✅ (ENTREGUE)" if prop.get('entregue', False) else "⏳ (PENDENTE)"
         
+        # Usamos apenas um expander por orçamento
         with st.expander(f"Prop {prop['numero_proposta']} | {prop['cliente_nome']} | R$ {tot_final:.2f} {status_tag}{tag_entregue}{tag_hoje}"):
-            st.write(f"Conteúdo do orçamento {prop['numero_proposta']}")
-                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}{tag_entregue}"):
-                    # ... (manter o código original de CPF, WhatsApp aqui) ...
-                    
-                    # ADICIONE ESTE NOVO BOTÃO
-                    check_entregue = st.checkbox(
-                        "📦 Marcar como ENTREGUE",
-                        value=prop.get("entregue", False),
-                        key=f"chk_ent_{prop['numero_proposta']}"
+            
+            # Botões de checkbox
+            # --- Checkboxes de Status ---
+            check_entregue = st.checkbox("📦 Marcar como ENTREGUE", value=prop.get('entregue', False), key=f"chc_ent_{prop['numero_proposta']}")
+            if check_entregue != prop.get('entregue', False):
+                alternar_status_entregue(prop['numero_proposta'], check_entregue)
+                st.rerun()
+
+            check_aprovado = st.checkbox("✅ Marcar como PAGAMENTO CONFIRMADO", value=is_aprovado, key=f"chc_aprov_{prop['numero_proposta']}")
+            if check_aprovado != is_aprovado:
+                alternar_status_aprovado(prop['numero_proposta'], check_aprovado)
+                st.rerun()
+
+            # --- Lista de Itens ---
+            st.write("**Itens do Orçamento:**")
+            for it in prop['itens']:
+                st.write(f"- {it['produto']} ({it['especificacoes']}) - {it['quantidade']} x R${it['valor_unitario']:.2f}")
+
+            # --- Botões de Ação ---
+            col_d1, col_wo, col_del = st.columns([2, 2, 1])
+            with col_d1:
+                html_prop = gerar_proposta_html(prop)
+                st.download_button("📥 Baixar PDF", html_prop, f"orcamento_{prop['numero_proposta']}.html", "text/html")
                     )
                     if check_entregue != prop.get("entregue", False):
                         alternar_status_entregue(prop['numero_proposta'], prop.get("entregue", False))
