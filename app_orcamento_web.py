@@ -490,9 +490,9 @@ with aba1:
    
     
     col_doc, col_wa = st.columns(2)
-    with col_doc:
+  
       
-    with col_wa:
+   
        
 
     st.divider()
