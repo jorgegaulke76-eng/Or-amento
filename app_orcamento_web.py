@@ -83,11 +83,12 @@ def gerar_descricao_resumida(nome_produto, prod_id):
         ]
         return frases_variadas[var_index]
 
-# --- IMPORTADOR AUTOMÁTICO DE DADOS MAKERWORLD (COM CABEÇALHOS OFICIAIS & FALLBACK) ---
+# --- IMPORTADOR AUTOMÁTICO COM FOTOS E NOMES REAIS (MAKERWORLD API) ---
 def importar_lote_makerworld_api(url, limit=40):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
         "Referer": "https://makerworld.com/",
         "Origin": "https://makerworld.com"
     }
@@ -100,22 +101,31 @@ def importar_lote_makerworld_api(url, limit=40):
     if "keyword" in params:
         keyword = params["keyword"][0]
     elif "search" in url or "models" in url:
-        # Tenta extrair a palavra final da URL
         partes = url.rstrip('/').split('/')
         if partes: keyword = urllib.parse.unquote(partes[-1])
 
-    # 1. Tenta API de Busca Oficial
     if keyword:
         try:
-            api_endpoint = f"https://makerworld.com/api/v1/design-service/search/design/list?keyword={urllib.parse.quote(keyword)}&page=1&pageSize={limit}"
-            res = requests.get(api_endpoint, headers=headers, timeout=8)
+            # Consulta API Oficial via POST para extrair nomes e fotos reais
+            api_endpoint = "https://makerworld.com/api/v1/design-service/search/design/list"
+            payload = {"keyword": keyword, "page": 1, "pageSize": limit}
+            res = requests.post(api_endpoint, json=payload, headers=headers, timeout=10)
+            
+            if res.status_code != 200:
+                api_endpoint_get = f"https://makerworld.com/api/v1/design-service/search/design/list?keyword={urllib.parse.quote(keyword)}&page=1&pageSize={limit}"
+                res = requests.get(api_endpoint_get, headers=headers, timeout=10)
+
             if res.status_code == 200:
-                hits = res.json().get("data", {}).get("hits", [])
+                data = res.json().get("data", {})
+                hits = data.get("hits", []) if isinstance(data, dict) else []
                 for item in hits:
-                    raw_title = item.get("title", f"Modelo {keyword}")
-                    design_id = item.get('designId', item.get('id', '0000'))
+                    raw_title = item.get("title") or item.get("name") or f"Modelo {keyword}"
+                    design_id = item.get('designId') or item.get('id') or '0000'
                     p_id = f"MW{design_id}"
                     p_link = f"https://makerworld.com/pt/models/{design_id}"
+                    
+                    # URL da foto de capa
+                    cover_img = item.get("cover") or item.get("coverUrl") or item.get("image") or ""
                     
                     len_t = len(raw_title)
                     peso_est = round(float((len_t * 1.5) + 12.0), 1)
@@ -127,6 +137,7 @@ def importar_lote_makerworld_api(url, limit=40):
                         "id": p_id,
                         "raw_nome": raw_title,
                         "link": p_link,
+                        "imagem": cover_img,
                         "peso": peso_est,
                         "tempo": tempo_est,
                         "downloads": dl,
@@ -135,23 +146,24 @@ def importar_lote_makerworld_api(url, limit=40):
         except Exception:
             pass
 
-    # 2. Tenta API de Coleções se a URL for de Coleção
     if not produtos_extraidos and "collections" in url:
         id_match = re.search(r'/collections/(\d+)', url)
         if id_match:
             coll_id = id_match.group(1)
             try:
                 api_endpoint = f"https://makerworld.com/api/v1/design-service/collection/{coll_id}/design/list?page=1&pageSize={limit}"
-                res = requests.get(api_endpoint, headers=headers, timeout=8)
+                res = requests.get(api_endpoint, headers=headers, timeout=10)
                 if res.status_code == 200:
                     hits = res.json().get("data", {}).get("hits", [])
                     for item in hits:
                         raw_title = item.get("title", "Modelo Coleção")
                         design_id = item.get('designId', item.get('id', '0000'))
+                        cover_img = item.get("cover") or item.get("coverUrl") or ""
                         produtos_extraidos.append({
                             "id": f"MW{design_id}",
                             "raw_nome": raw_title,
                             "link": f"https://makerworld.com/pt/models/{design_id}",
+                            "imagem": cover_img,
                             "peso": float(25.0),
                             "tempo": float(1.5),
                             "downloads": item.get("downloadCount", 1000),
@@ -159,21 +171,6 @@ def importar_lote_makerworld_api(url, limit=40):
                         })
             except Exception:
                 pass
-
-    # 3. MODO DE GARANTIA (FALLBACK TEMÁTICO):
-    # Caso o servidor da MakerWorld bloqueie a conexão IP da nuvem, gera o lote temático com os IDs
-    if not produtos_extraidos:
-        termo_tema = keyword.replace("+", " ").title() if keyword else "Outubro Rosa"
-        for idx in range(1, limit + 1):
-            produtos_extraidos.append({
-                "id": f"MW{datetime.now().strftime('%d%H')}{idx:02d}",
-                "raw_nome": f"{termo_tema} - Item Decorativo {idx}",
-                "link": f"https://makerworld.com/pt/search/models?keyword={urllib.parse.quote(termo_tema)}",
-                "peso": round(15.0 + (idx * 1.2), 1),
-                "tempo": round(0.5 + (idx * 0.1), 2),
-                "downloads": 1200 + (idx * 30),
-                "likes": 300 + (idx * 8)
-            })
 
     return produtos_extraidos
 
@@ -757,7 +754,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
             if not url_mw_lote.strip():
                 st.error("Insira um link do MakerWorld para importar!")
             else:
-                with st.spinner("Conectando ao MakerWorld, processando catálogo e gerando precificação..."):
+                with st.spinner("Conectando ao MakerWorld, extraindo fotos e nomes reais dos modelos..."):
                     lote = importar_lote_makerworld_api(url_mw_lote.strip(), limit=40)
                     cat_atual = carregar_catalogo_produtos()
                     qtd_add = 0
@@ -772,6 +769,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                             "nome": nome_limp,
                             "categoria": "Impressão 3D Decorativa",
                             "link": p["link"],
+                            "imagem": p.get("imagem", ""),
                             "peso": p["peso"],
                             "tempo": p["tempo"],
                             "custo_total": c_tot,
@@ -784,7 +782,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                         qtd_add += 1
 
                     salvar_catalogo_produtos(cat_atual)
-                    st.success(f"🎉 Lote comercial com {qtd_add} produtos do MakerWorld gerado e precificado com sucesso!")
+                    st.success(f"🎉 Lote com {qtd_add} produtos reais e fotos do MakerWorld importado com sucesso!")
                     st.rerun()
 
         st.divider()
@@ -800,6 +798,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
         with col_m2:
             prod_id_custom = f"MW{datetime.now().strftime('%d%H%M%S')}"
             st.text_input("Código de Identificação", value=prod_id_custom, disabled=True)
+            img_manual_url = st.text_input("URL da Foto do Produto (Opcional)", placeholder="https://exemplo.com/imagem.jpg")
             link_ref = st.text_input("Link de Referência (Opcional)", placeholder="https://makerworld.com/...")
             downloads = st.number_input("Downloads (Ref. MakerWorld)", min_value=0, value=1200)
             likes = st.number_input("Likes (Ref. MakerWorld)", min_value=0, value=350)
@@ -816,6 +815,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                 "nome": nome_limpo,
                 "categoria": categoria,
                 "link": link_ref,
+                "imagem": img_manual_url.strip(),
                 "peso": peso,
                 "tempo": tempo,
                 "custo_total": custo_tot,
@@ -838,11 +838,21 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
         else:
             for idx, item in enumerate(catalogo):
                 with st.expander(f"📦 {item['id']} - {item['nome']} | R$ {item['preco_venda']:.2f}"):
-                    st.write(f"**Categoria:** {item.get('categoria', 'Geral')} | **Cadastrado em:** {item.get('data_cadastro', 'N/A')}")
-                    st.markdown(item['comercial_desc'])
-                    st.write(f"🔹 **Custo de Fabricação:** R$ {item['custo_total']:.2f} | **Peso:** {item['peso']}g | **Tempo:** {item['tempo']}h")
-                    st.write(f"⭐ **Classificação:** {item['ranking']}")
+                    col_info, col_img = st.columns([2, 1])
+                    
+                    with col_info:
+                        st.write(f"**Categoria:** {item.get('categoria', 'Geral')} | **Cadastrado em:** {item.get('data_cadastro', 'N/A')}")
+                        st.markdown(item['comercial_desc'])
+                        st.write(f"🔹 **Custo de Fabricação:** R$ {item['custo_total']:.2f} | **Peso:** {item['peso']}g | **Tempo:** {item['tempo']}h")
+                        st.write(f"⭐ **Classificação:** {item['ranking']}")
 
+                    with col_img:
+                        if item.get("imagem"):
+                            st.image(item["imagem"], width=180, caption=item['nome'])
+                        else:
+                            st.caption("🖼️ (Sem foto cadastrada)")
+
+                    st.divider()
                     col_p1, col_p2, col_p3 = st.columns([2, 2, 1])
                     with col_p1:
                         if st.button(f"🚀 Criar Orçamento Rápido", key=f"orc_{idx}_{item['id']}"):
