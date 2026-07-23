@@ -392,7 +392,7 @@ def gerar_proposta_html(dados):
                 
                 👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!🥰</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
-                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 days corridos.
+                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
             </div>
             
             <div class="terms-box">
@@ -452,30 +452,46 @@ with aba1:
 
     st.subheader("2. Adicionar Itens ao Orçamento")
     
-    # --- ENTRADA DE DADOS EM TEMPO REAL ---
-    col_p, col_e = st.columns([2, 2])
-    with col_p:
-        prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D", key=f"p_{fk}")
-    with col_e:
-        espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA", key=f"e_{fk}")
-        
+    # Camadas de dados do item
+    prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
+    
+    # Detalhes opcionais organizados
+    with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
+        col_esp1, col_esp2 = st.columns(2)
+        with col_esp1:
+            esp_tema = st.text_input("Tema / Ocasião", placeholder="Ex: Aniversário 15 Anos, Festa Infantil, Corporativo", key=f"et_{fk}")
+            esp_nome = st.text_input("Nome(s) Personalizado(s)", placeholder="Ex: Enrico, Giuliana & Felipe", key=f"en_{fk}")
+            esp_cor = st.text_input("Cor / Material", placeholder="Ex: Rosa Bebê / PLA Azul / Laser Inox", key=f"ec_{fk}")
+        with col_esp2:
+            esp_idade = st.text_input("Idade / Data do Evento", placeholder="Ex: 50 Anos / 27/02", key=f"ei_{fk}")
+            esp_geral = st.text_input("Outros Detalhes", placeholder="Ex: Gravação frente e verso", key=f"eg_{fk}")
+
     col_q, col_v = st.columns(2)
     with col_q:
         qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fk}")
     with col_v:
         v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
+
+    # Monta a frase da especificação dinâmica
+    partes_espec = []
+    if esp_tema.strip(): partes_espec.append(f"Tema: {esp_tema.strip()}")
+    if esp_nome.strip(): partes_espec.append(f"Nome: {esp_nome.strip()}")
+    if esp_idade.strip(): partes_espec.append(f"Idade/Data: {esp_idade.strip()}")
+    if esp_cor.strip(): partes_espec.append(f"Cor/Material: {esp_cor.strip()}")
+    if esp_geral.strip(): partes_espec.append(f"Obs: {esp_geral.strip()}")
     
+    espec_final_str = " | ".join(partes_espec) if partes_espec else "Conforme alinhado"
+
     # --- BOX DE PRÉVIA EM TEMPO REAL ---
     prod_temp = prod.strip() or "Nome do Produto"
-    espec_temp = espec.strip() or "Especificações aparecerão aqui..."
     sub_temp = float(qtd) * float(v_unit)
     
     st.markdown(
         f"""
         <div style="background-color: #f1f5f9; border-left: 4px solid #0284c7; padding: 12px; border-radius: 6px; margin: 10px 0;">
-            <small style="color: #64748b; font-weight: bold; text-transform: uppercase;">👁️ PRÉVIA DO ITEM (Como aparecerá no orçamento):</small><br>
+            <small style="color: #64748b; font-weight: bold; text-transform: uppercase;">👁️ PRÉVIA DO ITEM EM TEMPO REAL:</small><br>
             <strong style="font-size: 15px; color: #0f172a;">{prod_temp}</strong><br>
-            <span style="color: #475569; font-size: 13px;">🔹 <em>Especificação:</em> {espec_temp}</span><br>
+            <span style="color: #475569; font-size: 13px;">🔹 <em>Especificações:</em> {espec_final_str}</span><br>
             <span style="color: #16a34a; font-weight: bold; font-size: 13px;">📦 {qtd} un. x R$ {v_unit:.2f} = R$ {sub_temp:.2f}</span>
         </div>
         """,
@@ -488,7 +504,7 @@ with aba1:
         else:
             st.session_state.itens.append({
                 "produto": prod.strip(),
-                "especificacoes": espec.strip() or "Conforme alinhado",
+                "especificacoes": espec_final_str,
                 "quantidade": int(qtd),
                 "valor_unitario": float(v_unit)
             })
@@ -503,7 +519,7 @@ with aba1:
             sub = item["quantidade"] * item["valor_unitario"]
             subtotal_acumulado += sub
             st.write(f"**{idx}. {item['produto']}** — {item['quantidade']} un. x R$ {item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
-            st.caption(f"└ Especificações: {item['especificacoes']}")
+            st.caption(f"└ Detalhes: {item['especificacoes']}")
             
         st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
         
