@@ -4,6 +4,9 @@ import os
 import re
 import json
 import urllib.parse
+import hashlib
+import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime, date, timedelta
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -16,9 +19,11 @@ st.set_page_config(
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
+ARQUIVO_CATALOGO = "banco_produtos_catalogo.json"
 LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
+CUSTO_EMBALAGEM = 1.50
 
-# --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
+# --- GERENCIAMENTO DE ESTADO ---
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
 if "itens" not in st.session_state:
@@ -26,12 +31,60 @@ if "itens" not in st.session_state:
 if "ultima_proposta" not in st.session_state:
     st.session_state.ultima_proposta = None
 
-# --- FUNÇÕES DE BANCO DE DADOS / HISTÓRICO ---
+# --- LÓGICA DE NEGÓCIO & CÁLCULOS 3D ---
+def calcular_preco_3d(peso_g, tempo_h, preco_kg, margem_lucro, custo_hora):
+    custo_filamento = (peso_g / 1000) * preco_kg
+    custo_operacional = custo_hora * tempo_h
+    custo_total = custo_filamento + custo_operacional + CUSTO_EMBALAGEM
+    preco_venda = custo_total * (1 + (margem_lucro / 100))
+    return round(custo_total, 2), round(preco_venda, 2)
+
+def calcular_ranking_3d(downloads, likes):
+    score = downloads + (likes * 3)
+    if score > 3000: return "★★★★★ Excelente"
+    elif score > 1500: return "★★★★☆ Muito bom"
+    elif score > 800: return "★★★☆☆ Bom"
+    else: return "★★☆☆☆ Nicho"
+
+def higienizar_nome_comercial(nome_original):
+    nome = nome_original
+    termos_sujeira = [
+        r"(?i)\bsem\s+ams\s+necessário\b", r"(?i)\bsem\s+ams\b", r"(?i)\bams\b",
+        r"(?i)-\s*presente\s+de\s+aniversário\b", r"(?i)\bmodelo\s+3d\b",
+        r"(?i)\bprint\s+in\s+place\b", r"v\d+(\.\d+)*", r"V\d+(\.\d+)*"
+    ]
+    for termo in termos_sujeira:
+        nome = re.sub(termo, "", nome)
+    nome = nome.replace(" - ", " ").replace("  ", " ").strip(" -_ ")
+    return nome if len(nome) > 3 else "Modelo Decorativo 3D"
+
+def gerar_descricao_resumida(nome_produto, prod_id):
+    np = nome_produto.lower()
+    if any(k in np for k in ["nativity", "presépio", "presepio", "creche", "holy", "jesus", "sagrada"]):
+        return "✨ **Destaque de Decoração Festiva!** Peça de alta riqueza expressiva manufaturada em impressão 3D de alta precisão. Acabamento impecável e estrutura rígida, perfeita para compor ambientes sofisticados e encantar na decoração."
+    elif any(k in np for k in ["illuminated", "light", "candle", "led", "lamp", "luminária", "brilho"]):
+        return "💡 **Design Cênico Exclusivo!** Otimizado para retroiluminação e jogos de luz. Proporciona uma atmosfera aconchegante e moderna para salas, quartos ou escritórios. Produzido com filamento de alta qualidade e durabilidade."
+    elif any(k in np for k in ["moldura", "foto", "porta-retrato", "frame", "display", "wall", "placa"]):
+        return "🖼️ **Elegância & Versatilidade!** Item decorativo resistente e leve, ideal para estantes, mesas ou painéis. Acabamento refinado que valoriza o ambiente com um toque contemporâneo. Excelente opção para presente!"
+    elif any(k in np for k in ["suporte", "organizador", "holder", "box", "carteira", "stand", "set"]):
+        return "🛠️ **Praticidade & Estilo!** Desenvolvido com foco em alta funcionalidade e resistência mecânica. Organize seu espaço com uma peça moderna, robusta e fabricada com acabamento impecável pela Alphafest."
+    elif any(k in np for k in ["tree", "ornament", "star", "sata", "claus", "árvore", "pingente"]):
+        return "🎄 **Edição Especial Temática!** Rica em detalhes geométricos e curvas precisas. Ideal para colecionadores e para criar composições temáticas exclusivas com altíssima qualidade de impressão."
+    else:
+        var_index = int(hashlib.md5(str(prod_id).encode()).hexdigest(), 16) % 4
+        frases_variadas = [
+            "⭐ **Acabamento Premium!** Peça manufaturada com impressão 3D de altíssima precisão. Combina leveza, durabilidade e design contemporâneo para valorizar qualquer ambiente.",
+            "🎁 **Escolha Perfeita para Presentear!** Produto exclusivo da Alphafest com modelagem geométrica otimizada e textura impecável. Alta resistência estrutural e elegância única.",
+            "🏆 **Item de Coleção Exclusivo!** Produzido com matéria-prima selecionada e tecnologia de ponta. Detalhes definidos e estrutura rígida projetada para longa durabilidade.",
+            "💎 **Design Moderno & Refinado!** Transforme a decoração do seu espaço com esta peça única. Fabricada sob rigoroso controle de qualidade para garantir um acabamento perfeito."
+        ]
+        return frases_variadas[var_index]
+
+# --- BANCO DE DADOS LOCAL JSON ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
         try:
-            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f: return json.load(f)
         except: return []
     return []
 
@@ -59,6 +112,17 @@ def excluir_proposta_por_id(num_proposta):
 
 def zerar_todo_historico():
     salvar_historico_completo([])
+
+def carregar_catalogo_produtos():
+    if os.path.exists(ARQUIVO_CATALOGO):
+        try:
+            with open(ARQUIVO_CATALOGO, "r", encoding="utf-8") as f: return json.load(f)
+        except: return []
+    return []
+
+def salvar_catalogo_produtos(produtos):
+    with open(ARQUIVO_CATALOGO, "w", encoding="utf-8") as f:
+        json.dump(produtos, f, ensure_ascii=False, indent=4)
 
 def carregar_logo_base64():
     if os.path.exists(PATH_LOGO_OFICIAL):
@@ -120,12 +184,7 @@ def extrair_link_whatsapp_completo(dados):
 
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
-    
-    if logo_base64:
-        logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
-    else:
-        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
-        
+    logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">' if logo_base64 else f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
     
@@ -149,200 +208,40 @@ def gerar_proposta_html(dados):
         
     valor_desconto = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - valor_desconto)
-    
     link_wa = extrair_link_whatsapp_completo(dados)
     qr_code_pix_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={urllib.parse.quote(LINK_PIX_OFICIAL)}"
 
-    html_content = f"""
+    return f"""
     <!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
         <title>Proposta - {dados['numero_proposta']}</title>
         <style>
-            @page {{
-                size: A4 portrait;
-                margin: 8mm;
-            }}
-            * {{
-                box-sizing: border-box;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }}
-            body {{
-                font-family: 'Segoe UI', Arial, sans-serif;
-                background-color: #f8fafc;
-                color: #1e293b;
-                margin: 0;
-                padding: 10px;
-            }}
-            .container {{
-                max-width: 780px;
-                margin: 0 auto;
-                background: #ffffff;
-                padding: 20px;
-                border-radius: 8px;
-                border: 1px solid #e2e8f0;
-            }}
-            .header {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 2px solid #1e293b;
-                padding-bottom: 10px;
-                margin-bottom: 12px;
-            }}
-            .logo {{
-                max-height: 85px;
-                max-width: 280px;
-                object-fit: contain;
-            }}
-            .company-info {{
-                text-align: right;
-                font-size: 10.5px;
-                color: #475569;
-                line-height: 1.35;
-            }}
-            .title-box {{
-                background: #1e293b !important;
-                color: white !important;
-                padding: 8px 14px;
-                border-radius: 6px;
-                margin-bottom: 12px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }}
-            .title-box h2 {{
-                margin: 0;
-                font-size: 15px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }}
-            .info-grid {{
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px 15px;
-                margin-bottom: 12px;
-                background: #f1f5f9;
-                padding: 10px 14px;
-                border-radius: 6px;
-            }}
-            .info-item label {{
-                font-size: 9px;
-                text-transform: uppercase;
-                color: #64748b;
-                font-weight: bold;
-                display: block;
-            }}
-            .info-item span {{
-                font-size: 12px;
-                font-weight: 600;
-                color: #0f172a;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 12px;
-            }}
-            th {{
-                background: #334155 !important;
-                color: white !important;
-                padding: 6px 10px;
-                text-align: left;
-                font-size: 11px;
-            }}
-            td {{
-                padding: 6px 10px;
-                border-bottom: 1px solid #e2e8f0;
-                font-size: 11px;
-            }}
-            .summary-box {{
-                margin-left: auto;
-                width: 260px;
-                margin-bottom: 12px;
-            }}
-            .summary-row {{
-                display: flex;
-                justify-content: space-between;
-                padding: 3px 0;
-                font-size: 11px;
-                color: #475569;
-            }}
-            .summary-row.total {{
-                font-size: 14px;
-                font-weight: bold;
-                color: #16a34a;
-                border-top: 2px solid #e2e8f0;
-                padding-top: 5px;
-            }}
-            .conditions {{
-                background: #f8fafc;
-                border: 1px solid #cbd5e1;
-                border-left: 4px solid #0284c7;
-                padding: 10px 12px;
-                border-radius: 6px;
-                margin-bottom: 12px;
-                font-size: 10.5px;
-                color: #334155;
-                line-height: 1.4;
-            }}
-            .bank-container {{
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                background: #f1f5f9;
-                border: 1px dashed #94a3b8;
-                padding: 10px;
-                border-radius: 6px;
-                margin: 8px 0;
-            }}
-            .qr-code {{
-                width: 100px;
-                height: 100px;
-                border-radius: 4px;
-                border: 1px solid #cbd5e1;
-                background: #ffffff;
-                padding: 3px;
-            }}
-            .terms-box {{
-                border: 1px solid #cbd5e1;
-                padding: 8px 10px;
-                border-radius: 6px;
-                font-size: 9.5px;
-                color: #64748b;
-                line-height: 1.3;
-                margin-bottom: 12px;
-                background: #fafafa;
-            }}
-            .btn-wa {{
-                display: block;
-                width: 100%;
-                background: #22c55e;
-                color: white;
-                text-align: center;
-                padding: 10px;
-                border-radius: 6px;
-                font-weight: bold;
-                text-decoration: none;
-                font-size: 13px;
-            }}
-            @media print {{
-                html, body {{
-                    background: #ffffff;
-                    padding: 0;
-                    margin: 0;
-                }}
-                .container {{
-                    border: none;
-                    padding: 0;
-                    width: 100%;
-                    max-width: 100%;
-                }}
-                .btn-wa {{
-                    display: none !important;
-                }}
-            }}
+            @page {{ size: A4 portrait; margin: 8mm; }}
+            * {{ box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 10px; }}
+            .container {{ max-width: 780px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }}
+            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }}
+            .logo {{ max-height: 85px; max-width: 280px; object-fit: contain; }}
+            .company-info {{ text-align: right; font-size: 10.5px; color: #475569; line-height: 1.35; }}
+            .title-box {{ background: #1e293b !important; color: white !important; padding: 8px 14px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }}
+            .title-box h2 {{ margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; margin-bottom: 12px; background: #f1f5f9; padding: 10px 14px; border-radius: 6px; }}
+            .info-item label {{ font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; display: block; }}
+            .info-item span {{ font-size: 12px; font-weight: 600; color: #0f172a; }}
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 12px; }}
+            th {{ background: #334155 !important; color: white !important; padding: 6px 10px; text-align: left; font-size: 11px; }}
+            td {{ padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }}
+            .summary-box {{ margin-left: auto; width: 260px; margin-bottom: 12px; }}
+            .summary-row {{ display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; color: #475569; }}
+            .summary-row.total {{ font-size: 14px; font-weight: bold; color: #16a34a; border-top: 2px solid #e2e8f0; padding-top: 5px; }}
+            .conditions {{ background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0284c7; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 10.5px; color: #334155; line-height: 1.4; }}
+            .bank-container {{ display: flex; align-items: center; gap: 15px; background: #f1f5f9; border: 1px dashed #94a3b8; padding: 10px; border-radius: 6px; margin: 8px 0; }}
+            .qr-code {{ width: 100px; height: 100px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; padding: 3px; }}
+            .terms-box {{ border: 1px solid #cbd5e1; padding: 8px 10px; border-radius: 6px; font-size: 9.5px; color: #64748b; line-height: 1.3; margin-bottom: 12px; background: #fafafa; }}
+            .btn-wa {{ display: block; width: 100%; background: #22c55e; color: white; text-align: center; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 13px; }}
+            @media print {{ html, body {{ background: #ffffff; padding: 0; margin: 0; }} .container {{ border: none; padding: 0; width: 100%; max-width: 100%; }} .btn-wa {{ display: none !important; }} }}
         </style>
     </head>
     <body>
@@ -358,37 +257,31 @@ def gerar_proposta_html(dados):
                     <strong>Emissão:</strong> {data_hoje}
                 </div>
             </div>
-            
             <div class="title-box">
                 <h2>Proposta</h2>
                 <span>Nº {dados['numero_proposta']}</span>
             </div>
-            
             <div class="info-grid">
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
                 <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
                 <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
                 <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">📅 {data_entrega}</span></div>
             </div>
-            
             <table>
                 <thead>
                     <tr><th>ITEM / DESCRIÇÃO</th><th style="text-align:center;">QTD</th><th style="text-align:right;">VALOR UNIT.</th><th style="text-align:right;">SUBTOTAL</th></tr>
                 </thead>
                 <tbody>{linhas_tabela}</tbody>
             </table>
-            
             <div class="summary-box">
                 <div class="summary-row"><span>Subtotal:</span><span>R$ {subtotal_geral:.2f}</span></div>
                 <div class="summary-row"><span>Desconto:</span><span>- R$ {valor_desconto:.2f}</span></div>
                 <div class="summary-row total"><span>VALOR TOTAL DO PEDIDO:</span><span>R$ {total_final:.2f}</span></div>
             </div>
-            
             <div class="conditions">
                 <strong>📌 Condições de Produção & Pagamento:</strong><br>
                 🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br>
                 *Tivemos algumas mudanças devido ao novo regime de tributação. Envie seu CPF ou CNPJ para emissão de cupom fiscal/NF.<br>
-                
                 <div class="bank-container">
                     <img src="{qr_code_pix_url}" class="qr-code" alt="QR Code PIX">
                     <div>
@@ -399,24 +292,20 @@ def gerar_proposta_html(dados):
                         <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880
                     </div>
                 </div>
-                
                 👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido ! 🥰</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
                 • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
             </div>
-            
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
                 1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
-            
             <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
         </div>
     </body>
     </html>
     """
-    return html_content
 
 # --- NAVEGAÇÃO / MENU LATERAL ---
 if os.path.exists(PATH_LOGO_OFICIAL):
@@ -429,7 +318,7 @@ modulo_selecionado = st.sidebar.radio(
     "📌 SELECIONE O MÓDULO:",
     [
         "📄 Orçamentos & Pedidos",
-        "📚 Gerador de Catálogo",
+        "📚 Gerador de Catálogo 3D",
         "📊 Dashboard & Métricas"
     ]
 )
@@ -727,11 +616,105 @@ if modulo_selecionado == "📄 Orçamentos & Pedidos":
                     st.rerun()
 
 # ==========================================
-# MÓDULO 2: GERADOR DE CATÁLOGO (PRÓXIMA ETAPA)
+# MÓDULO 2: GERADOR DE CATÁLOGO 3D
 # ==========================================
-elif modulo_selecionado == "📚 Gerador de Catálogo":
-    st.title("📚 GERADOR DE CATÁLOGO DIGITAL")
-    st.info("🛠️ Módulo em estruturação! Aqui vamos cadastrar seus produtos (Copos, Gravações Laser, Impressões 3D), adicionar fotos e criar catálogos em PDF/HTML para os seus clientes.")
+elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
+    st.title("📚 CATÁLOGO DIGITAL DE PRODUTOS & PRECIFICAÇÃO 3D")
+    st.markdown("Cadastre produtos, calcule custos de produção de peças 3D e gere um catálogo comercial para enviar aos clientes.")
+
+    aba_cat1, aba_cat2 = st.tabs(["➕ Cadastrar / Importar Peça", "🗂️ Ver Catálogo Digital"])
+
+    with aba_cat1:
+        st.subheader("1. Calculadora de Precificação 3D & Lote Temático")
+        
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+            preco_kg = st.number_input("Preço Kg Filamento (R$)", min_value=1.0, value=90.0, step=5.0)
+        with col_c2:
+            margem = st.number_input("Margem de Lucro (%)", min_value=0.0, value=200.0, step=10.0)
+        with col_c3:
+            custo_hora = st.number_input("Custo Máquina/Hora (R$)", min_value=0.1, value=1.10, step=0.10)
+
+        st.divider()
+        st.subheader("2. Dados da Peça / Modelo")
+
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            nome_raw = st.text_input("Nome do Produto / Modelo 3D", placeholder="Ex: Presépio de Natal - Sem AMS V2")
+            categoria = st.selectbox("Categoria", ["Impressão 3D Decorativa", "Copo Térmico Personalizado", "Gravação Laser Inox", "Organizador / Utilitário", "Colecionável / Edição Especial"])
+            peso = st.number_input("Peso do Filamento (Gramas)", min_value=1.0, value=45.0, step=5.0)
+            tempo = st.number_input("Tempo de Impressão (Horas)", min_value=0.1, value=2.5, step=0.5)
+        
+        with col_m2:
+            prod_id_custom = f"MW{datetime.now().strftime('%d%H%M')}"
+            st.text_input("Código de Identificação", value=prod_id_custom, disabled=True)
+            link_ref = st.text_input("Link de Referência (Opcional)", placeholder="https://makerworld.com/...")
+            downloads = st.number_input("Downloads (Ref. MakerWorld)", min_value=0, value=1200)
+            likes = st.number_input("Likes (Ref. MakerWorld)", min_value=0, value=350)
+
+        nome_limpo = higienizar_nome_comercial(nome_raw) if nome_raw else "Modelo Decorativo 3D"
+        desc_persuasiva = gerar_descricao_resumida(nome_limpo, prod_id_custom)
+        custo_tot, preco_vend = calcular_preco_3d(peso, tempo, preco_kg, margem, custo_hora)
+        rank_str = calcular_ranking_3d(downloads, likes)
+
+        st.markdown(
+            f"""
+            <div style="background-color: #f1f5f9; border-left: 4px solid #16a34a; padding: 12px; border-radius: 6px; margin: 15px 0;">
+                <small style="color: #64748b; font-weight: bold;">📊 PRÉVIA DO CÁLCULO DE COMERCIALIZAÇÃO:</small><br>
+                <strong style="font-size: 16px; color: #0f172a;">{nome_limpo}</strong> ({category if 'category' in locals() else categoria})<br>
+                <span style="color: #475569; font-size: 13px;">{desc_persuasiva}</span><br><br>
+                <span style="color: #0284c7; font-weight: bold;">⚙️ Custo Total de Produção: R$ {custo_tot:.2f}</span> | 
+                <span style="color: #16a34a; font-weight: bold; font-size: 15px;">💰 Preço de Venda Sugerido: R$ {preco_vend:.2f}</span><br>
+                <span style="color: #eab308; font-weight: bold;">⭐ Desempenho / Ranking: {rank_str}</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button("💾 Cadastrar Produto no Catálogo", type="primary", use_container_width=True):
+            catalogo = carregar_catalogo_produtos()
+            novo_prod = {
+                "id": prod_id_custom,
+                "nome": nome_limpo,
+                "categoria": categoria,
+                "link": link_ref,
+                "peso": peso,
+                "tempo": tempo,
+                "custo_total": custo_tot,
+                "preco_venda": preco_vend,
+                "ranking": rank_str,
+                "comercial_desc": desc_persuasiva,
+                "data_cadastro": datetime.now().strftime("%d/%m/%Y")
+            }
+            catalogo.insert(0, novo_prod)
+            salvar_catalogo_produtos(catalogo)
+            st.success(f"Produto '{nome_limpo}' cadastrado com sucesso no seu banco de dados!")
+            st.rerun()
+
+    with aba_cat2:
+        st.subheader("🗂️ Portfólio & Catálogo Comercial")
+        catalogo = carregar_catalogo_produtos()
+
+        if not catalogo:
+            st.info("Nenhum produto cadastrado no catálogo até o momento.")
+        else:
+            for item in catalogo:
+                with st.expander(f"📦 {item['id']} - {item['nome']} | R$ {item['preco_venda']:.2f}"):
+                    st.write(f"**Categoria:** {item.get('categoria', 'Geral')} | **Cadastrado em:** {item.get('data_cadastro', 'N/A')}")
+                    st.markdown(item['comercial_desc'])
+                    st.write(f"🔹 **Custo de Fabricação:** R$ {item['custo_total']:.2f} | **Peso:** {item['peso']}g | **Tempo:** {item['tempo']}h")
+                    st.write(f"⭐ **Classificação:** {item['ranking']}")
+
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        if st.button(f"📥 Puxar '{item['nome']}' para Gerar Orçamento", key=f"puxar_{item['id']}"):
+                            st.session_state.itens.append({
+                                "produto": item['nome'],
+                                "especificacoes": f"Peça 3D | {item.get('categoria', 'Custom')} | Ref: {item['id']}",
+                                "quantidade": 1,
+                                "valor_unitario": item['preco_venda']
+                            })
+                            st.success("Item enviado para a tela de Orçamentos! Alterne no menu lateral para finalizar.")
 
 # ==========================================
 # MÓDULO 3: DASHBOARD & MÉTRICAS
