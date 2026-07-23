@@ -19,8 +19,6 @@ PATH_PIX_QRCODE = "pix.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
-
-        with col_wsp:
             st.link_button(
                 label="📱 Enviar Proposta Completa no WhatsApp",
                 url=p_info["link_wa"],
