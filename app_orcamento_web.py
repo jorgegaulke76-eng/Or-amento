@@ -15,29 +15,15 @@ st.set_page_config(
 
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
-PATH_PIX_QRCODE = "pix.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
-LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
-   
-
-# --- FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
-def formatar_doc_para_wa(doc):
-    apenas_num = re.sub(r'\D', '', str(doc or ''))
-    if len(apenas_num) == 11:
-        # Espaçamento para o WhatsApp não criar link de telefone sobre o CPF do cliente
-        return f"{apenas_num[:3]}. {apenas_num[3:6]}. {apenas_num[6:9]} - {apenas_num[9:]}"
-    elif len(apenas_num) == 14:
-        return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
-    return doc or "Não informado"
-
-def formatar_cpf_cnpj_padrao(doc):
-    apenas_num = re.sub(r'\D', '', str(doc or ''))
-    if len(apenas_num) == 11:
-        return f"{apenas_num[:3]}.{apenas_num[3:6]}.{apenas_num[6:9]}-{apenas_num[9:]}"
-    elif len(apenas_num) == 14:
-        return f"{apenas_num[:2]}.{apenas_num[2:5]}.{apenas_num[5:8]}/{apenas_num[8:12]}-{apenas_num[12:]}"
-    return doc or "Não informado"
+# --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+if "itens" not in st.session_state:
+    st.session_state.itens = []
+if "ultima_proposta" not in st.session_state:
+    st.session_state.ultima_proposta = None
 
 # --- FUNÇÕES DE BANCO DE DADOS / HISTÓRICO ---
 def carregar_historico():
@@ -73,10 +59,10 @@ def excluir_proposta_por_id(num_proposta):
 def zerar_todo_historico():
     salvar_historico_completo([])
 
-def carregar_imagem_base64(path_imagem):
-    if os.path.exists(path_imagem):
+def carregar_logo_base64():
+    if os.path.exists(PATH_LOGO_OFICIAL):
         try:
-            with open(path_imagem, "rb") as image_file:
+            with open(PATH_LOGO_OFICIAL, "rb") as image_file:
                 return base64.b64encode(image_file.read()).decode('utf-8')
         except: pass
     return ""
@@ -96,8 +82,7 @@ def extrair_link_whatsapp_completo(dados):
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
     
-    doc_wa = formatar_doc_para_wa(dados.get('cliente_cpf_cnpj', ''))
-
+    # Monta a lista formatada de todos os itens
     texto_itens = ""
     for idx, item in enumerate(dados["itens"], 1):
         sub_item = item["quantidade"] * item["valor_unitario"]
@@ -107,32 +92,30 @@ def extrair_link_whatsapp_completo(dados):
         texto_itens += f"     └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
 
     msg = (
-        f"*PROPOSTA ALPHAFEST ITATIBA*\n"
-        f"Nº: {dados['numero_proposta']}\n"
-        f"Emissão: {dados.get('data_geracao', '')}\n\n"
-        f"CLIENTE: {dados['cliente_nome']}\n"
-        f"CPF/CNPJ: {doc_wa}\n"
+        f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n"
+        f"📄 *Nº:* {dados['numero_proposta']}\n"
+        f"🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
+        f"👤 *CLIENTE:* {dados['cliente_nome']}\n"
+        f"🪪 *CPF/CNPJ:* {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
         f"-----------------------------------\n"
-        f"ITENS DO PEDIDO:\n\n"
+        f"📦 *ITENS DO PEDIDO:*\n\n"
         f"{texto_itens}"
         f"-----------------------------------\n"
-        f"Subtotal: R$ {subtotal_geral:.2f}\n"
-        f"Desconto: - R$ {desc_v:.2f}\n"
-        f"*VALOR TOTAL DO PEDIDO: R$ {total_final:.2f}*\n"
+        f"💵 *Subtotal:* R$ {subtotal_geral:.2f}\n"
+        f"🏷️ *Desconto:* - R$ {desc_v:.2f}\n"
+        f"✅ *VALOR TOTAL DO PEDIDO:* R$ {total_final:.2f}\n"
         f"-----------------------------------\n"
-        f"Previsão de Entrega: {dados.get('data_entrega', 'A combinar')}\n"
-        f"Prazo de Produção: {dados.get('prazo_dias', '10')} dias úteis\n"
-        f"Frete/Entrega: {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
-        f"Validade: 5 dias corridos\n\n"
-        f"DADOS PARA PAGAMENTO:\n"
-        f"🔗 *PAGAR VIA PIX (Clique no link abaixo):*\n"
-        f"{LINK_PIX_DIRETO}\n\n"
-        f"PIX (CNPJ): 24374857000130\n"
-        f"Titular: Ana Lúcia Zepelini\n"
-        f"Banco: Cora SCD (403)\n"
-        f"Agência: 0001 | Conta: 2515972-5\n"
-        f"Empresa: ANA LUCIA VIEIRA ZEPELINI\n\n"
-        f"Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!"
+        f"📅 *Previsão de Entrega:* {dados.get('data_entrega', 'A combinar')}\n"
+        f"⏳ *Prazo de Produção:* {dados.get('prazo_dias', '10')} dias úteis\n"
+        f"🚚 *Frete/Entrega:* {dados.get('frete_tipo', 'Retirada em Itatiba')}\n"
+        f"⏰ *Validade:* 5 dias corridos\n\n"
+        f"💳 *DADOS PARA PAGAMENTO (PIX 100%):*\n"
+        f"👉 *PIX (CNPJ):* `24374857000130`\n"
+        f"• *Titular:* Ana Lúcia Zepelini\n"
+        f"• *Banco:* Cora SCD (403)\n"
+        f"• *Agência:* 0001 | *Conta:* 2515972-5\n"
+        f"• *Empresa:* ANA LUCIA VIEIRA ZEPELINI 29480359880\n\n"
+        f"👇 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!🥰*"
     )
     
     msg_enc = urllib.parse.quote(msg)
@@ -142,23 +125,15 @@ def extrair_link_whatsapp_completo(dados):
         return f"https://api.whatsapp.com/send?text={msg_enc}"
 
 def gerar_proposta_html(dados):
-    logo_base64 = carregar_imagem_base64(PATH_LOGO_OFICIAL)
-    pix_qr_base64 = carregar_imagem_base64(PATH_PIX_QRCODE)
+    logo_base64 = carregar_logo_base64()
     
     if logo_base64:
         logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo" alt="Alphafest Logo">'
     else:
-        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">ALPHAFEST ITATIBA</div>'
+        logo_tag = f'<div style="font-size:24px; font-weight:bold; color:#1e293b;">🔥 {MARCA_FABRICANTE}</div>'
         
-    if pix_qr_base64:
-        pix_qr_tag = f'<div style="text-align:center; margin-left:15px;"><img src="data:image/png;base64,{pix_qr_base64}" style="max-width:130px; border-radius:4px;" alt="QR Code Pix"><br><small style="color:#64748b; font-size:9px;">Escanear no App do Banco</small></div>'
-    else:
-        url_qr_api = f"https://api.qrserver.com/v1/create-qr-code/?size=130x130&data={urllib.parse.quote(LINK_PIX_DIRETO)}"
-        pix_qr_tag = f'<div style="text-align:center; margin-left:15px;"><a href="{LINK_PIX_DIRETO}" target="_blank"><img src="{url_qr_api}" style="max-width:130px; border-radius:4px;" alt="QR Code Pix"></a><br><small style="color:#64748b; font-size:9px;">Escanear ou Clicar para Pagar</small></div>'
-
     data_hoje = dados.get("data_geracao", datetime.now().strftime("%d/%m/%Y"))
     data_entrega = dados.get("data_entrega", "A combinar")
-    doc_formatado = formatar_cpf_cnpj_padrao(dados.get('cliente_cpf_cnpj', ''))
     
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -324,9 +299,6 @@ def gerar_proposta_html(dados):
                 border-radius: 5px;
                 margin: 6px 0;
                 font-size: 10.5px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
             }}
             .terms-box {{
                 border: 1px solid #cbd5e1;
@@ -389,9 +361,9 @@ def gerar_proposta_html(dados):
             
             <div class="info-grid">
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
-                <div class="info-item"><label>CPF / CNPJ</label><span>{doc_formatado}</span></div>
+                <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
                 <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
-                <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">{data_entrega}</span></div>
+                <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">📅 {data_entrega}</span></div>
             </div>
             
             <table>
@@ -408,22 +380,18 @@ def gerar_proposta_html(dados):
             </div>
             
             <div class="conditions">
-                <strong>Condições de Produção & Pagamento:</strong><br>
-                Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!<br>
+                <strong>📌 Condições de Produção & Pagamento:</strong><br>
+                🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br>
                 *Tivemos algumas mudanças devido ao novo regime de tributação. Envie seu CPF ou CNPJ para emissão de cupom fiscal/NF.<br>
                 
                 <div class="bank-box">
-                    <div>
-                        <strong>Segue abaixo nossa conta e PIX:</strong><br>
-                        <strong>Link Direto Pix:</strong> <a href="{LINK_PIX_DIRETO}" target="_blank">{LINK_PIX_DIRETO}</a><br>
-                        <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
-                        <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
-                        <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI
-                    </div>
-                    {pix_qr_tag}
+                    <strong>Segue abaixo nossa conta e PIX 👇</strong><br>
+                    💳 <strong>PIX (CNPJ):</strong> 24374857000130 &bull; <strong>Titular:</strong> Ana Lúcia Zepelini<br>
+                    <strong>Conta Jurídica:</strong> Ag: 0001 | Conta: 2515972-5 | Banco Cora (403)<br>
+                    <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880
                 </div>
                 
-                <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!</strong><br>
+                👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!🥰</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
                 • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
             </div>
@@ -434,7 +402,7 @@ def gerar_proposta_html(dados):
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             
-            <a href="{link_wa}" class="btn-wa" target="_blank">Enviar Comprovante de Pagamento no WhatsApp</a>
+            <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
         </div>
     </body>
     </html>
@@ -444,10 +412,12 @@ def gerar_proposta_html(dados):
 # --- INTERFACE PRINCIPAL ---
 exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
+
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
+
 with aba1:
-    if st.session_state.get("ultima_proposta"):
-        p_info = st.session_state["ultima_proposta"]
+    if st.session_state.ultima_proposta:
+        p_info = st.session_state.ultima_proposta
         st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
         
         col_down, col_wsp = st.columns(2)
@@ -459,41 +429,7 @@ with aba1:
                 mime="text/html",
                 use_container_width=True
             )
-    
-    
-
-    # --- Resto do seu código da Aba 2 (Histórico) ---
-    
-        with aba2:
-                st.subheader("📋 Central de Propostas Geradas")
-            historico = carregar_historico()
-            
-            # --- COLE O ALERTA AQUI ---
-            hoje = date.today()
-            hoje_str = hoje.strftime("%d/%m/%Y")
-            entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
-            
-            if entregas_hoje:
-                st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
-                for e_hoje in entregas_hoje:
-                    st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
-                st.divider()
-            # --------------------------
-        
-            if not historico:
-                st.info("Nenhuma proposta gerada até o momento.")
-            else:
-                # ... (seu código de filtro e exibição continua aqui)
-                col_down, col_wsp = st.columns(2)
-                with col_down:
-                    st.download_button(
-                        label=f"📥 Baixar Proposta ({p_info['numero']})",
-                        data=p_info["html"],
-                        file_name=f"Proposta_{p_info['numero']}.html",
-                        mime="text/html",
-                        use_container_width=True
-                    )
-                with col_wsp:
+        with col_wsp:
             st.link_button(
                 label="📱 Enviar Proposta Completa no WhatsApp",
                 url=p_info["link_wa"],
@@ -581,7 +517,7 @@ with aba1:
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
                 "cliente_nome": cliente_nome or "Cliente Não Informado",
-                "cliente_cpf_cnpj": cliente_cpf_cnpj or "",
+                "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
                 "cliente_wa": cliente_wa or "",
                 "itens": list(st.session_state.itens),
                 "desconto_valor": desconto_valor,
@@ -683,7 +619,7 @@ with aba2:
                 
                 with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
                     st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
-                    st.write(f"**CPF/CNPJ:** {formatar_cpf_cnpj_padrao(prop.get('cliente_cpf_cnpj', ''))} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
+                    st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
                     
                     check_aprovado = st.checkbox(
                         "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
