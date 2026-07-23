@@ -444,7 +444,7 @@ def gerar_proposta_html(dados):
 # --- INTERFACE PRINCIPAL ---
 exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
-
+aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 with aba1:
     if st.session_state.get("ultima_proposta"):
         p_info = st.session_state["ultima_proposta"]
