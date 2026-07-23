@@ -79,71 +79,9 @@ def gerar_descricao_resumida(nome_produto, prod_id):
             "⭐ **Acabamento Premium!** Peça manufaturada com impressão 3D de altíssima precisão. Combina leveza, durabilidade e design contemporâneo para valorizar qualquer ambiente.",
             "🎁 **Escolha Perfeita para Presentear!** Produto exclusivo da Alphafest com modelagem geométrica otimizada e textura impecável. Alta resistência estrutural e elegância única.",
             "🏆 **Item de Coleção Exclusivo!** Produzido com matéria-prima selecionada e tecnologia de ponta. Detalhes definidos e estrutura rígida projetada para longa durabilidade.",
-            "💎 **Design Moderno & Refinado!** Transforme a decoração do seu espaço com esta peça única. Fabricada sob rigoroso controle de quality para garantir um acabamento perfeito."
+            "💎 **Design Moderno & Refinado!** Transforme a decoração do seu espaço com esta peça única. Fabricada sob rigoroso controle de qualidade para garantir um acabamento perfeito."
         ]
         return frases_variadas[var_index]
-
-# --- GERADOR DE LOTE INTELIGENTE POR TEMAS ---
-def gerar_lote_tematico(url, tema_grupo, limit=40):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept-Language": "pt-BR,pt;q=0.9"
-    }
-    produtos_extraidos = []
-    
-    parsed = urllib.parse.urlparse(url)
-    params = urllib.parse.parse_qs(parsed.query)
-    
-    keyword = ""
-    if "keyword" in params:
-        keyword = params["keyword"][0]
-    elif "search" in url or "models" in url:
-        partes = url.rstrip('/').split('/')
-        if partes: keyword = urllib.parse.unquote(partes[-1])
-
-    # Tenta extrair via requisição Web
-    if keyword:
-        try:
-            req_url = f"https://makerworld.com/api/v1/design-service/search/design/list?keyword={urllib.parse.quote(keyword)}&page=1&pageSize={limit}"
-            res = requests.get(req_url, headers=headers, timeout=5)
-            if res.status_code == 200:
-                hits = res.json().get("data", {}).get("hits", [])
-                for item in hits:
-                    raw_title = item.get("title") or item.get("name") or f"Modelo {keyword}"
-                    design_id = item.get('designId') or item.get('id') or '0000'
-                    cover_img = item.get("cover") or item.get("coverUrl") or ""
-                    
-                    produtos_extraidos.append({
-                        "id": f"MW{design_id}",
-                        "raw_nome": raw_title,
-                        "link": f"https://makerworld.com/pt/models/{design_id}",
-                        "imagem": cover_img,
-                        "peso": 35.0,
-                        "tempo": 2.0,
-                        "downloads": item.get("downloadCount", 1200),
-                        "likes": item.get("likeCount", 350)
-                    })
-        except Exception:
-            pass
-
-    # SE A API BLOQUEAR: Cria o lote garantido do Tema para o Catálogo não ficar vazio
-    if not produtos_extraidos:
-        prefixo_tema = tema_grupo if tema_grupo.strip() else (keyword if keyword else "Outubro Rosa")
-        for idx in range(1, limit + 1):
-            peso_est = round(float(20.0 + (idx * 1.5)), 1)
-            tempo_est = round(float(1.0 + (idx * 0.15)), 2)
-            produtos_extraidos.append({
-                "id": f"MW{datetime.now().strftime('%m%d')}{idx:02d}",
-                "raw_nome": f"{prefixo_tema} - Modelo Decorativo {idx:02d}",
-                "link": url if url.strip() else "https://makerworld.com/pt",
-                "imagem": "",
-                "peso": peso_est,
-                "tempo": tempo_est,
-                "downloads": 1500 + (idx * 30),
-                "likes": 400 + (idx * 8)
-            })
-
-    return produtos_extraidos
 
 # --- BANCO DE DADOS LOCAL JSON ---
 def carregar_historico():
@@ -700,9 +638,9 @@ if modulo_selecionado == "📄 Orçamentos & Pedidos":
 # ==========================================
 elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
     st.title("📚 CATÁLOGO DIGITAL DE PRODUTOS & PRECIFICAÇÃO 3D")
-    st.markdown("Cadastre produtos, calcule custos de produção de peças 3D e gere um catálogo comercial para enviar aos clientes.")
+    st.markdown("Cadastre produtos, calcule custos de produção de peças 3D e gere um catálogo comercial organizado por temas para enviar aos clientes.")
 
-    aba_cat1, aba_cat2, aba_cat3 = st.tabs(["➕ Cadastrar / Importar Peça", "🗂️ Ver Catálogo Digital", "📱 Links & QR Code para Clientes"])
+    aba_cat1, aba_cat2, aba_cat3 = st.tabs(["➕ Cadastrar / Importar Peças", "🗂️ Ver Catálogo Digital Agrupado", "📱 Links & QR Code para Clientes"])
 
     with aba_cat1:
         st.subheader("1. Configurações Globais de Precificação")
@@ -717,40 +655,50 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
 
         st.divider()
 
-        # SEÇÃO DE IMPORTAÇÃO AUTOMÁTICA COM GRUPOS E TEMAS
-        st.subheader("🚀 Importar Lote Automático do MakerWorld (Até 40 Produtos)")
-        
-        col_url, col_tema = st.columns([2, 1])
-        with col_url:
-            url_mw_lote = st.text_input("Cole aqui o Link do MakerWorld:", placeholder="Ex: https://makerworld.com/pt/search/models?keyword=Outubro+Rosa")
-        with col_tema:
-            grupo_tema_input = st.text_input("🏷️ Nome do Grupo / Tema:", value="Outubro Rosa", placeholder="Ex: Natal, Outubro Rosa, Dia dos Pais")
+        # SEÇÃO DE IMPORTAÇÃO AUTOMÁTICA OU POR LISTA DE TEXTO
+        st.subheader("🚀 Importar Lote por Tema (Texto / Nomes de Produtos)")
+        st.caption("Cole uma lista de nomes de produtos (um por linha) para gerar o catálogo completo do tema de uma só vez!")
 
-        if st.button("⚡ IMPORTAR E PRECIFIKAR LOTE DE 40 PEÇAS AUTOMATICAMENTE", type="primary", use_container_width=True):
-            nome_grupo = grupo_tema_input.strip() or "Geral"
-            with st.spinner(f"Gerando catálogo para o tema '{nome_grupo}'..."):
-                lote = gerar_lote_tematico(url_mw_lote.strip(), nome_grupo, limit=40)
+        col_t1, col_t2 = st.columns([1, 2])
+        with col_t1:
+            grupo_tema_input = st.text_input("🏷️ Nome do Tema / Grupo:", value="Dia dos Pais", placeholder="Ex: Dia dos Pais, Outubro Rosa, Natal")
+            peso_padrao = st.number_input("Peso Média/Peça (Gramas)", min_value=1.0, value=25.0)
+            tempo_padrao = st.number_input("Tempo Média/Peça (Horas)", min_value=0.1, value=1.5)
+            
+        with col_t2:
+            lista_nomes_raw = st.text_area(
+                "📋 Cole a lista de produtos (um por linha):",
+                value="Troféu Melhores do Ano\nChaveiro Super Pai\nLuminária Porta-Foto Pai\nOrganizador de Mesa para Escritório\nPorta Copos Personalizado Laser",
+                height=130
+            )
+
+        if st.button("⚡ GERAR CATÁLOGO AUTOMÁTICO DO TEMA", type="primary", use_container_width=True):
+            linhas = [l.strip() for l in lista_nomes_raw.split("\n") if l.strip()]
+            if not linhas:
+                st.error("Digite ou cole pelo menos um nome de produto!")
+            else:
                 cat_atual = carregar_catalogo_produtos()
+                nome_grupo = grupo_tema_input.strip() or "Geral"
                 qtd_add = 0
                 
-                for p in lote:
-                    nome_limp = higienizar_nome_comercial(p["raw_nome"])
-                    desc_p = gerar_descricao_resumida(nome_limp, p["id"])
-                    c_tot, p_vend = calcular_preco_3d(p["peso"], p["tempo"], preco_kg, margem, custo_hora)
-                    r_str = calcular_ranking_3d(p["downloads"], p["likes"])
+                for idx, nome_p in enumerate(linhas, 1):
+                    n_limpo = higienizar_nome_comercial(nome_p)
+                    p_id = f"MW{datetime.now().strftime('%m%d')}{idx:02d}"
+                    desc_p = gerar_descricao_resumida(n_limpo, p_id)
+                    c_tot, p_vend = calcular_preco_3d(peso_padrao, tempo_padrao, preco_kg, margem, custo_hora)
 
                     novo_item = {
-                        "id": p["id"],
-                        "nome": nome_limp,
+                        "id": p_id,
+                        "nome": n_limpo,
                         "grupo_tema": nome_grupo,
                         "categoria": "Impressão 3D Decorativa",
-                        "link": p["link"],
-                        "imagem": p.get("imagem", ""),
-                        "peso": p["peso"],
-                        "tempo": p["tempo"],
+                        "link": "https://makerworld.com/pt",
+                        "imagem": "",
+                        "peso": peso_padrao,
+                        "tempo": tempo_padrao,
                         "custo_total": c_tot,
                         "preco_venda": p_vend,
-                        "ranking": r_str,
+                        "ranking": "★★★★★ Excelente",
                         "comercial_desc": desc_p,
                         "data_cadastro": datetime.now().strftime("%d/%m/%Y")
                     }
@@ -758,11 +706,11 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                     qtd_add += 1
 
                 salvar_catalogo_produtos(cat_atual)
-                st.success(f"🎉 Lote com {qtd_add} produtos criado com sucesso no grupo **'{nome_grupo}'**!")
+                st.success(f"🎉 Criados {qtd_add} produtos no grupo **'{nome_grupo}'** com sucesso!")
                 st.rerun()
 
         st.divider()
-        st.subheader("2. Cadastro Manual Individual")
+        st.subheader("2. Cadastro Manual Individual com Foto")
 
         col_m1, col_m2 = st.columns(2)
         with col_m1:
@@ -775,15 +723,13 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
         with col_m2:
             prod_id_custom = f"MW{datetime.now().strftime('%d%H%M%S')}"
             st.text_input("Código de Identificação", value=prod_id_custom, disabled=True)
-            img_manual_url = st.text_input("URL da Foto do Produto (Opcional)", placeholder="https://exemplo.com/imagem.jpg")
+            img_manual_url = st.text_input("URL da Foto do Produto (Link da Imagem)", placeholder="https://exemplo.com/imagem.jpg")
             link_ref = st.text_input("Link de Referência (Opcional)", placeholder="https://makerworld.com/...")
             downloads = st.number_input("Downloads (Ref. MakerWorld)", min_value=0, value=1200)
-            likes = st.number_input("Likes (Ref. MakerWorld)", min_value=0, value=350)
 
         nome_limpo = higienizar_nome_comercial(nome_raw) if nome_raw else "Modelo Decorativo 3D"
         desc_persuasiva = gerar_descricao_resumida(nome_limpo, prod_id_custom)
         custo_tot, preco_vend = calcular_preco_3d(peso, tempo, preco_kg, margem, custo_hora)
-        rank_str = calcular_ranking_3d(downloads, likes)
 
         if st.button("💾 Cadastrar Item Individual no Catálogo", use_container_width=True):
             catalogo = carregar_catalogo_produtos()
@@ -798,7 +744,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                 "tempo": tempo,
                 "custo_total": custo_tot,
                 "preco_venda": preco_vend,
-                "ranking": rank_str,
+                "ranking": "★★★★☆ Muito bom",
                 "comercial_desc": desc_persuasiva,
                 "data_cadastro": datetime.now().strftime("%d/%m/%Y")
             }
@@ -808,15 +754,13 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
             st.rerun()
 
     with aba_cat2:
-        st.subheader("🗂️ Portfólio & Catálogo Comercial Agrupado")
+        st.subheader("🗂️ Portfólio & Catálogo Comercial Agrupado por Tema")
         catalogo = carregar_catalogo_produtos()
 
         if not catalogo:
             st.info("Nenhum produto cadastrado no catálogo até o momento.")
         else:
             grupos_existentes = sorted(list(set(p.get("grupo_tema", "Geral") for p in catalogo)))
-            
-            # Abas por Temas/Grupos
             abas_grupos = st.tabs([f"🏷️ {g}" for g in grupos_existentes])
 
             for idx_g, nome_grupo in enumerate(grupos_existentes):
@@ -826,13 +770,32 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                     
                     for idx, item in enumerate(prods_do_grupo):
                         with st.expander(f"📦 {item['id']} - {item['nome']} | R$ {item['preco_venda']:.2f}"):
+                            
+                            # EDIÇÃO RÁPIDA DE NOME, TEMA E FOTO
+                            with st.popover("✏️ Editar Nome, Tema ou Foto deste Produto"):
+                                nuevo_nome = st.text_input("Nome Comercial", value=item['nome'], key=f"ed_nome_{item['id']}")
+                                nuevo_grupo = st.text_input("Tema / Grupo", value=item.get('grupo_tema', 'Geral'), key=f"ed_grp_{item['id']}")
+                                nueva_img = st.text_input("URL da Foto (Link da Imagem)", value=item.get('imagem', ''), key=f"ed_img_{item['id']}")
+                                nuevo_preco = st.number_input("Preço de Venda (R$)", value=float(item['preco_venda']), step=1.0, key=f"ed_prc_{item['id']}")
+                                
+                                if st.button("💾 Salvar Alterações no Produto", key=f"btn_salvar_ed_{item['id']}"):
+                                    for p in catalogo:
+                                        if p["id"] == item["id"]:
+                                            p["nome"] = nuevo_nome
+                                            p["grupo_tema"] = nuevo_grupo
+                                            p["imagem"] = nueva_img.strip()
+                                            p["preco_venda"] = nuevo_preco
+                                            break
+                                    salvar_catalogo_produtos(catalogo)
+                                    st.success("Produto atualizado!")
+                                    st.rerun()
+
                             col_info, col_img = st.columns([2, 1])
                             
                             with col_info:
                                 st.write(f"**Tema/Grupo:** {item.get('grupo_tema', 'Geral')} | **Categoria:** {item.get('categoria', 'Geral')}")
                                 st.markdown(item['comercial_desc'])
                                 st.write(f"🔹 **Custo de Fabricação:** R$ {item['custo_total']:.2f} | **Peso:** {item['peso']}g | **Tempo:** {item['tempo']}h")
-                                st.write(f"⭐ **Classificação:** {item['ranking']}")
 
                             with col_img:
                                 img_url = item.get("imagem", "").strip()
@@ -840,7 +803,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                                     try:
                                         st.image(img_url, width=200, caption=item['nome'])
                                     except:
-                                        st.warning("⚠️ Imagem sob consulta")
+                                        st.warning("⚠️ Imagem inacessível no momento")
                                 else:
                                     st.info("🖼️ Foto sob consulta via WhatsApp")
 
