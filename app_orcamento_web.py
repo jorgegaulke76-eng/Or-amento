@@ -83,27 +83,28 @@ def gerar_descricao_resumida(nome_produto, prod_id):
         ]
         return frases_variadas[var_index]
 
-# --- IMPORTADOR AUTOMÁTICO DE DADOS MAKERWORLD ---
+# --- IMPORTADOR AUTOMÁTICO DE DADOS MAKERWORLD (INTELIGENTE & UNIVERSAL) ---
 def importar_lote_makerworld_api(url, limit=40):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     produtos_extraidos = []
     
-    # Extrai o ID da coleção/modelo da URL informada
-    id_match = re.search(r'/(?:collections|models|design)/(\d+)', url)
+    parsed = urllib.parse.urlparse(url)
+    params = urllib.parse.parse_qs(parsed.query)
     
     try:
-        if id_match and "collections" in url:
-            coll_id = id_match.group(1)
-            api_endpoint = f"https://makerworld.com/api/v1/design-service/collection/{coll_id}/design/list?page=1&pageSize={limit}"
+        # CASO 1: Link de Pesquisa por Palavra-Chave (Ex: ?keyword=Outubro+Rosa)
+        if "keyword" in params:
+            kw = params["keyword"][0]
+            api_endpoint = f"https://makerworld.com/api/v1/design-service/search/design/list?keyword={urllib.parse.quote(kw)}&page=1&pageSize={limit}"
             res = requests.get(api_endpoint, headers=headers, timeout=10)
             if res.status_code == 200:
                 data = res.json().get("data", {}).get("hits", [])
                 for item in data:
                     raw_title = item.get("title", "Modelo 3D")
-                    p_id = f"MW{item.get('designId', item.get('id', '0000'))}"
-                    p_link = f"https://makerworld.com/en/models/{item.get('designId', '')}"
+                    design_id = item.get('designId', item.get('id', '0000'))
+                    p_id = f"MW{design_id}"
+                    p_link = f"https://makerworld.com/pt/models/{design_id}"
                     
-                    # Estimativas técnicas para quando o modelo não abre página individual
                     len_t = len(raw_title)
                     peso_est = round(float((len_t * 1.8) + 15.0), 1)
                     tempo_est = round(float((len_t / 12) + 1.2), 2)
@@ -119,21 +120,49 @@ def importar_lote_makerworld_api(url, limit=40):
                         "downloads": dl,
                         "likes": lk
                     })
-        
-        # Se não for coleção ou falhar na API, gera estrutura lote com os parâmetros extraídos
+
+        # CASO 2: Link de Coleção (Ex: /collections/12345)
+        elif "collections" in url:
+            id_match = re.search(r'/collections/(\d+)', url)
+            if id_match:
+                coll_id = id_match.group(1)
+                api_endpoint = f"https://makerworld.com/api/v1/design-service/collection/{coll_id}/design/list?page=1&pageSize={limit}"
+                res = requests.get(api_endpoint, headers=headers, timeout=10)
+                if res.status_code == 200:
+                    data = res.json().get("data", {}).get("hits", [])
+                    for item in data:
+                        raw_title = item.get("title", "Modelo 3D")
+                        design_id = item.get('designId', item.get('id', '0000'))
+                        p_id = f"MW{design_id}"
+                        p_link = f"https://makerworld.com/pt/models/{design_id}"
+                        
+                        len_t = len(raw_title)
+                        peso_est = round(float((len_t * 1.8) + 15.0), 1)
+                        tempo_est = round(float((len_t / 12) + 1.2), 2)
+                        dl = item.get("downloadCount", 1200)
+                        lk = item.get("likeCount", 350)
+
+                        produtos_extraidos.append({
+                            "id": p_id,
+                            "raw_nome": raw_title,
+                            "link": p_link,
+                            "peso": peso_est,
+                            "tempo": tempo_est,
+                            "downloads": dl,
+                            "likes": lk
+                        })
+
+        # CASO 3: Varredura Universal de HTML (Procura todos os IDs de modelos na página)
         if not produtos_extraidos:
             res = requests.get(url, headers=headers, timeout=10)
-            matches = re.findall(r'href="(/en/models/\d+[^"]*)"', res.text)
-            links_unicos = list(dict.fromkeys(matches))[:limit]
+            model_ids = re.findall(r'/models/(\d+)', res.text)
+            model_ids_unicos = list(dict.fromkeys(model_ids))[:limit]
             
-            for idx, l in enumerate(links_unicos):
-                m_id = re.search(r'models/(\d+)', l)
-                pid = f"MW{m_id.group(1)}" if m_id else f"MW{idx+1000}"
-                nome_fake = f"Modelo Decorativo 3D Coleção {idx+1}"
+            for idx, m_id in enumerate(model_ids_unicos):
                 produtos_extraidos.append({
-                    "id": pid,
-                    "raw_nome": nome_fake,
-                    "link": f"https://makerworld.com{l}",
+                    "id": f"MW{m_id}",
+                    "raw_nome": f"Modelo 3D MakerWorld Ref {m_id}",
+                    "link": f"https://makerworld.com/pt/models/{m_id}",
                     "peso": float(25.0 + (idx * 2)),
                     "tempo": float(1.5 + (idx * 0.2)),
                     "downloads": 1500 + (idx * 50),
@@ -719,7 +748,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
 
         # SEÇÃO DE IMPORTAÇÃO AUTOMÁTICA
         st.subheader("🚀 Importar Lote Automático do MakerWorld (Até 40 Produtos)")
-        url_mw_lote = st.text_input("Cole aqui o Link da Coleção ou Categoria do MakerWorld:", placeholder="https://makerworld.com/en/collections/...")
+        url_mw_lote = st.text_input("Cole aqui o Link de Pesquisa, Coleção ou Categoria do MakerWorld:", placeholder="Ex: https://makerworld.com/pt/search/models?keyword=Outubro+Rosa")
 
         if st.button("⚡ IMPORTAR E PRECIFIKAR LOTE DE 40 PEÇAS AUTOMATICAMENTE", type="primary", use_container_width=True):
             if not url_mw_lote.strip():
