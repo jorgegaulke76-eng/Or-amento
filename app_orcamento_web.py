@@ -664,7 +664,7 @@ else:
         # Definir o status visual
         tag_entregue = "✅ (ENTREGUE)" if prop.get('entregue', False) else "⏳ (PENDENTE)"
         
-       with st.expander(f"Prop {prop['numero_proposta']} | {prop['cliente_nome']} | R$ {tot_final:.2f} {status_tag}{tag_entregue}{tag_hoje}"):
+with st.expander(f"Prop {prop['numero_proposta']} | {prop['cliente_nome']} | R$ {tot_final:.2f} {status_tag}{tag_entregue}{tag_hoje}"):
             
             # Checkboxes de Status
             check_entregue = st.checkbox("📦 Marcar como ENTREGUE", value=prop.get('entregue', False), key=f"chc_ent_{prop['numero_proposta']}")
@@ -687,39 +687,6 @@ else:
             with col_d1:
                 html_prop = gerar_proposta_html(prop)
                 st.download_button("📥 PDF", html_prop, f"orc_{prop['numero_proposta']}.html", "text/html")
-                        value=is_aprovado,
-                        key=f"chk_aprov_{prop['numero_proposta']}"
-                    )
-                    if check_aprovado != is_aprovado:
-                        alternar_status_aprovado(prop['numero_proposta'], is_aprovado)
-                        st.rerun()
-
-                    st.write("**Itens do Orçamento:**")
-                    for it in prop["itens"]:
-                        st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
-                    
-                    col_dl, col_wa, col_del = st.columns([2, 2, 1])
-                    with col_dl:
-                        html_prop = gerar_proposta_html(prop)
-                        st.download_button(
-                            label="📥 Baixar Proposta",
-                            data=html_prop,
-                            file_name=f"Proposta_{prop['numero_proposta']}.html",
-                            mime="text/html",
-                            key=f"dl_{prop['numero_proposta']}"
-                        )
-                    with col_wa:
-                        link_w = extrair_link_whatsapp_completo(prop)
-                        st.link_button(
-                            label="📱 Enviar WhatsApp",
-                            url=link_w,
-                            use_container_width=True
-                        )
-                    with col_del:
-                        if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"):
-                            excluir_proposta_por_id(prop['numero_proposta'])
-                            st.success(f"Proposta {prop['numero_proposta']} removida!")
-                            st.rerun()
 
         st.divider()
         with st.expander("⚙️ Zona de Segurança / Limpeza Geral"):
