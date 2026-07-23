@@ -712,12 +712,18 @@ with aba3:
         qtd_aprovadas = 0
         
         produtos_dict = {}
+        clientes_valor_dict = {}
+        clientes_qtd_dict = {}
 
         for p in historico:
             sub = sum(i["quantidade"] * i["valor_unitario"] for i in p["itens"])
             desc_v = p.get("desconto_valor", sub * (p.get("desconto", 0.0) / 100))
             v_final = max(0.0, sub - desc_v)
             tot_orçado += v_final
+            
+            c_nome = p.get("cliente_nome", "Cliente Não Informado").strip().title()
+            clientes_valor_dict[c_nome] = clientes_valor_dict.get(c_nome, 0.0) + v_final
+            clientes_qtd_dict[c_nome] = clientes_qtd_dict.get(c_nome, 0) + 1
             
             if p.get("aprovado", False):
                 tot_efetivado += v_final
@@ -775,6 +781,27 @@ with aba3:
         }
         
         st.bar_chart(dados_grafico, x="Período", y=["Total Orçado (R$)", "Pago / Efetivado (R$)"])
+
+        st.divider()
+
+        # --- NOVO GRÁFICO: TOP CLIENTES ---
+        st.write("### 👑 Ranking de Clientes (Quem Mais Compra / Orça)")
+        visao_cliente = st.radio("Ordenar ranking por:", ["Valor Total Orçado (R$)", "Quantidade de Pedidos"], horizontal=True)
+
+        if visao_cliente == "Valor Total Orçado (R$)":
+            cli_ordenados = dict(sorted(clientes_valor_dict.items(), key=lambda item: item[1], reverse=True))
+            dados_cli = {
+                "Cliente": list(cli_ordenados.keys())[:10],
+                "Total (R$)": list(cli_ordenados.values())[:10]
+            }
+            st.bar_chart(dados_cli, x="Cliente", y="Total (R$)")
+        else:
+            cli_ordenados = dict(sorted(clientes_qtd_dict.items(), key=lambda item: item[1], reverse=True))
+            dados_cli = {
+                "Cliente": list(cli_ordenados.keys())[:10],
+                "Qtd Pedidos": list(cli_ordenados.values())[:10]
+            }
+            st.bar_chart(dados_cli, x="Cliente", y="Qtd Pedidos")
 
         st.divider()
 
