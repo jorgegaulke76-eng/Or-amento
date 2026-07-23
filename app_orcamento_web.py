@@ -452,35 +452,27 @@ exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
-
+with aba2:
+    st.subheader("📋 Central de Propostas Geradas")
+    historico = carregar_historico()
+    
+    # --- Lógica de Alerta de Entrega ---
     hoje = date.today()
-            hoje_str = hoje.strftime("%d/%m/%Y")
-            
-            # DEBUG: Vamos ver o que está acontecendo com as datas
-            # st.write(f"DEBUG: Data de hoje procurada: '{hoje_str}'")
-            
-            # .strip() remove espaços vazios acidentais no início ou fim da data
-    # Criamos uma lista vazia para começar
-            entregas_hoje = []
-            
-            # Vamos olhar pedido por pedido
-            for p in historico:
-                data_do_pedido = str(p.get("data_entrega", "")).strip()
-                if data_do_pedido == hoje_str:
-                    entregas_hoje.append(p)
-                
-                # Linha de Debug: Isso vai aparecer na tela do seu site
-                st.write(f"DEBUG: Data do pedido {p.get('numero_proposta')} é: '{data_do_pedido}'")
-            
-            if entregas_hoje:
-                st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
-                for e_hoje in entregas_hoje:
-                    st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
-                st.divider()
-            # else:
-            #    st.write("DEBUG: Nenhuma entrega encontrada com a data exata de hoje no histórico.")
-            st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
-            
+    hoje_str = hoje.strftime("%d/%m/%Y")
+    
+    entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
+    
+    if entregas_hoje:
+        st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
+        for e_hoje in entregas_hoje:
+            st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
+        st.divider()
+
+    # --- Resto do seu código da Aba 2 (Histórico) ---
+    if not historico:
+        st.info("Nenhuma proposta gerada até o momento.")
+    else:
+        # ... (seu código de filtro e exibição continua aqui)
         col_down, col_wsp = st.columns(2)
         with col_down:
             st.download_button(
