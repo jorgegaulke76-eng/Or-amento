@@ -639,14 +639,14 @@ termo_busca = st.text_input(
 ).strip().lower()
 
 if termo_busca:
-            propostas_filtradas = []
-            for prop in propostas_periodo:
-                produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
-                texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {prop.get('data_entrega', '')} {produtos_concat}".lower()
-                if termo_busca in texto_pesquisa:
-                    propostas_filtradas.append(prop)
-        else:
-            propostas_filtradas = propostas_periodo
+    propostas_filtradas = []
+    for prop in propostas_periodo:
+        produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop['itens']]).lower()
+        texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_ws', '')} {prop.get('data_geracao', '')} {prop.get('data_entrega', '')} {produtos_concat}"
+        if termo_busca in texto_pesquisa:
+            propostas_filtradas.append(prop)
+else:
+    propostas_filtradas = propostas_periodo
 
         if not propostas_filtradas:
             st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
