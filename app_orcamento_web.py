@@ -650,20 +650,22 @@ else:
 
 if not propostas_filtradas:
     st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
-        else:
-            for prop in propostas_filtradas:
-                sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
-                desc_v = prop.get("desconto_valor", sub_total * (prop.get("desconto", 0.0) / 100))
-                tot_final = max(0.0, sub_total - desc_v)
-                
-                dt_ent = prop.get('data_entrega', 'Não informada')
-                tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
-                is_aprovado = prop.get("aprovado", False)
-                status_tag = " ✅ [PAGO / APROVADO]" if is_aprovado else " ⏳ [PENDENTE]"
-                
-                # Definir o status visual
-                tag_entregue = " ✅ [ENTREGUE]" if prop.get("entregue", False) else " ⏳ [PENDENTE]"
-                
+else:
+    for prop in propostas_filtradas:
+        sub_total = sum([i['quantidade'] * i['valor_unitario'] for i in prop['itens']])
+        desc_v = prop.get('desconto_valor', 0.0)
+        tot_final = max(0.0, sub_total - desc_v)
+        
+        dt_ent = prop.get('data_entrega', 'Não informada')
+        tag_hoje = " (HOJE)" if dt_ent == hoje_str else ""
+        is_aprovado = prop.get('aprovado', False)
+        status_tag = "✅ (APROVADO)" if is_aprovado else "⚠️ (PENDENTE)"
+        
+        # Definir o status visual
+        tag_entregue = "✅ (ENTREGUE)" if prop.get('entregue', False) else "⏳ (PENDENTE)"
+        
+        with st.expander(f"Prop {prop['numero_proposta']} | {prop['cliente_nome']} | R$ {tot_final:.2f} {status_tag}{tag_entregue}{tag_hoje}"):
+            st.write(f"Conteúdo do orçamento {prop['numero_proposta']}")
                 with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}{tag_entregue}"):
                     # ... (manter o código original de CPF, WhatsApp aqui) ...
                     
