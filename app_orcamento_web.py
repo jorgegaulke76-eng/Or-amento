@@ -8,9 +8,9 @@ from datetime import datetime, date, timedelta
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Orçamento Alphafest",
-    page_icon="📄",
-    layout="centered"
+    page_title="Alphafest Control Center",
+    page_icon="🔥",
+    layout="wide"
 )
 
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
@@ -424,295 +424,324 @@ def gerar_proposta_html(dados):
     """
     return html_content
 
-# --- INTERFACE PRINCIPAL ---
-exibir_logo_interface()
-st.title("📄 ORÇAMENTOS ALPHAFEST")
+# --- NAVEGAÇÃO / MENU LATERAL ---
+st.sidebar.image(PATH_LOGO_OFICIAL, use_container_width=True) if os.path.exists(PATH_LOGO_OFICIAL) else None
+st.sidebar.title("🔥 ALPHAFEST")
+st.sidebar.markdown("---")
 
-aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
+modulo_selecionado = st.sidebar.radio(
+    "📌 SELECIONE O MÓDULO:",
+    [
+        "📄 Orçamentos & Pedidos",
+        "📚 Gerador de Catálogo",
+        "📊 Dashboard & Métricas"
+    ]
+)
 
-with aba1:
-    if st.session_state.ultima_proposta:
-        p_info = st.session_state.ultima_proposta
-        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
-        
-        col_down, col_wsp = st.columns(2)
-        with col_down:
-            st.download_button(
-                label=f"📥 Baixar Proposta ({p_info['numero']})",
-                data=p_info["html"],
-                file_name=f"Proposta_{p_info['numero']}.html",
-                mime="text/html",
-                use_container_width=True
-            )
-        with col_wsp:
-            st.link_button(
-                label="📱 Enviar Proposta Completa no WhatsApp",
-                url=p_info["link_wa"],
-                type="primary",
-                use_container_width=True
-            )
-        st.divider()
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Alphafest Itatiba**\nFabricação Digital & Gravação Laser")
 
-    fk = st.session_state.form_key
+# ==========================================
+# MÓDULO 1: ORÇAMENTOS & PEDIDOS
+# ==========================================
+if modulo_selecionado == "📄 Orçamentos & Pedidos":
+    st.title("📄 GESTÃO DE ORÇAMENTOS E PROPOSTAS")
 
-    st.subheader("1. Dados do Cliente")
-    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
-    
-    col_doc, col_wa = st.columns(2)
-    with col_doc:
-        cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
-    with col_wa:
-        cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
+    aba1, aba2 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos"])
 
-    st.divider()
-
-    st.subheader("2. Adicionar Itens ao Orçamento")
-    
-    prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
-    
-    with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
-        col_esp1, col_esp2 = st.columns(2)
-        with col_esp1:
-            esp_tema = st.text_input("Tema / Ocasião", placeholder="Ex: Aniversário 15 Anos, Festa Infantil, Corporativo", key=f"et_{fk}")
-            esp_nome = st.text_input("Nome(s) Personalizado(s)", placeholder="Ex: Enrico, Giuliana & Felipe", key=f"en_{fk}")
-            esp_cor = st.text_input("Cor / Material", placeholder="Ex: Rosa Bebê / PLA Azul / Laser Inox", key=f"ec_{fk}")
-        with col_esp2:
-            esp_idade = st.text_input("Idade / Data do Evento", placeholder="Ex: 50 Anos / 27/02", key=f"ei_{fk}")
-            esp_geral = st.text_input("Outros Detalhes", placeholder="Ex: Gravação frente e verso", key=f"eg_{fk}")
-
-    col_q, col_v = st.columns(2)
-    with col_q:
-        qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fk}")
-    with col_v:
-        v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
-
-    partes_espec = []
-    if esp_tema.strip(): partes_espec.append(f"Tema: {esp_tema.strip()}")
-    if esp_nome.strip(): partes_espec.append(f"Nome: {esp_nome.strip()}")
-    if esp_idade.strip(): partes_espec.append(f"Idade/Data: {esp_idade.strip()}")
-    if esp_cor.strip(): partes_espec.append(f"Cor/Material: {esp_cor.strip()}")
-    if esp_geral.strip(): partes_espec.append(f"Obs: {esp_geral.strip()}")
-    
-    espec_final_str = " | ".join(partes_espec) if partes_espec else "Conforme alinhado"
-
-    prod_temp = prod.strip() or "Nome do Produto"
-    sub_temp = float(qtd) * float(v_unit)
-    
-    st.markdown(
-        f"""
-        <div style="background-color: #f1f5f9; border-left: 4px solid #0284c7; padding: 12px; border-radius: 6px; margin: 10px 0;">
-            <small style="color: #64748b; font-weight: bold; text-transform: uppercase;">👁️ PRÉVIA DO ITEM EM TEMPO REAL:</small><br>
-            <strong style="font-size: 15px; color: #0f172a;">{prod_temp}</strong><br>
-            <span style="color: #475569; font-size: 13px;">🔹 <em>Especificações:</em> {espec_final_str}</span><br>
-            <span style="color: #16a34a; font-weight: bold; font-size: 13px;">📦 {qtd} un. x R$ {v_unit:.2f} = R$ {sub_temp:.2f}</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    if st.button("➕ Adicionar Item à Lista", use_container_width=True):
-        if not prod.strip():
-            st.error("Informe o nome do produto!")
-        else:
-            st.session_state.itens.append({
-                "produto": prod.strip(),
-                "especificacoes": espec_final_str,
-                "quantidade": int(qtd),
-                "valor_unitario": float(v_unit)
-            })
-            st.success(f"Item '{prod.strip()}' adicionado!")
-            st.session_state.form_key += 1
-            st.rerun()
-
-    if st.session_state.itens:
-        st.write("### 📦 Itens no Orçamento:")
-        subtotal_acumulado = 0.0
-        for idx, item in enumerate(st.session_state.itens, 1):
-            sub = item["quantidade"] * item["valor_unitario"]
-            subtotal_acumulado += sub
-            st.write(f"**{idx}. {item['produto']}** — {item['quantidade']} un. x R$ {item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
-            st.caption(f"└ Detalhes: {item['especificacoes']}")
+    with aba1:
+        if st.session_state.ultima_proposta:
+            p_info = st.session_state.ultima_proposta
+            st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
             
-        st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
-        
-        if st.button("🗑️ Limpar Lista de Itens"):
-            st.session_state.itens = []
-            st.rerun()
-
-    st.divider()
-
-    st.subheader("3. Condições Comerciais & Prazos")
-    desconto_valor = st.number_input("Desconto em Valor (R$)", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"desc_{fk}")
-
-    col_pr, col_dt = st.columns(2)
-    with col_pr:
-        prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
-    with col_dt:
-        dt_entrega_input = st.date_input("📅 Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fk}")
-
-    frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
-
-    st.divider()
-
-    if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary", use_container_width=True):
-        if not st.session_state.itens:
-            st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
-        else:
-            dados = {
-                "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
-                "data_geracao": datetime.now().strftime("%d/%m/%Y"),
-                "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
-                "cliente_nome": cliente_nome or "Cliente Não Informado",
-                "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
-                "cliente_wa": cliente_wa or "",
-                "itens": list(st.session_state.itens),
-                "desconto_valor": desconto_valor,
-                "desconto": 0.0,
-                "sinal_pct": 100.0,
-                "prazo_dias": prazo,
-                "frete_tipo": frete,
-                "aprovado": False
-            }
-            
-            salvar_no_historico(dados)
-            html_gerado = gerar_proposta_html(dados)
-            link_wa_direto = extrair_link_whatsapp_completo(dados)
-
-            st.session_state.ultima_proposta = {
-                "numero": dados["numero_proposta"],
-                "cliente": dados["cliente_nome"],
-                "html": html_gerado,
-                "link_wa": link_wa_direto
-            }
-            
-            st.session_state.itens = []
-            st.session_state.form_key += 1
-            st.rerun()
-
-with aba2:
-    st.subheader("📋 Central de Propostas Geradas")
-    historico = carregar_historico()
-    
-    if not historico:
-        st.info("Nenhuma proposta gerada até o momento.")
-    else:
-        hoje = date.today()
-        hoje_str = hoje.strftime("%d/%m/%Y")
-        
-        entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
-        
-        if entregas_hoje:
-            st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
-            for e_hoje in entregas_hoje:
-                st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
+            col_down, col_wsp = st.columns(2)
+            with col_down:
+                st.download_button(
+                    label=f"📥 Baixar Proposta ({p_info['numero']})",
+                    data=p_info["html"],
+                    file_name=f"Proposta_{p_info['numero']}.html",
+                    mime="text/html",
+                    use_container_width=True
+                )
+            with col_wsp:
+                st.link_button(
+                    label="📱 Enviar Proposta Completa no WhatsApp",
+                    url=p_info["link_wa"],
+                    type="primary",
+                    use_container_width=True
+                )
             st.divider()
 
-        st.write("### 📊 Agrupar por Período de Emissão:")
-        opcao_periodo = st.radio(
-            "Selecione o período:",
-            ["Todas", "📅 Hoje", "🗓️ Esta Semana", "📆 Este Mês", "📊 Este Ano"],
-            horizontal=True,
-            key="filtro_periodo"
-        )
+        fk = st.session_state.form_key
 
-        propostas_periodo = []
-        for p in historico:
-            data_emissao_str = p.get("data_geracao", "")
-            try:
-                dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
-            except:
-                dt_emissao = hoje
-            
-            if opcao_periodo == "📅 Hoje":
-                if dt_emissao == hoje: propostas_periodo.append(p)
-            elif opcao_periodo == "🗓️ Esta Semana":
-                inicio_semana = hoje - timedelta(days=hoje.weekday())
-                if dt_emissao >= inicio_semana: propostas_periodo.append(p)
-            elif opcao_periodo == "📆 Este Mês":
-                if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year: propostas_periodo.append(p)
-            elif opcao_periodo == "📊 Este Ano":
-                if dt_emissao.year == hoje.year: propostas_periodo.append(p)
-            else:
-                propostas_periodo.append(p)
-
-        termo_busca = st.text_input(
-            "🔍 Filtrar por Palavra-Chave",
-            placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)",
-            key="busca_historico"
-        ).strip().lower()
-
-        if termo_busca:
-            propostas_filtradas = []
-            for prop in propostas_periodo:
-                produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
-                texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {prop.get('data_entrega', '')} {produtos_concat}".lower()
-                if termo_busca in texto_pesquisa:
-                    propostas_filtradas.append(prop)
-        else:
-            propostas_filtradas = propostas_periodo
-
-        if not propostas_filtradas:
-            st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
-        else:
-            for prop in propostas_filtradas:
-                sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
-                desc_v = prop.get("desconto_valor", sub_total * (prop.get("desconto", 0.0) / 100))
-                tot_final = max(0.0, sub_total - desc_v)
-                
-                dt_ent = str(prop.get('data_entrega', 'Não informada')).strip()
-                tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
-                is_aprovado = prop.get("aprovado", False)
-                status_tag = " ✅ [PAGO / APROVADO]" if is_aprovado else " ⏳ [PENDENTE]"
-                
-                with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
-                    st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
-                    st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
-                    
-                    check_aprovado = st.checkbox(
-                        "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
-                        value=is_aprovado,
-                        key=f"chk_aprov_{prop['numero_proposta']}"
-                    )
-                    if check_aprovado != is_aprovado:
-                        alternar_status_aprovado(prop['numero_proposta'], is_aprovado)
-                        st.rerun()
-
-                    st.write("**Itens do Orçamento:**")
-                    for it in prop["itens"]:
-                        st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
-                    
-                    col_dl, col_wa, col_del = st.columns([2, 2, 1])
-                    with col_dl:
-                        html_prop = gerar_proposta_html(prop)
-                        st.download_button(
-                            label="📥 Baixar Proposta",
-                            data=html_prop,
-                            file_name=f"Proposta_{prop['numero_proposta']}.html",
-                            mime="text/html",
-                            key=f"dl_{prop['numero_proposta']}"
-                        )
-                    with col_wa:
-                        link_w = extrair_link_whatsapp_completo(prop)
-                        st.link_button(
-                            label="📱 Enviar WhatsApp",
-                            url=link_w,
-                            use_container_width=True
-                        )
-                    with col_del:
-                        if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"):
-                            excluir_proposta_por_id(prop['numero_proposta'])
-                            st.success(f"Proposta {prop['numero_proposta']} removida!")
-                            st.rerun()
+        st.subheader("1. Dados do Cliente")
+        cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
+        
+        col_doc, col_wa = st.columns(2)
+        with col_doc:
+            cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
+        with col_wa:
+            cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
 
         st.divider()
-        with st.expander("⚙️ Zona de Segurança / Limpeza Geral"):
-            if st.button("🔥 ZERAR TODO O HISTÓRICO DE TESTES"):
-                zerar_todo_historico()
-                st.success("Histórico completamente zerado!")
+
+        st.subheader("2. Adicionar Itens ao Orçamento")
+        
+        prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
+        
+        with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
+            col_esp1, col_esp2 = st.columns(2)
+            with col_esp1:
+                esp_tema = st.text_input("Tema / Ocasião", placeholder="Ex: Aniversário 15 Anos, Festa Infantil, Corporativo", key=f"et_{fk}")
+                esp_nome = st.text_input("Nome(s) Personalizado(s)", placeholder="Ex: Enrico, Giuliana & Felipe", key=f"en_{fk}")
+                esp_cor = st.text_input("Cor / Material", placeholder="Ex: Rosa Bebê / PLA Azul / Laser Inox", key=f"ec_{fk}")
+            with col_esp2:
+                esp_idade = st.text_input("Idade / Data do Evento", placeholder="Ex: 50 Anos / 27/02", key=f"ei_{fk}")
+                esp_geral = st.text_input("Outros Detalhes", placeholder="Ex: Gravação frente e verso", key=f"eg_{fk}")
+
+        col_q, col_v = st.columns(2)
+        with col_q:
+            qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fk}")
+        with col_v:
+            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
+
+        partes_espec = []
+        if esp_tema.strip(): partes_espec.append(f"Tema: {esp_tema.strip()}")
+        if esp_nome.strip(): partes_espec.append(f"Nome: {esp_nome.strip()}")
+        if esp_idade.strip(): partes_espec.append(f"Idade/Data: {esp_idade.strip()}")
+        if esp_cor.strip(): partes_espec.append(f"Cor/Material: {esp_cor.strip()}")
+        if esp_geral.strip(): partes_espec.append(f"Obs: {esp_geral.strip()}")
+        
+        espec_final_str = " | ".join(partes_espec) if partes_espec else "Conforme alinhado"
+
+        prod_temp = prod.strip() or "Nome do Produto"
+        sub_temp = float(qtd) * float(v_unit)
+        
+        st.markdown(
+            f"""
+            <div style="background-color: #f1f5f9; border-left: 4px solid #0284c7; padding: 12px; border-radius: 6px; margin: 10px 0;">
+                <small style="color: #64748b; font-weight: bold; text-transform: uppercase;">👁️ PRÉVIA DO ITEM EM TEMPO REAL:</small><br>
+                <strong style="font-size: 15px; color: #0f172a;">{prod_temp}</strong><br>
+                <span style="color: #475569; font-size: 13px;">🔹 <em>Especificações:</em> {espec_final_str}</span><br>
+                <span style="color: #16a34a; font-weight: bold; font-size: 13px;">📦 {qtd} un. x R$ {v_unit:.2f} = R$ {sub_temp:.2f}</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        if st.button("➕ Adicionar Item à Lista", use_container_width=True):
+            if not prod.strip():
+                st.error("Informe o nome do produto!")
+            else:
+                st.session_state.itens.append({
+                    "produto": prod.strip(),
+                    "especificacoes": espec_final_str,
+                    "quantidade": int(qtd),
+                    "valor_unitario": float(v_unit)
+                })
+                st.success(f"Item '{prod.strip()}' adicionado!")
+                st.session_state.form_key += 1
                 st.rerun()
 
-with aba3:
-    st.subheader("📊 Relatórios Financeiros & Comercial")
+        if st.session_state.itens:
+            st.write("### 📦 Itens no Orçamento:")
+            subtotal_acumulado = 0.0
+            for idx, item in enumerate(st.session_state.itens, 1):
+                sub = item["quantidade"] * item["valor_unitario"]
+                subtotal_acumulado += sub
+                st.write(f"**{idx}. {item['produto']}** — {item['quantidade']} un. x R$ {item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
+                st.caption(f"└ Detalhes: {item['especificacoes']}")
+                
+            st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
+            
+            if st.button("🗑️ Limpar Lista de Itens"):
+                st.session_state.itens = []
+                st.rerun()
+
+        st.divider()
+
+        st.subheader("3. Condições Comerciais & Prazos")
+        desconto_valor = st.number_input("Desconto em Valor (R$)", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"desc_{fk}")
+
+        col_pr, col_dt = st.columns(2)
+        with col_pr:
+            prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
+        with col_dt:
+            dt_entrega_input = st.date_input("📅 Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fk}")
+
+        frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
+
+        st.divider()
+
+        if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary", use_container_width=True):
+            if not st.session_state.itens:
+                st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
+            else:
+                dados = {
+                    "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
+                    "data_geracao": datetime.now().strftime("%d/%m/%Y"),
+                    "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
+                    "cliente_nome": cliente_nome or "Cliente Não Informado",
+                    "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
+                    "cliente_wa": cliente_wa or "",
+                    "itens": list(st.session_state.itens),
+                    "desconto_valor": desconto_valor,
+                    "desconto": 0.0,
+                    "sinal_pct": 100.0,
+                    "prazo_dias": prazo,
+                    "frete_tipo": frete,
+                    "aprovado": False
+                }
+                
+                salvar_no_historico(dados)
+                html_gerado = gerar_proposta_html(dados)
+                link_wa_direto = extrair_link_whatsapp_completo(dados)
+
+                st.session_state.ultima_proposta = {
+                    "numero": dados["numero_proposta"],
+                    "cliente": dados["cliente_nome"],
+                    "html": html_gerado,
+                    "link_wa": link_wa_direto
+                }
+                
+                st.session_state.itens = []
+                st.session_state.form_key += 1
+                st.rerun()
+
+    with aba2:
+        st.subheader("📋 Central de Propostas Geradas")
+        historico = carregar_historico()
+        
+        if not historico:
+            st.info("Nenhuma proposta gerada até o momento.")
+        else:
+            hoje = date.today()
+            hoje_str = hoje.strftime("%d/%m/%Y")
+            
+            entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
+            
+            if entregas_hoje:
+                st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
+                for e_hoje in entregas_hoje:
+                    st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
+                st.divider()
+
+            st.write("### 📊 Agrupar por Período de Emissão:")
+            opcao_periodo = st.radio(
+                "Selecione o período:",
+                ["Todas", "📅 Hoje", "🗓️ Esta Semana", "📆 Este Mês", "📊 Este Ano"],
+                horizontal=True,
+                key="filtro_periodo"
+            )
+
+            propostas_periodo = []
+            for p in historico:
+                data_emissao_str = p.get("data_geracao", "")
+                try:
+                    dt_emissao = datetime.strptime(data_emissao_str, "%d/%m/%Y").date()
+                except:
+                    dt_emissao = hoje
+                
+                if opcao_periodo == "📅 Hoje":
+                    if dt_emissao == hoje: propostas_periodo.append(p)
+                elif opcao_periodo == "🗓️ Esta Semana":
+                    inicio_semana = hoje - timedelta(days=hoje.weekday())
+                    if dt_emissao >= inicio_semana: propostas_periodo.append(p)
+                elif opcao_periodo == "📆 Este Mês":
+                    if dt_emissao.month == hoje.month and dt_emissao.year == hoje.year: propostas_periodo.append(p)
+                elif opcao_periodo == "📊 Este Ano":
+                    if dt_emissao.year == hoje.year: propostas_periodo.append(p)
+                else:
+                    propostas_periodo.append(p)
+
+            termo_busca = st.text_input(
+                "🔍 Filtrar por Palavra-Chave",
+                placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)",
+                key="busca_historico"
+            ).strip().lower()
+
+            if termo_busca:
+                propostas_filtradas = []
+                for prop in propostas_periodo:
+                    produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
+                    texto_pesquisa = f"{prop['numero_proposta']} {prop['cliente_nome']} {prop.get('cliente_cpf_cnpj', '')} {prop.get('cliente_wa', '')} {prop.get('data_geracao', '')} {prop.get('data_entrega', '')} {produtos_concat}".lower()
+                    if termo_busca in texto_pesquisa:
+                        propostas_filtradas.append(prop)
+            else:
+                propostas_filtradas = propostas_periodo
+
+            if not propostas_filtradas:
+                st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
+            else:
+                for prop in propostas_filtradas:
+                    sub_total = sum(i["quantidade"] * i["valor_unitario"] for i in prop["itens"])
+                    desc_v = prop.get("desconto_valor", sub_total * (prop.get("desconto", 0.0) / 100))
+                    tot_final = max(0.0, sub_total - desc_v)
+                    
+                    dt_ent = str(prop.get('data_entrega', 'Não informada')).strip()
+                    tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
+                    is_aprovado = prop.get("aprovado", False)
+                    status_tag = " ✅ [PAGO / APROVADO]" if is_aprovado else " ⏳ [PENDENTE]"
+                    
+                    with st.expander(f"📄 {prop['numero_proposta']} - {prop['cliente_nome']} | R$ {tot_final:.2f}{status_tag}{tag_hoje}"):
+                        st.write(f"**Data de Emissão:** {prop.get('data_geracao', 'N/A')} | **📅 Data de Entrega:** {dt_ent}")
+                        st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')} | **WhatsApp:** {prop.get('cliente_wa', 'N/A')}")
+                        
+                        check_aprovado = st.checkbox(
+                            "✅ Marcar como PAGAMENTO CONFIRMADO / PEDIDO EFETIVADO",
+                            value=is_aprovado,
+                            key=f"chk_aprov_{prop['numero_proposta']}"
+                        )
+                        if check_aprovado != is_aprovado:
+                            alternar_status_aprovado(prop['numero_proposta'], is_aprovado)
+                            st.rerun()
+
+                        st.write("**Itens do Orçamento:**")
+                        for it in prop["itens"]:
+                            st.write(f"• {it['produto']} ({it['especificacoes']}) — {it['quantidade']}un x R${it['valor_unitario']:.2f}")
+                        
+                        col_dl, col_wa, col_del = st.columns([2, 2, 1])
+                        with col_dl:
+                            html_prop = gerar_proposta_html(prop)
+                            st.download_button(
+                                label="📥 Baixar Proposta",
+                                data=html_prop,
+                                file_name=f"Proposta_{prop['numero_proposta']}.html",
+                                mime="text/html",
+                                key=f"dl_{prop['numero_proposta']}"
+                            )
+                        with col_wa:
+                            link_w = extrair_link_whatsapp_completo(prop)
+                            st.link_button(
+                                label="📱 Enviar WhatsApp",
+                                url=link_w,
+                                use_container_width=True
+                            )
+                        with col_del:
+                            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"):
+                                excluir_proposta_por_id(prop['numero_proposta'])
+                                st.success(f"Proposta {prop['numero_proposta']} removida!")
+                                st.rerun()
+
+            st.divider()
+            with st.expander("⚙️ Zona de Segurança / Limpeza Geral"):
+                if st.button("🔥 ZERAR TODO O HISTÓRICO DE TESTES"):
+                    zerar_todo_historico()
+                    st.success("Histórico completamente zerado!")
+                    st.rerun()
+
+# ==========================================
+# MÓDULO 2: GERADOR DE CATÁLOGO (PRÓXIMA ETAPA)
+# ==========================================
+elif modulo_selecionado == "📚 Gerador de Catálogo":
+    st.title("📚 GERADOR DE CATÁLOGO DIGITAL")
+    st.info("🛠️ Módulo em estruturação! Aqui vamos cadastrar seus produtos (Copos, Gravações Laser, Impressões 3D), adicionar fotos e criar catálogos em PDF/HTML para os seus clientes.")
+
+# ==========================================
+# MÓDULO 3: DASHBOARD & MÉTRICAS
+# ==========================================
+elif modulo_selecionado == "📊 Dashboard & Métricas":
+    st.title("📊 PAINEL DE GESTÃO & MÉTRICAS")
     historico = carregar_historico()
     
     if not historico:
