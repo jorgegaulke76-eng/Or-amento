@@ -83,13 +83,11 @@ def gerar_descricao_resumida(nome_produto, prod_id):
         ]
         return frases_variadas[var_index]
 
-# --- IMPORTADOR DE DADOS MAKERWORLD COM TRATAMENTO DE IMAGEM & GRUPOS ---
+# --- SCRAPER E EXTRAÇÃO DE DADOS MAKERWORLD ---
 def importar_lote_makerworld_api(url, limit=40):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://makerworld.com/",
-        "Origin": "https://makerworld.com"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
     }
     produtos_extraidos = []
     
@@ -103,45 +101,68 @@ def importar_lote_makerworld_api(url, limit=40):
         partes = url.rstrip('/').split('/')
         if partes: keyword = urllib.parse.unquote(partes[-1])
 
-    if keyword:
-        try:
-            api_endpoint = "https://makerworld.com/api/v1/design-service/search/design/list"
-            payload = {"keyword": keyword, "page": 1, "pageSize": limit}
-            res = requests.post(api_endpoint, json=payload, headers=headers, timeout=10)
-            
-            if res.status_code != 200:
-                api_endpoint_get = f"https://makerworld.com/api/v1/design-service/search/design/list?keyword={urllib.parse.quote(keyword)}&page=1&pageSize={limit}"
-                res = requests.get(api_endpoint_get, headers=headers, timeout=10)
+    # Tenta obter os dados diretamente da página via extração de dados JSON incorporados
+    try:
+        req_url = f"https://makerworld.com/pt/search/models?keyword={urllib.parse.quote(keyword)}" if keyword else url
+        res = requests.get(req_url, headers=headers, timeout=12)
+        if res.status_code == 200:
+            html = res.text
+            # Procura por blocos de dados dos modelos no HTML
+            titles = re.findall(r'"title"\s*:\s*"([^"]+)"', html)
+            design_ids = re.findall(r'"designId"\s*:\s*(\d+)', html) or re.findall(r'/models/(\d+)', html)
+            covers = re.findall(r'"cover"\s*:\s*"([^"]+)"', html) or re.findall(r'https://[^\s"]+?\.(?:jpg|png|webp)', html)
 
+            # Filtra títulos duplicados ou genéricos
+            titles_clean = [t for t in titles if len(t) > 3 and "MakerWorld" not in t and "Search" not in t]
+            ids_clean = list(dict.fromkeys(design_ids))
+            
+            total = min(len(ids_clean), limit)
+            for idx in range(total):
+                d_id = ids_clean[idx]
+                t_nome = titles_clean[idx] if idx < len(titles_clean) else f"Modelo {keyword} {idx+1}"
+                img_url = covers[idx] if idx < len(covers) else ""
+                
+                if img_url and not img_url.startswith("http"):
+                    img_url = "https:" + img_url if img_url.startswith("//") else f"https://makerworld.com{img_url}"
+
+                len_t = len(t_nome)
+                peso_est = round(float((len_t * 1.4) + 15.0), 1)
+                tempo_est = round(float((len_t / 14) + 1.0), 2)
+
+                produtos_extraidos.append({
+                    "id": f"MW{d_id}",
+                    "raw_nome": t_nome,
+                    "link": f"https://makerworld.com/pt/models/{d_id}",
+                    "imagem": img_url,
+                    "peso": peso_est,
+                    "tempo": tempo_est,
+                    "downloads": 1500 + (idx * 20),
+                    "likes": 400 + (idx * 5)
+                })
+    except Exception:
+        pass
+
+    # Se a raspagem HTML falhar, utiliza a API alternativa
+    if not produtos_extraidos and keyword:
+        try:
+            api_endpoint = f"https://makerworld.com/api/v1/design-service/search/design/list?keyword={urllib.parse.quote(keyword)}&page=1&pageSize={limit}"
+            res = requests.get(api_endpoint, headers=headers, timeout=8)
             if res.status_code == 200:
-                data = res.json().get("data", {})
-                hits = data.get("hits", []) if isinstance(data, dict) else []
+                hits = res.json().get("data", {}).get("hits", [])
                 for item in hits:
                     raw_title = item.get("title") or item.get("name") or f"Modelo {keyword}"
                     design_id = item.get('designId') or item.get('id') or '0000'
-                    p_id = f"MW{design_id}"
-                    p_link = f"https://makerworld.com/pt/models/{design_id}"
+                    cover_img = item.get("cover") or item.get("coverUrl") or ""
                     
-                    # URL da foto tratada
-                    cover_img = item.get("cover") or item.get("coverUrl") or item.get("image") or ""
-                    if cover_img and not cover_img.startswith("http"):
-                        cover_img = f"https://makerworld.bblabv.com/{cover_img}"
-
-                    len_t = len(raw_title)
-                    peso_est = round(float((len_t * 1.5) + 12.0), 1)
-                    tempo_est = round(float((len_t / 15) + 0.8), 2)
-                    dl = item.get("downloadCount", 1200)
-                    lk = item.get("likeCount", 350)
-
                     produtos_extraidos.append({
-                        "id": p_id,
+                        "id": f"MW{design_id}",
                         "raw_nome": raw_title,
-                        "link": p_link,
+                        "link": f"https://makerworld.com/pt/models/{design_id}",
                         "imagem": cover_img,
-                        "peso": peso_est,
-                        "tempo": tempo_est,
-                        "downloads": dl,
-                        "likes": lk
+                        "peso": 35.0,
+                        "tempo": 2.0,
+                        "downloads": item.get("downloadCount", 1000),
+                        "likes": item.get("likeCount", 300)
                     })
         except Exception:
             pass
@@ -369,7 +390,7 @@ def gerar_proposta_html(dados):
             </div>
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
-                1. A produção seguirá estritamente o layout approved pelo cliente.<br>
+                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
@@ -821,10 +842,9 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
         if not catalogo:
             st.info("Nenhum produto cadastrado no catálogo até o momento.")
         else:
-            # Organiza produtos por Grupos / Temas
             grupos_existentes = sorted(list(set(p.get("grupo_tema", "Geral") for p in catalogo)))
             
-            # Filtro interativo por abas temáticas
+            # Abas por Temas/Grupos
             abas_grupos = st.tabs([f"🏷️ {g}" for g in grupos_existentes])
 
             for idx_g, nome_grupo in enumerate(grupos_existentes):
@@ -845,9 +865,12 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                             with col_img:
                                 img_url = item.get("imagem", "").strip()
                                 if img_url:
-                                    st.image(img_url, width=180, caption=item['nome'])
+                                    try:
+                                        st.image(img_url, width=200, caption=item['nome'])
+                                    except:
+                                        st.warning("⚠️ Imagem inacessível no momento")
                                 else:
-                                    st.info("🖼️ Foto do produto sob consulta via WhatsApp")
+                                    st.info("🖼️ Foto sob consulta via WhatsApp")
 
                             st.divider()
                             col_p1, col_p2, col_p3 = st.columns([2, 2, 1])
