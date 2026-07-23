@@ -688,7 +688,6 @@ with st.expander(f"Prop {prop['numero_proposta']} | {prop['cliente_nome']} | R$ 
                 html_prop = gerar_proposta_html(prop)
                 st.download_button("📥 PDF", html_prop, f"orc_{prop['numero_proposta']}.html", "text/html")
 
-        st.divider()
         with st.expander("⚙️ Zona de Segurança / Limpeza Geral"):
             if st.button("🔥 ZERAR TODO O HISTÓRICO DE TESTES"):
                 zerar_todo_historico()
