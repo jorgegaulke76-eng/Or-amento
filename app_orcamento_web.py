@@ -83,12 +83,11 @@ def gerar_descricao_resumida(nome_produto, prod_id):
         ]
         return frases_variadas[var_index]
 
-# --- IMPORTADOR AUTOMÁTICO COM FOTOS E NOMES REAIS (MAKERWORLD API) ---
+# --- IMPORTADOR DE DADOS MAKERWORLD COM TRATAMENTO DE IMAGEM & GRUPOS ---
 def importar_lote_makerworld_api(url, limit=40):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
         "Referer": "https://makerworld.com/",
         "Origin": "https://makerworld.com"
     }
@@ -106,7 +105,6 @@ def importar_lote_makerworld_api(url, limit=40):
 
     if keyword:
         try:
-            # Consulta API Oficial via POST para extrair nomes e fotos reais
             api_endpoint = "https://makerworld.com/api/v1/design-service/search/design/list"
             payload = {"keyword": keyword, "page": 1, "pageSize": limit}
             res = requests.post(api_endpoint, json=payload, headers=headers, timeout=10)
@@ -124,9 +122,11 @@ def importar_lote_makerworld_api(url, limit=40):
                     p_id = f"MW{design_id}"
                     p_link = f"https://makerworld.com/pt/models/{design_id}"
                     
-                    # URL da foto de capa
+                    # URL da foto tratada
                     cover_img = item.get("cover") or item.get("coverUrl") or item.get("image") or ""
-                    
+                    if cover_img and not cover_img.startswith("http"):
+                        cover_img = f"https://makerworld.bblabv.com/{cover_img}"
+
                     len_t = len(raw_title)
                     peso_est = round(float((len_t * 1.5) + 12.0), 1)
                     tempo_est = round(float((len_t / 15) + 0.8), 2)
@@ -145,32 +145,6 @@ def importar_lote_makerworld_api(url, limit=40):
                     })
         except Exception:
             pass
-
-    if not produtos_extraidos and "collections" in url:
-        id_match = re.search(r'/collections/(\d+)', url)
-        if id_match:
-            coll_id = id_match.group(1)
-            try:
-                api_endpoint = f"https://makerworld.com/api/v1/design-service/collection/{coll_id}/design/list?page=1&pageSize={limit}"
-                res = requests.get(api_endpoint, headers=headers, timeout=10)
-                if res.status_code == 200:
-                    hits = res.json().get("data", {}).get("hits", [])
-                    for item in hits:
-                        raw_title = item.get("title", "Modelo Coleção")
-                        design_id = item.get('designId', item.get('id', '0000'))
-                        cover_img = item.get("cover") or item.get("coverUrl") or ""
-                        produtos_extraidos.append({
-                            "id": f"MW{design_id}",
-                            "raw_nome": raw_title,
-                            "link": f"https://makerworld.com/pt/models/{design_id}",
-                            "imagem": cover_img,
-                            "peso": float(25.0),
-                            "tempo": float(1.5),
-                            "downloads": item.get("downloadCount", 1000),
-                            "likes": item.get("likeCount", 300)
-                        })
-            except Exception:
-                pass
 
     return produtos_extraidos
 
@@ -395,7 +369,7 @@ def gerar_proposta_html(dados):
             </div>
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
-                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
+                1. A produção seguirá estritamente o layout approved pelo cliente.<br>
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
@@ -437,7 +411,7 @@ if modulo_selecionado == "📄 Orçamentos & Pedidos":
         item_c = st.session_state.item_importado_catalogo
         prod_inicial = item_c["nome"]
         valor_inicial = float(item_c["preco_venda"])
-        espec_inicial = f"Item do Catálogo ({item_c.get('categoria', '3D')}) | Ref: {item_c['id']}"
+        espec_inicial = f"Item do Catálogo ({item_c.get('grupo_tema', 'Geral')}) | Ref: {item_c['id']}"
         st.success(f"⚡ Item **'{prod_inicial}'** carregado do Catálogo automaticamente!")
         st.session_state.item_importado_catalogo = None
 
@@ -746,18 +720,26 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
 
         st.divider()
 
-        # SEÇÃO DE IMPORTAÇÃO AUTOMÁTICA
+        # SEÇÃO DE IMPORTAÇÃO AUTOMÁTICA COM GRUPOS E TEMAS
         st.subheader("🚀 Importar Lote Automático do MakerWorld (Até 40 Produtos)")
-        url_mw_lote = st.text_input("Cole aqui o Link de Pesquisa, Coleção ou Categoria do MakerWorld:", placeholder="Ex: https://makerworld.com/pt/search/models?keyword=Outubro+Rosa")
+        
+        col_url, col_tema = st.columns([2, 1])
+        with col_url:
+            url_mw_lote = st.text_input("Cole aqui o Link do MakerWorld:", placeholder="Ex: https://makerworld.com/pt/search/models?keyword=Outubro+Rosa")
+        with col_tema:
+            grupo_tema_input = st.text_input("🏷️ Nome do Grupo / Tema:", value="Outubro Rosa", placeholder="Ex: Natal, Outubro Rosa, Dia dos Pais")
 
         if st.button("⚡ IMPORTAR E PRECIFIKAR LOTE DE 40 PEÇAS AUTOMATICAMENTE", type="primary", use_container_width=True):
             if not url_mw_lote.strip():
                 st.error("Insira um link do MakerWorld para importar!")
             else:
-                with st.spinner("Conectando ao MakerWorld, extraindo fotos e nomes reais dos modelos..."):
+                with st.spinner("Conectando ao MakerWorld, extraindo modelos e organizando o lote..."):
                     lote = importar_lote_makerworld_api(url_mw_lote.strip(), limit=40)
                     cat_atual = carregar_catalogo_produtos()
                     qtd_add = 0
+                    
+                    nome_grupo = grupo_tema_input.strip() or "Geral"
+                    
                     for p in lote:
                         nome_limp = higienizar_nome_comercial(p["raw_nome"])
                         desc_p = gerar_descricao_resumida(nome_limp, p["id"])
@@ -767,6 +749,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                         novo_item = {
                             "id": p["id"],
                             "nome": nome_limp,
+                            "grupo_tema": nome_grupo,
                             "categoria": "Impressão 3D Decorativa",
                             "link": p["link"],
                             "imagem": p.get("imagem", ""),
@@ -782,7 +765,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
                         qtd_add += 1
 
                     salvar_catalogo_produtos(cat_atual)
-                    st.success(f"🎉 Lote com {qtd_add} produtos reais e fotos do MakerWorld importado com sucesso!")
+                    st.success(f"🎉 Lote com {qtd_add} produtos importados e agrupados na categoria **'{nome_grupo}'**!")
                     st.rerun()
 
         st.divider()
@@ -790,7 +773,8 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
 
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            nome_raw = st.text_input("Nome do Produto / Modelo 3D", placeholder="Ex: Presépio de Natal - Sem AMS V2")
+            nome_raw = st.text_input("Nome do Produto / Modelo 3D", placeholder="Ex: Chaveiro Lembrancinha Espírito Santo")
+            grupo_tema_manual = st.text_input("🏷️ Grupo / Tema do Produto", value="Geral", placeholder="Ex: Lembrancinhas, Natal, Laser Inox")
             categoria = st.selectbox("Categoria", ["Impressão 3D Decorativa", "Copo Térmico Personalizado", "Gravação Laser Inox", "Organizador / Utilitário", "Colecionável / Edição Especial"])
             peso = st.number_input("Peso do Filamento (Gramas)", min_value=1.0, value=45.0, step=5.0)
             tempo = st.number_input("Tempo de Impressão (Horas)", min_value=0.1, value=2.5, step=0.5)
@@ -813,6 +797,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
             novo_prod = {
                 "id": prod_id_custom,
                 "nome": nome_limpo,
+                "grupo_tema": grupo_tema_manual.strip() or "Geral",
                 "categoria": categoria,
                 "link": link_ref,
                 "imagem": img_manual_url.strip(),
@@ -830,45 +815,57 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
             st.rerun()
 
     with aba_cat2:
-        st.subheader("🗂️ Portfólio & Catálogo Comercial")
+        st.subheader("🗂️ Portfólio & Catálogo Comercial Agrupado")
         catalogo = carregar_catalogo_produtos()
 
         if not catalogo:
             st.info("Nenhum produto cadastrado no catálogo até o momento.")
         else:
-            for idx, item in enumerate(catalogo):
-                with st.expander(f"📦 {item['id']} - {item['nome']} | R$ {item['preco_venda']:.2f}"):
-                    col_info, col_img = st.columns([2, 1])
+            # Organiza produtos por Grupos / Temas
+            grupos_existentes = sorted(list(set(p.get("grupo_tema", "Geral") for p in catalogo)))
+            
+            # Filtro interativo por abas temáticas
+            abas_grupos = st.tabs([f"🏷️ {g}" for g in grupos_existentes])
+
+            for idx_g, nome_grupo in enumerate(grupos_existentes):
+                with abas_grupos[idx_g]:
+                    prods_do_grupo = [p for p in catalogo if p.get("grupo_tema", "Geral") == nome_grupo]
+                    st.caption(f"Mostrando **{len(prods_do_grupo)}** produtos no grupo **'{nome_grupo}'**")
                     
-                    with col_info:
-                        st.write(f"**Categoria:** {item.get('categoria', 'Geral')} | **Cadastrado em:** {item.get('data_cadastro', 'N/A')}")
-                        st.markdown(item['comercial_desc'])
-                        st.write(f"🔹 **Custo de Fabricação:** R$ {item['custo_total']:.2f} | **Peso:** {item['peso']}g | **Tempo:** {item['tempo']}h")
-                        st.write(f"⭐ **Classificação:** {item['ranking']}")
+                    for idx, item in enumerate(prods_do_grupo):
+                        with st.expander(f"📦 {item['id']} - {item['nome']} | R$ {item['preco_venda']:.2f}"):
+                            col_info, col_img = st.columns([2, 1])
+                            
+                            with col_info:
+                                st.write(f"**Tema/Grupo:** {item.get('grupo_tema', 'Geral')} | **Categoria:** {item.get('categoria', 'Geral')}")
+                                st.markdown(item['comercial_desc'])
+                                st.write(f"🔹 **Custo de Fabricação:** R$ {item['custo_total']:.2f} | **Peso:** {item['peso']}g | **Tempo:** {item['tempo']}h")
+                                st.write(f"⭐ **Classificação:** {item['ranking']}")
 
-                    with col_img:
-                        if item.get("imagem"):
-                            st.image(item["imagem"], width=180, caption=item['nome'])
-                        else:
-                            st.caption("🖼️ (Sem foto cadastrada)")
+                            with col_img:
+                                img_url = item.get("imagem", "").strip()
+                                if img_url:
+                                    st.image(img_url, width=180, caption=item['nome'])
+                                else:
+                                    st.info("🖼️ Foto do produto sob consulta via WhatsApp")
 
-                    st.divider()
-                    col_p1, col_p2, col_p3 = st.columns([2, 2, 1])
-                    with col_p1:
-                        if st.button(f"🚀 Criar Orçamento Rápido", key=f"orc_{idx}_{item['id']}"):
-                            st.session_state.item_importado_catalogo = item
-                            st.success(f"Item '{item['nome']}' enviado para o formulário de orçamento!")
-                            st.rerun()
-                    with col_p2:
-                        msg_wa_pedir = urllib.parse.quote(f"Olá! Vi o produto *{item['nome']}* (R$ {item['preco_venda']:.2f}) no catálogo da Alphafest e gostaria de encomendar.")
-                        link_wa_direto_pedir = f"https://api.whatsapp.com/send?text={msg_wa_pedir}"
-                        st.link_button("📱 Testar Pedido no WhatsApp", url=link_wa_direto_pedir, use_container_width=True)
-                    with col_p3:
-                        if st.button("🗑️ Excluir Item", key=f"del_cat_{idx}_{item['id']}"):
-                            catalogo_atualizado = [p for i_pos, p in enumerate(catalogo) if i_pos != idx]
-                            salvar_catalogo_produtos(catalogo_atualizado)
-                            st.success(f"Item '{item['nome']}' removido com sucesso!")
-                            st.rerun()
+                            st.divider()
+                            col_p1, col_p2, col_p3 = st.columns([2, 2, 1])
+                            with col_p1:
+                                if st.button(f"🚀 Criar Orçamento Rápido", key=f"orc_{idx_g}_{idx}_{item['id']}"):
+                                    st.session_state.item_importado_catalogo = item
+                                    st.success(f"Item '{item['nome']}' enviado para o formulário de orçamento!")
+                                    st.rerun()
+                            with col_p2:
+                                msg_wa_pedir = urllib.parse.quote(f"Olá! Vi o produto *{item['nome']}* (R$ {item['preco_venda']:.2f}) do tema *{item.get('grupo_tema', 'Geral')}* na Alphafest e gostaria de encomendar.")
+                                link_wa_direto_pedir = f"https://api.whatsapp.com/send?text={msg_wa_pedir}"
+                                st.link_button("📱 Testar Pedido no WhatsApp", url=link_wa_direto_pedir, use_container_width=True)
+                            with col_p3:
+                                if st.button("🗑️ Excluir Item", key=f"del_cat_{idx_g}_{idx}_{item['id']}"):
+                                    catalogo_atualizado = [p for p in catalogo if p["id"] != item["id"]]
+                                    salvar_catalogo_produtos(catalogo_atualizado)
+                                    st.success(f"Item '{item['nome']}' removido com sucesso!")
+                                    st.rerun()
 
             st.divider()
             with st.expander("⚙️ Zona de Segurança / Limpeza do Catálogo"):
