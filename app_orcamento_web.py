@@ -500,9 +500,9 @@ with aba1:
     st.subheader("2. Adicionar Itens ao Orçamento")
     with st.form(f"form_item_{fk}", clear_on_submit=True):
         col_p, col_e = st.columns([2, 2])
-        with col_p:
+   
           
-        with col_e:
+      
            
             
         col_q, col_v = st.columns(2)
