@@ -638,7 +638,7 @@ termo_busca = st.text_input(
     key="busca_definitiva_v1"
 ).strip().lower()
 
-        if termo_busca:
+if termo_busca:
             propostas_filtradas = []
             for prop in propostas_periodo:
                 produtos_concat = " ".join([f"{it['produto']} {it['especificacoes']}" for it in prop["itens"]]).lower()
