@@ -82,7 +82,6 @@ def extrair_link_whatsapp_completo(dados):
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
     
-    # Monta a lista formatada de todos os itens
     texto_itens = ""
     for idx, item in enumerate(dados["itens"], 1):
         sub_item = item["quantidade"] * item["valor_unitario"]
@@ -393,7 +392,7 @@ def gerar_proposta_html(dados):
                 
                 👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido !!🥰</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
-                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
+                • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 days corridos.
             </div>
             
             <div class="terms-box">
@@ -452,32 +451,50 @@ with aba1:
     st.divider()
 
     st.subheader("2. Adicionar Itens ao Orçamento")
-    with st.form(f"form_item_{fk}", clear_on_submit=True):
-        col_p, col_e = st.columns([2, 2])
-        with col_p:
-            prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D")
-        with col_e:
-            espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA")
-            
-        col_q, col_v = st.columns(2)
-        with col_q:
-            qtd = st.number_input("Quantidade", min_value=1, value=1, step=1)
-        with col_v:
-            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f")
-            
-        btn_add = st.form_submit_button("➕ Adicionar Item")
+    
+    # --- ENTRADA DE DADOS EM TEMPO REAL ---
+    col_p, col_e = st.columns([2, 2])
+    with col_p:
+        prod = st.text_input("Produto", placeholder="Ex: Copo Térmico 360ml / Troféu 3D", key=f"p_{fk}")
+    with col_e:
+        espec = st.text_input("Especificações", placeholder="Ex: Gravação Laser Inox / Impressão PLA", key=f"e_{fk}")
         
-        if btn_add:
-            if not prod.strip():
-                st.error("Informe o nome do produto!")
-            else:
-                st.session_state.itens.append({
-                    "produto": prod,
-                    "especificacoes": espec or "Conforme alinhado",
-                    "quantidade": int(qtd),
-                    "valor_unitario": float(v_unit)
-                })
-                st.success(f"Item '{prod}' adicionado!")
+    col_q, col_v = st.columns(2)
+    with col_q:
+        qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fk}")
+    with col_v:
+        v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
+    
+    # --- BOX DE PRÉVIA EM TEMPO REAL ---
+    prod_temp = prod.strip() or "Nome do Produto"
+    espec_temp = espec.strip() or "Especificações aparecerão aqui..."
+    sub_temp = float(qtd) * float(v_unit)
+    
+    st.markdown(
+        f"""
+        <div style="background-color: #f1f5f9; border-left: 4px solid #0284c7; padding: 12px; border-radius: 6px; margin: 10px 0;">
+            <small style="color: #64748b; font-weight: bold; text-transform: uppercase;">👁️ PRÉVIA DO ITEM (Como aparecerá no orçamento):</small><br>
+            <strong style="font-size: 15px; color: #0f172a;">{prod_temp}</strong><br>
+            <span style="color: #475569; font-size: 13px;">🔹 <em>Especificação:</em> {espec_temp}</span><br>
+            <span style="color: #16a34a; font-weight: bold; font-size: 13px;">📦 {qtd} un. x R$ {v_unit:.2f} = R$ {sub_temp:.2f}</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    if st.button("➕ Adicionar Item à Lista", use_container_width=True):
+        if not prod.strip():
+            st.error("Informe o nome do produto!")
+        else:
+            st.session_state.itens.append({
+                "produto": prod.strip(),
+                "especificacoes": espec.strip() or "Conforme alinhado",
+                "quantidade": int(qtd),
+                "valor_unitario": float(v_unit)
+            })
+            st.success(f"Item '{prod.strip()}' adicionado!")
+            st.session_state.form_key += 1
+            st.rerun()
 
     if st.session_state.itens:
         st.write("### 📦 Itens no Orçamento:")
@@ -486,6 +503,7 @@ with aba1:
             sub = item["quantidade"] * item["valor_unitario"]
             subtotal_acumulado += sub
             st.write(f"**{idx}. {item['produto']}** — {item['quantidade']} un. x R$ {item['valor_unitario']:.2f} = **R$ {sub:.2f}**")
+            st.caption(f"└ Especificações: {item['especificacoes']}")
             
         st.info(f"**SUBTOTAL DO PACOTE:** R$ {subtotal_acumulado:.2f}")
         
@@ -553,7 +571,6 @@ with aba2:
         hoje = date.today()
         hoje_str = hoje.strftime("%d/%m/%Y")
         
-        # Filtro de entregas do dia com tratamento de string seguro (.strip())
         entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
         
         if entregas_hoje:
