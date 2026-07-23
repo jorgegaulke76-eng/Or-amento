@@ -553,7 +553,9 @@ with aba2:
         hoje = date.today()
         hoje_str = hoje.strftime("%d/%m/%Y")
         
-        entregas_hoje = [p for p in historico if p.get("data_entrega") == hoje_str]
+        # Filtro de entregas do dia com tratamento de string seguro (.strip())
+        entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
+        
         if entregas_hoje:
             st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
             for e_hoje in entregas_hoje:
@@ -612,7 +614,7 @@ with aba2:
                 desc_v = prop.get("desconto_valor", sub_total * (prop.get("desconto", 0.0) / 100))
                 tot_final = max(0.0, sub_total - desc_v)
                 
-                dt_ent = prop.get('data_entrega', 'Não informada')
+                dt_ent = str(prop.get('data_entrega', 'Não informada')).strip()
                 tag_hoje = " 🚨 [HOJE]" if dt_ent == hoje_str else ""
                 is_aprovado = prop.get("aprovado", False)
                 status_tag = " ✅ [PAGO / APROVADO]" if is_aprovado else " ⏳ [PENDENTE]"
