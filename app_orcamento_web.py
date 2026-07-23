@@ -19,20 +19,7 @@ PATH_PIX_QRCODE = "pix.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_DIRETO = "https://linkspix.app/alphafestitatiba"
 
-with aba1:
-    if st.session_state.get("ultima_proposta"):
-        p_info = st.session_state["ultima_proposta"]
-        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
-        
-        col_down, col_wsp = st.columns(2)
-        with col_down:
-            st.download_button(
-                label=f"📥 Baixar Proposta ({p_info['numero']})",
-                data=p_info["html"],
-                file_name=f"Proposta_{p_info['numero']}.html",
-                mime="text/html",
-                use_container_width=True
-            )
+
         with col_wsp:
             st.link_button(
                 label="📱 Enviar Proposta Completa no WhatsApp",
@@ -468,22 +455,22 @@ def gerar_proposta_html(dados):
 exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
-with aba2:
-    st.subheader("📋 Central de Propostas Geradas")
-    historico = carregar_historico()
+with aba1:
+    if st.session_state.get("ultima_proposta"):
+        p_info = st.session_state["ultima_proposta"]
+        st.success(f"✅ Proposta {p_info['numero']} ({p_info['cliente']}) salva com sucesso!")
+        
+        col_down, col_wsp = st.columns(2)
+        with col_down:
+            st.download_button(
+                label=f"📥 Baixar Proposta ({p_info['numero']})",
+                data=p_info["html"],
+                file_name=f"Proposta_{p_info['numero']}.html",
+                mime="text/html",
+                use_container_width=True
+            )
     
-    # --- Lógica de Alerta de Entrega ---
-    hoje = date.today()
-    hoje_str = hoje.strftime("%d/%m/%Y")
     
-    entregas_hoje = [p for p in historico if str(p.get("data_entrega", "")).strip() == hoje_str]
-    
-    if entregas_hoje:
-        st.error(f"🚨 **ALERTA DE ENTREGA PARA HOJE ({hoje_str}):** Você tem **{len(entregas_hoje)}** pedido(s) agendado(s) para hoje!")
-        for e_hoje in entregas_hoje:
-            st.markdown(f"👉 **{e_hoje['cliente_nome']}** ({e_hoje['numero_proposta']}) — WhatsApp: {e_hoje.get('cliente_wa', 'N/A')}")
-        st.divider()
 
     # --- Resto do seu código da Aba 2 (Histórico) ---
     if not historico:
