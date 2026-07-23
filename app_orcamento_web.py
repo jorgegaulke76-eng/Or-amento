@@ -548,8 +548,8 @@ with aba1:
     with col_pr:
         prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
     with col_dt:
-        dt_entrega_input = st.date_input("📅 Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fk}")
-
+if not propostas_filtradas:
+    st.warning("Nenhum orçamento encontrado para o filtro selecionado.")
     frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
 
     st.divider()
