@@ -6,7 +6,7 @@ import json
 import urllib.parse
 import hashlib
 import pandas as pd
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from datetime import datetime, date, timedelta
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -30,6 +30,8 @@ if "itens" not in st.session_state:
     st.session_state.itens = []
 if "ultima_proposta" not in st.session_state:
     st.session_state.ultima_proposta = None
+if "item_importado_catalogo" not in st.session_state:
+    st.session_state.item_importado_catalogo = None
 
 # --- LÓGICA DE NEGÓCIO & CÁLCULOS 3D ---
 def calcular_preco_3d(peso_g, tempo_h, preco_kg, margem_lucro, custo_hora):
@@ -298,7 +300,7 @@ def gerar_proposta_html(dados):
             </div>
             <div class="terms-box">
                 <strong>Cláusulas Gerais:</strong><br>
-                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
+                1. A produção seguirá estritamente o layout approved pelo cliente.<br>
                 2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
@@ -331,6 +333,19 @@ st.sidebar.info("💡 **Alphafest Itatiba**\nFabricação Digital & Gravação L
 # ==========================================
 if modulo_selecionado == "📄 Orçamentos & Pedidos":
     st.title("📄 GESTÃO DE ORÇAMENTOS E PROPOSTAS")
+
+    # Verifica se veio um item vindo do Catálogo para auto-preencher
+    prod_inicial = ""
+    valor_inicial = 10.00
+    espec_inicial = ""
+    
+    if st.session_state.item_importado_catalogo:
+        item_c = st.session_state.item_importado_catalogo
+        prod_inicial = item_c["nome"]
+        valor_inicial = float(item_c["preco_venda"])
+        espec_inicial = f"Item do Catálogo ({item_c.get('categoria', '3D')}) | Ref: {item_c['id']}"
+        st.success(f"⚡ Item **'{prod_inicial}'** carregado do Catálogo automaticamente!")
+        st.session_state.item_importado_catalogo = None
 
     aba1, aba2 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos"])
 
@@ -372,7 +387,7 @@ if modulo_selecionado == "📄 Orçamentos & Pedidos":
 
         st.subheader("2. Adicionar Itens ao Orçamento")
         
-        prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
+        prod = st.text_input("Produto / Item", value=prod_inicial, placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
         
         with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
             col_esp1, col_esp2 = st.columns(2)
@@ -382,13 +397,13 @@ if modulo_selecionado == "📄 Orçamentos & Pedidos":
                 esp_cor = st.text_input("Cor / Material", placeholder="Ex: Rosa Bebê / PLA Azul / Laser Inox", key=f"ec_{fk}")
             with col_esp2:
                 esp_idade = st.text_input("Idade / Data do Evento", placeholder="Ex: 50 Anos / 27/02", key=f"ei_{fk}")
-                esp_geral = st.text_input("Outros Detalhes", placeholder="Ex: Gravação frente e verso", key=f"eg_{fk}")
+                esp_geral = st.text_input("Outros Detalhes", value=espec_inicial, placeholder="Ex: Gravação frente e verso", key=f"eg_{fk}")
 
         col_q, col_v = st.columns(2)
         with col_q:
             qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fk}")
         with col_v:
-            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
+            v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=valor_inicial, step=0.50, format="%.2f", key=f"v_{fk}")
 
         partes_espec = []
         if esp_tema.strip(): partes_espec.append(f"Tema: {esp_tema.strip()}")
@@ -622,7 +637,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
     st.title("📚 CATÁLOGO DIGITAL DE PRODUTOS & PRECIFICAÇÃO 3D")
     st.markdown("Cadastre produtos, calcule custos de produção de peças 3D e gere um catálogo comercial para enviar aos clientes.")
 
-    aba_cat1, aba_cat2 = st.tabs(["➕ Cadastrar / Importar Peça", "🗂️ Ver Catálogo Digital"])
+    aba_cat1, aba_cat2, aba_cat3 = st.tabs(["➕ Cadastrar / Importar Peça", "🗂️ Ver Catálogo Digital", "📱 Links & QR Code para Clientes"])
 
     with aba_cat1:
         st.subheader("1. Calculadora de Precificação 3D & Lote Temático")
@@ -661,7 +676,7 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
             f"""
             <div style="background-color: #f1f5f9; border-left: 4px solid #16a34a; padding: 12px; border-radius: 6px; margin: 15px 0;">
                 <small style="color: #64748b; font-weight: bold;">📊 PRÉVIA DO CÁLCULO DE COMERCIALIZAÇÃO:</small><br>
-                <strong style="font-size: 16px; color: #0f172a;">{nome_limpo}</strong> ({category if 'category' in locals() else categoria})<br>
+                <strong style="font-size: 16px; color: #0f172a;">{nome_limpo}</strong> ({categoria})<br>
                 <span style="color: #475569; font-size: 13px;">{desc_persuasiva}</span><br><br>
                 <span style="color: #0284c7; font-weight: bold;">⚙️ Custo Total de Produção: R$ {custo_tot:.2f}</span> | 
                 <span style="color: #16a34a; font-weight: bold; font-size: 15px;">💰 Preço de Venda Sugerido: R$ {preco_vend:.2f}</span><br>
@@ -707,14 +722,29 @@ elif modulo_selecionado == "📚 Gerador de Catálogo 3D":
 
                     col_p1, col_p2 = st.columns(2)
                     with col_p1:
-                        if st.button(f"📥 Puxar '{item['nome']}' para Gerar Orçamento", key=f"puxar_{item['id']}"):
-                            st.session_state.itens.append({
-                                "produto": item['nome'],
-                                "especificacoes": f"Peça 3D | {item.get('categoria', 'Custom')} | Ref: {item['id']}",
-                                "quantidade": 1,
-                                "valor_unitario": item['preco_venda']
-                            })
-                            st.success("Item enviado para a tela de Orçamentos! Alterne no menu lateral para finalizar.")
+                        if st.button(f"🚀 Criar Orçamento Rápido ({item['id']})", key=f"orc_{item['id']}"):
+                            st.session_state.item_importado_catalogo = item
+                            st.success(f"Item '{item['nome']}' enviado para o formulário de orçamento!")
+                            st.rerun()
+                    with col_p2:
+                        msg_wa_pedir = urllib.parse.quote(f"Olá! Vi o produto *{item['nome']}* (R$ {item['preco_venda']:.2f}) no catálogo da Alphafest e gostaria de encomendar.")
+                        link_wa_direto_pedir = f"https://api.whatsapp.com/send?text={msg_wa_pedir}"
+                        st.link_button("📱 Testar Pedido no WhatsApp", url=link_wa_direto_pedir, use_container_width=True)
+
+    with aba_cat3:
+        st.subheader("📱 Divulgação do Catálogo para Clientes")
+        st.write("Use os recursos abaixo para compartilhar seu catálogo comercial com os clientes nas redes sociais, WhatsApp e cartões de visitas:")
+        
+        url_app_oficial = "https://orcamento-alphafest.streamlit.app"
+        qr_catalogo_url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={urllib.parse.quote(url_app_ofICIAL if 'url_app_ofICIAL' in locals() else url_app_oficial)}"
+
+        col_q1, col_q2 = st.columns([1, 2])
+        with col_q1:
+            st.image(qr_catalogo_url, caption="QR Code do seu Catálogo", width=180)
+        with col_q2:
+            st.write("🔗 **Link do seu aplicativo público:**")
+            st.code(url_app_oficial, language="text")
+            st.info("💡 **Dica Comercial:** Cole este link na bio do seu Instagram, TikTok e no status do WhatsApp para os clientes navegarem diretamente pelos seus produtos!")
 
 # ==========================================
 # MÓDULO 3: DASHBOARD & MÉTRICAS
