@@ -633,10 +633,10 @@ for p in historico:
             propostas_periodo.append(p)
 
        termo_busca = st.text_input(
-        "🔍 Filtrar por Palavra-Chave", 
-        placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)", 
-        key="busca_definitiva_v1"
-    ).strip().lower()
+    "🔍 Filtrar por Palavra-Chave", 
+    placeholder="Digite nome, produto, telefone, CPF/CNPJ ou data (ex: Copo, 11999)", 
+    key="busca_definitiva_v1"
+).strip().lower()
 
         if termo_busca:
             propostas_filtradas = []
