@@ -7,20 +7,24 @@ import urllib.parse
 from datetime import datetime, date, timedelta
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Orçamento Alphafest", page_icon="📄", layout="centered")
+st.set_page_config(
+    page_title="Orçamento Alphafest",
+    page_icon="📄",
+    layout="centered"
+)
 
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 
-# --- GERENCIAMENTO DE ESTADO ---
+# --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
 if "fk_geral" not in st.session_state: st.session_state.fk_geral = 0
 if "fk_item" not in st.session_state: st.session_state.fk_item = 0
 if "itens" not in st.session_state: st.session_state.itens = []
 if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
 
-# --- FUNÇÕES DE DADOS ---
+# --- FUNÇÕES DE BANCO DE DADOS ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
         try:
@@ -56,42 +60,50 @@ def carregar_logo_base64():
             return base64.b64encode(image_file.read()).decode('utf-8')
     return ""
 
+def exibir_logo_interface():
+    if os.path.exists(PATH_LOGO_OFICIAL):
+        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+        with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
+
+def extrair_link_whatsapp_completo(dados):
+    num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
+    if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
+    subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
+    desc_v = dados.get("desconto_valor", 0.0)
+    total_final = max(0.0, subtotal_geral - desc_v)
+    texto_itens = "\n".join([f"  *{idx}. {item['produto']}* (Qtd: {item['quantidade']} un.)" for idx, item in enumerate(dados["itens"], 1)])
+    msg = f"🔥 *PROPOSTA ALPHAFEST*\n👤 *CLIENTE:* {dados['cliente_nome']}\n✅ *TOTAL:* R$ {total_final:.2f}"
+    return f"https://wa.me/{num_wa}?text={urllib.parse.quote(msg)}" if len(num_wa) >= 12 else f"https://api.whatsapp.com/send?text={urllib.parse.quote(msg)}"
+
 def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
     logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ""
-    
-    linhas_tabela = ""
-    subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
-    for item in dados["itens"]:
-        sub = item["quantidade"] * item["valor_unitario"]
-        linhas_tabela += f"<tr><td><strong>{item['produto']}</strong><br><small>{item['especificacoes']}</small></td><td style='text-align:center;'>{item['quantidade']} un.</td><td style='text-align:right;'>R$ {item['valor_unitario']:.2f}</td><td style='text-align:right;'>R$ {sub:.2f}</td></tr>"
-    
-    total_final = max(0.0, subtotal_geral - dados.get("desconto_valor", 0.0))
+    linhas_tabela = "".join([f"<tr><td>{item['produto']}</td><td>{item['quantidade']}</td><td>R$ {item['valor_unitario']:.2f}</td></tr>" for item in dados["itens"]])
     
     return f"""
     <html><body>
     <div class="container">
-        <h1>ORÇAMENTO ALPHAFEST</h1>
+        <h1>PROPOSTA {dados['numero_proposta']}</h1>
         <p><strong>Cliente:</strong> {dados['cliente_nome']}</p>
-        <p><strong>Entrega:</strong> {dados['data_entrega']}</p>
-        <table border="1" width="100%"><thead><tr><th>Item</th><th>Qtd</th><th>Unit</th><th>Total</th></tr></thead>
-        <tbody>{linhas_tabela}</tbody></table>
-        <h3>Total: R$ {total_final:.2f}</h3>
+        <p><strong>Data Entrega:</strong> {dados['data_entrega']}</p>
+        <table><thead><tr><th>Produto</th><th>Qtd</th><th>Unit</th></tr></thead><tbody>{linhas_tabela}</tbody></table>
     </div></body></html>
     """
 
 # --- INTERFACE ---
-aba1, aba2, aba3 = st.tabs(["➕ Orçamento", "📋 Histórico", "🧮 Precificador 3D"])
+exibir_logo_interface()
+st.title("📄 ORÇAMENTOS ALPHAFEST")
+aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios"])
 
 with aba1:
-    st.title("📄 Novo Orçamento")
-    cliente_nome = st.text_input("Nome do Cliente", key=f"cli_{st.session_state.fk_geral}")
-    cliente_cpf = st.text_input("CPF/CNPJ", key=f"cpf_{st.session_state.fk_geral}")
-    cliente_wa = st.text_input("WhatsApp", key=f"wa_{st.session_state.fk_geral}")
+    fkg, fki = st.session_state.fk_geral, st.session_state.fk_item
+    cliente_nome = st.text_input("Nome do Cliente", key=f"cli_{fkg}")
+    cliente_cpf = st.text_input("CPF/CNPJ", key=f"cpf_{fkg}")
+    cliente_wa = st.text_input("WhatsApp", key=f"wa_{fkg}")
     
-    prod = st.text_input("Produto", key=f"prod_{st.session_state.fk_item}")
-    qtd = st.number_input("Qtd", min_value=1, value=1, key=f"q_{st.session_state.fk_item}")
-    v_unit = st.number_input("Valor Unit.", value=10.0, key=f"v_{st.session_state.fk_item}")
+    prod = st.text_input("Produto", key=f"prod_{fki}")
+    qtd = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fki}")
+    v_unit = st.number_input("Valor Unit.", value=10.0, key=f"v_{fki}")
     
     if st.button("Adicionar Item"):
         st.session_state.itens.append({"produto": prod, "especificacoes": "N/A", "quantidade": qtd, "valor_unitario": v_unit})
@@ -125,26 +137,19 @@ with aba2:
     historico = carregar_historico()
     hoje_str = date.today().strftime("%d/%m/%Y")
     
-    # Alerta de entrega
-    pendentes = [p for p in historico if p.get("data_entrega") == hoje_str and not p.get("entregue", False)]
-    for p in pendentes:
-        st.error(f"🚨 Alerta de Entrega Hoje: {p['cliente_nome']} ({p['numero_proposta']})")
+    # Alerta (só mostra se não foi entregue)
+    for p in historico:
+        if p.get("data_entrega") == hoje_str and not p.get("entregue", False):
+            st.error(f"🚨 Alerta de Entrega Hoje: {p['cliente_nome']} ({p['numero_proposta']})")
 
     for p in historico:
-        with st.expander(f"{p['numero_proposta']} - {p['cliente_nome']} (Pago: {p.get('pago')}, Entregue: {p.get('entregue')})"):
+        status_txt = f"Pago: {'✅' if p.get('pago') else '❌'} | Entregue: {'✅' if p.get('entregue') else '❌'}"
+        with st.expander(f"{p['numero_proposta']} - {p['cliente_nome']} | {status_txt}"):
             c1, c2 = st.columns(2)
-            if c1.checkbox("Pago", value=p.get("pago", False), key=f"pago_{p['numero_proposta']}"):
+            if c1.checkbox("Marcar como Pago", value=p.get("pago", False), key=f"pago_{p['numero_proposta']}"):
                 alternar_status(p['numero_proposta'], "pago", p.get("pago", False)); st.rerun()
-            if c2.checkbox("Entregue", value=p.get("entregue", False), key=f"ent_{p['numero_proposta']}"):
+            if c2.checkbox("Marcar como Entregue", value=p.get("entregue", False), key=f"ent_{p['numero_proposta']}"):
                 alternar_status(p['numero_proposta'], "entregue", p.get("entregue", False)); st.rerun()
 
 with aba3:
-    st.subheader("🧮 Precificador 3D")
-    peso = st.number_input("Peso (g)", value=0.0)
-    preco_rolo = st.number_input("Preço Rolo (R$)", value=100.0)
-    horas = st.number_input("Horas", value=0.0)
-    valor_hora = st.number_input("Valor sua hora (R$)", value=30.0)
-    margem = st.number_input("Margem (%)", value=100.0)
-    
-    custo = ((peso/1000)*preco_rolo) + (horas*valor_hora) + 5.0 # 5.0 depreciação fixa
-    st.success(f"Preço de Venda: R$ {custo * (1 + (margem/100)):.2f}")
+    st.write("Relatórios...")
