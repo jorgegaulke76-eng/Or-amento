@@ -19,8 +19,11 @@ ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 
 # --- GERENCIAMENTO DE ESTADO / LIMPEZA ---
-if "form_key" not in st.session_state:
-    st.session_state.form_key = 0
+# Criamos duas chaves separadas: uma para os dados gerais (cliente) e outra para os itens
+if "fk_geral" not in st.session_state:
+    st.session_state.fk_geral = 0
+if "fk_item" not in st.session_state:
+    st.session_state.fk_item = 0
 if "itens" not in st.session_state:
     st.session_state.itens = []
 if "ultima_proposta" not in st.session_state:
@@ -453,38 +456,40 @@ with aba1:
             )
         st.divider()
 
-    fk = st.session_state.form_key
+    # Variáveis de limpeza
+    fkg = st.session_state.fk_geral
+    fki = st.session_state.fk_item
 
     st.subheader("1. Dados do Cliente")
-    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
+    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fkg}")
     
     col_doc, col_wa = st.columns(2)
     with col_doc:
-        cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
+        cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fkg}")
     with col_wa:
-        cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
+        cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fkg}")
 
     st.divider()
 
     st.subheader("2. Adicionar Itens ao Orçamento")
     
-    prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
+    prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fki}")
     
     with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
         col_esp1, col_esp2 = st.columns(2)
         with col_esp1:
-            esp_tema = st.text_input("Tema / Ocasião", placeholder="Ex: Aniversário 15 Anos, Festa Infantil, Corporativo", key=f"et_{fk}")
-            esp_nome = st.text_input("Nome(s) Personalizado(s)", placeholder="Ex: Enrico, Giuliana & Felipe", key=f"en_{fk}")
-            esp_cor = st.text_input("Cor / Material", placeholder="Ex: Rosa Bebê / PLA Azul / Laser Inox", key=f"ec_{fk}")
+            esp_tema = st.text_input("Tema / Ocasião", placeholder="Ex: Aniversário 15 Anos, Festa Infantil, Corporativo", key=f"et_{fki}")
+            esp_nome = st.text_input("Nome(s) Personalizado(s)", placeholder="Ex: Enrico, Giuliana & Felipe", key=f"en_{fki}")
+            esp_cor = st.text_input("Cor / Material", placeholder="Ex: Rosa Bebê / PLA Azul / Laser Inox", key=f"ec_{fki}")
         with col_esp2:
-            esp_idade = st.text_input("Idade / Data do Evento", placeholder="Ex: 50 Anos / 27/02", key=f"ei_{fk}")
-            esp_geral = st.text_input("Outros Detalhes", placeholder="Ex: Gravação frente e verso", key=f"eg_{fk}")
+            esp_idade = st.text_input("Idade / Data do Evento", placeholder="Ex: 50 Anos / 27/02", key=f"ei_{fki}")
+            esp_geral = st.text_input("Outros Detalhes", placeholder="Ex: Gravação frente e verso", key=f"eg_{fki}")
 
     col_q, col_v = st.columns(2)
     with col_q:
-        qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fk}")
+        qtd = st.number_input("Quantidade", min_value=1, value=1, step=1, key=f"q_{fki}")
     with col_v:
-        v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fk}")
+        v_unit = st.number_input("Valor Unitário (R$)", min_value=0.01, value=10.00, step=0.50, format="%.2f", key=f"v_{fki}")
 
     partes_espec = []
     if esp_tema.strip(): partes_espec.append(f"Tema: {esp_tema.strip()}")
@@ -521,7 +526,7 @@ with aba1:
                 "valor_unitario": float(v_unit)
             })
             st.success(f"Item '{prod.strip()}' adicionado!")
-            st.session_state.form_key += 1
+            st.session_state.fk_item += 1 # ISSO AQUI AGORA LIMPA APENAS O ITEM
             st.rerun()
 
     if st.session_state.itens:
@@ -542,15 +547,15 @@ with aba1:
     st.divider()
 
     st.subheader("3. Condições Comerciais & Prazos")
-    desconto_valor = st.number_input("Desconto em Valor (R$)", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"desc_{fk}")
+    desconto_valor = st.number_input("Desconto em Valor (R$)", min_value=0.0, value=0.0, step=1.0, format="%.2f", key=f"desc_{fkg}")
 
     col_pr, col_dt = st.columns(2)
     with col_pr:
-        prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fk}")
+        prazo = st.text_input("Prazo (Dias Úteis)", value="10", key=f"prazo_{fkg}")
     with col_dt:
-        dt_entrega_input = st.date_input("📅 Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fk}")
+        dt_entrega_input = st.date_input("📅 Data Prevista de Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_entrega_{fkg}")
 
-    frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fk}")
+    frete = st.text_input("Frete / Entrega", value="Retirada em Itatiba", key=f"frete_{fkg}")
 
     st.divider()
 
@@ -586,7 +591,8 @@ with aba1:
             }
             
             st.session_state.itens = []
-            st.session_state.form_key += 1
+            st.session_state.fk_geral += 1 # ISSO AQUI LIMPA O CLIENTE E PRAZOS
+            st.session_state.fk_item += 1  # ISSO AQUI GARANTE QUE OS ITENS LIMPARÃO TAMBÉM
             st.rerun()
 
 with aba2:
