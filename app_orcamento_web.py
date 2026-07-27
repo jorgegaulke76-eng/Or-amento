@@ -166,189 +166,30 @@ def gerar_proposta_html(dados):
         <meta charset="utf-8">
         <title>Proposta - {dados['numero_proposta']}</title>
         <style>
-            @page {{
-                size: A4 portrait;
-                margin: 8mm;
-            }}
-            * {{
-                box-sizing: border-box;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }}
-            body {{
-                font-family: 'Segoe UI', Arial, sans-serif;
-                background-color: #f8fafc;
-                color: #1e293b;
-                margin: 0;
-                padding: 10px;
-            }}
-            .container {{
-                max-width: 780px;
-                margin: 0 auto;
-                background: #ffffff;
-                padding: 20px;
-                border-radius: 8px;
-                border: 1px solid #e2e8f0;
-            }}
-            .header {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                border-bottom: 2px solid #1e293b;
-                padding-bottom: 10px;
-                margin-bottom: 12px;
-            }}
-            .logo {{
-                max-height: 85px;
-                max-width: 280px;
-                object-fit: contain;
-            }}
-            .company-info {{
-                text-align: right;
-                font-size: 10.5px;
-                color: #475569;
-                line-height: 1.35;
-            }}
-            .title-box {{
-                background: #1e293b !important;
-                color: white !important;
-                padding: 8px 14px;
-                border-radius: 6px;
-                margin-bottom: 12px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }}
-            .title-box h2 {{
-                margin: 0;
-                font-size: 15px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }}
-            .info-grid {{
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px 15px;
-                margin-bottom: 12px;
-                background: #f1f5f9;
-                padding: 10px 14px;
-                border-radius: 6px;
-            }}
-            .info-item label {{
-                font-size: 9px;
-                text-transform: uppercase;
-                color: #64748b;
-                font-weight: bold;
-                display: block;
-            }}
-            .info-item span {{
-                font-size: 12px;
-                font-weight: 600;
-                color: #0f172a;
-            }}
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 12px;
-            }}
-            th {{
-                background: #334155 !important;
-                color: white !important;
-                padding: 6px 10px;
-                text-align: left;
-                font-size: 11px;
-            }}
-            td {{
-                padding: 6px 10px;
-                border-bottom: 1px solid #e2e8f0;
-                font-size: 11px;
-            }}
-            .summary-box {{
-                margin-left: auto;
-                width: 260px;
-                margin-bottom: 12px;
-            }}
-            .summary-row {{
-                display: flex;
-                justify-content: space-between;
-                padding: 3px 0;
-                font-size: 11px;
-                color: #475569;
-            }}
-            .summary-row.total {{
-                font-size: 14px;
-                font-weight: bold;
-                color: #16a34a;
-                border-top: 2px solid #e2e8f0;
-                padding-top: 5px;
-            }}
-            .conditions {{
-                background: #f8fafc;
-                border: 1px solid #cbd5e1;
-                border-left: 4px solid #0284c7;
-                padding: 10px 12px;
-                border-radius: 6px;
-                margin-bottom: 12px;
-                font-size: 10.5px;
-                color: #334155;
-                line-height: 1.4;
-            }}
-            .bank-container {{
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                background: #f1f5f9;
-                border: 1px dashed #94a3b8;
-                padding: 10px;
-                border-radius: 6px;
-                margin: 8px 0;
-            }}
-            .qr-code {{
-                width: 100px;
-                height: 100px;
-                border-radius: 4px;
-                border: 1px solid #cbd5e1;
-                background: #ffffff;
-                padding: 3px;
-            }}
-            .terms-box {{
-                border: 1px solid #cbd5e1;
-                padding: 8px 10px;
-                border-radius: 6px;
-                font-size: 9.5px;
-                color: #64748b;
-                line-height: 1.3;
-                margin-bottom: 12px;
-                background: #fafafa;
-            }}
-            .btn-wa {{
-                display: block;
-                width: 100%;
-                background: #22c55e;
-                color: white;
-                text-align: center;
-                padding: 10px;
-                border-radius: 6px;
-                font-weight: bold;
-                text-decoration: none;
-                font-size: 13px;
-            }}
-            @media print {{
-                html, body {{
-                    background: #ffffff;
-                    padding: 0;
-                    margin: 0;
-                }}
-                .container {{
-                    border: none;
-                    padding: 0;
-                    width: 100%;
-                    max-width: 100%;
-                }}
-                .btn-wa {{
-                    display: none !important;
-                }}
-            }}
+            @page {{ size: A4 portrait; margin: 8mm; }}
+            * {{ box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 10px; }}
+            .container {{ max-width: 780px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }}
+            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }}
+            .logo {{ max-height: 85px; max-width: 280px; object-fit: contain; }}
+            .company-info {{ text-align: right; font-size: 10.5px; color: #475569; line-height: 1.35; }}
+            .title-box {{ background: #1e293b !important; color: white !important; padding: 8px 14px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }}
+            .title-box h2 {{ margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; margin-bottom: 12px; background: #f1f5f9; padding: 10px 14px; border-radius: 6px; }}
+            .info-item label {{ font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; display: block; }}
+            .info-item span {{ font-size: 12px; font-weight: 600; color: #0f172a; }}
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 12px; }}
+            th {{ background: #334155 !important; color: white !important; padding: 6px 10px; text-align: left; font-size: 11px; }}
+            td {{ padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }}
+            .summary-box {{ margin-left: auto; width: 260px; margin-bottom: 12px; }}
+            .summary-row {{ display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; color: #475569; }}
+            .summary-row.total {{ font-size: 14px; font-weight: bold; color: #16a34a; border-top: 2px solid #e2e8f0; padding-top: 5px; }}
+            .conditions {{ background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #0284c7; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 10.5px; color: #334155; line-height: 1.4; }}
+            .bank-container {{ display: flex; align-items: center; gap: 15px; background: #f1f5f9; border: 1px dashed #94a3b8; padding: 10px; border-radius: 6px; margin: 8px 0; }}
+            .qr-code {{ width: 100px; height: 100px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; padding: 3px; }}
+            .terms-box {{ border: 1px solid #cbd5e1; padding: 8px 10px; border-radius: 6px; font-size: 9.5px; color: #64748b; line-height: 1.3; margin-bottom: 12px; background: #fafafa; }}
+            .btn-wa {{ display: block; width: 100%; background: #22c55e; color: white; text-align: center; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 13px; }}
+            @media print {{ html, body {{ background: #ffffff; padding: 0; margin: 0; }} .container {{ border: none; padding: 0; width: 100%; max-width: 100%; }} .btn-wa {{ display: none !important; }} }}
         </style>
     </head>
     <body>
@@ -567,8 +408,6 @@ with aba1:
                 "cliente_wa": cliente_wa or "",
                 "itens": list(st.session_state.itens),
                 "desconto_valor": desconto_valor,
-                "desconto": 0.0,
-                "sinal_pct": 100.0,
                 "prazo_dias": prazo,
                 "frete_tipo": frete,
                 "pago": False,
@@ -607,9 +446,9 @@ with aba2:
         is_pago = prop.get("pago", False)
         is_entregue = prop.get("entregue", False)
         
-        status_txt = f"Pago: {'✅' if is_pago else '❌'} | Entregue: {'✅' if is_entregue else '❌'}"
+        titulo_expander = f"{prop['numero_proposta']} - {prop['cliente_nome']} | Pago: {'✅' if is_pago else '❌'} | Entregue: {'✅' if is_entregue else '❌'}"
         
-        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} | {status_txt}"):
+        with st.expander(titulo_expander):
             st.write("**Itens do Pedido:**")
             for it in prop.get("itens", []):
                 st.write(f"• {it['produto']} — {it['quantidade']} un. (R${it['valor_unitario']:.2f})")
@@ -631,6 +470,5 @@ with aba3:
     if not historico:
         st.info("Nenhuma proposta registrada.")
     else:
-        # Lógica de relatórios mantida como no seu script
         tot_orçado = sum(sum(i["quantidade"] * i["valor_unitario"] for i in p["itens"]) - p.get("desconto_valor", 0) for p in historico)
         st.metric("Total Orçado", f"R$ {tot_orçado:.2f}")
