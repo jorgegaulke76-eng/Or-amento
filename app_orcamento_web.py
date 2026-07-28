@@ -5,9 +5,22 @@ from oauth2client.service_account import ServiceAccountCredentials
 import re
 import urllib.parse
 from datetime import datetime
+import base64
+import os
 
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamentos | Alphafest", page_icon="📝", layout="centered")
+
+# --- FUNÇÃO PARA EMBUTIR IMAGENS ---
+def get_image_base64(path):
+    try:
+        with open(path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    except:
+        return ""
+
+logo_b64 = get_image_base64("logo.png")
+qr_b64 = get_image_base64("qrcode.png")
 
 # --- CONEXÃO COM GOOGLE SHEETS ---
 def get_sheets_client():
@@ -29,16 +42,20 @@ def salvar_no_sheets(dados):
         st.error(f"Erro ao salvar: {e}")
         return False
 
-# --- FUNÇÃO HTML (Layout Exato conforme Imagem) ---
+# --- FUNÇÃO HTML PROFISSIONAL ---
 def gerar_proposta_html(dados):
     linhas_tabela = ""
     subtotal_geral = 0.0
     for item in dados["itens"]:
         sub = item["Qtd"] * item["Valor Unit."]
         subtotal_geral += sub
+        # Formata os detalhes para ficar mais legível (quebra de linha)
+        d = item['Detalhes'].split('|')
+        detalhes_fmt = f"Tema: {d[0]} | Nome: {d[1]} | Cor: {d[2]} | Obs: {d[3]}"
+        
         linhas_tabela += f"""
         <tr style="border-bottom: 1px solid #ccc;">
-            <td style="padding:10px;">{item['Produto']}<br><small style="color:#555;">{item['Detalhes']}</small></td>
+            <td style="padding:10px;"><b>{item['Produto']}</b><br><small style="color:#555;">{detalhes_fmt}</small></td>
             <td style="padding:10px; text-align:center;">{item['Qtd']} un.</td>
             <td style="padding:10px; text-align:right;">R$ {item['Valor Unit.']:.2f}</td>
             <td style="padding:10px; text-align:right;">R$ {sub:.2f}</td>
@@ -49,22 +66,22 @@ def gerar_proposta_html(dados):
     return f"""
     <html>
     <body style="font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #000;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #003366; padding-bottom: 10px;">
-            <img src="/logo.png" style="max-width: 150px;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px;">
+            <img src="data:image/png;base64,{logo_b64}" style="max-width: 150px;">
             <div style="text-align: right; font-size: 11px;">
                 <b>ALPHAFEST ITATIBA</b><br>
-                CNPJ: 24.374.857/0001-30<br>
+                CNPJ: 24.374.857/0001-30 | IE: 382105300112<br>
                 Av. Manoel Verginio de Almeida, 442 - Alto Santa Cruz<br>
                 Itatiba - SP | CEP: 13251-530<br>
                 E-mail: alphafestit@gmail.com | Celular: (11) 97724-9533<br>
                 Emissão: {dados['data_geracao']}
             </div>
         </div>
-        <div style="background: #003366; color: #fff; padding: 10px; margin-top: 15px; display: flex; justify-content: space-between;">
+        <div style="background: #333; color: #fff; padding: 10px; margin-top: 15px; display: flex; justify-content: space-between;">
             <span><b>PROPOSTA</b></span> <span>Nº {dados['numero_proposta']}</span>
         </div>
         <div style="padding: 10px; border: 1px solid #ccc; margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
-            <div><b>CLIENTE / EMPRESA:</b><br>{dados['cliente_nome']}</div>
+            <div><b>CLIENTE:</b><br>{dados['cliente_nome']}</div>
             <div><b>CPF / CNPJ:</b><br>{dados['cliente_cpf_cnpj']}</div>
             <div><b>WHATSAPP / CONTATO:</b><br>{dados['cliente_wa']}</div>
             <div><b>DATA PREVISTA DE ENTREGA:</b><br>{dados['data_entrega']}</div>
@@ -76,18 +93,18 @@ def gerar_proposta_html(dados):
         <div style="text-align:right; margin-top:15px; font-size: 14px;">
             <p style="margin: 2px;">Subtotal: R$ {subtotal_geral:.2f}</p>
             <p style="margin: 2px;">Desconto: - R$ {dados['desconto_valor']:.2f}</p>
-            <h3 style="color:#003366; margin-top:10px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</h3>
+            <h3 style="color:green; margin-top:10px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</h3>
         </div>
         <div style="border: 1px solid #ccc; padding: 10px; font-size: 12px; margin-top: 20px;">
             <p><b>Condições de Produção & Pagamento:</b><br>
             Faça o fechamento do seu pedido. Trabalhamos com pagamento do valor total no pedido!</p>
             <div style="display:flex; align-items:center;">
-                <img src="/qrcode.png" style="width:100px; margin-right:15px;">
+                <img src="data:image/png;base64,{qr_b64}" style="width:80px; margin-right:15px;">
                 <div>
                     <b>Titular:</b> Ana Lúcia Zepelini | <b>Banco:</b> Cora SCD (403)<br>
                     <b>Agência:</b> 0001 | <b>Conta:</b> 2515972-5<br>
                     <b>Empresa:</b> ANA LÚCIA VIEIRA ZEPELINI 29480359880<br>
-                    <a href="https://linkspix.app/alphafestitatiba" style="color:#003366;">Acesse nosso link PIX</a>
+                    <a href="https://linkspix.app/alphafestitatiba">Acesse nosso link PIX</a>
                 </div>
             </div>
             <p><i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i><br>
@@ -97,51 +114,50 @@ def gerar_proposta_html(dados):
     </html>
     """
 
-# --- FORMATAR MENSAGEM WHATSAPP (Exatamente como o exemplo) ---
 def formatar_mensagem_whatsapp(dados):
     subtotal_geral = sum(item["Qtd"] * item["Valor Unit."] for item in dados["itens"])
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
     
     lista_itens = ""
     for i, item in enumerate(dados["itens"], 1):
+        d = item['Detalhes'].split('|')
+        detalhes_fmt = f"Tema: {d[0]}, Nome: {d[1]}, Cor: {d[2]}"
         sub = item["Qtd"] * item["Valor Unit."]
-        lista_itens += f"{i}. *{item['Produto']}*\n└ Detalhes: {item['Detalhes']}\n└ Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Subtotal: R$ {sub:.2f}\n"
+        lista_itens += f"{i}. {item['Produto']}\nDet: {detalhes_fmt}\nQtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Sub: R$ {sub:.2f}\n\n"
 
-    msg = f"""🔥 *PROPOSTA ALPHAFEST ITATIBA*
+    msg = f"""PROPOSTA ALPHAFEST ITATIBA
 Nº: {dados['numero_proposta']}
 Emissão: {dados['data_geracao']}
 
-👤 *CLIENTE:* {dados['cliente_nome']}
+CLIENTE: {dados['cliente_nome']}
 CPF/CNPJ: {dados['cliente_cpf_cnpj']}
 
-📦 *ITENS DO PEDIDO:*
+ITENS DO PEDIDO:
 {lista_itens}
----
-💰 *Subtotal:* R$ {subtotal_geral:.2f}
-📉 *Desconto:* R$ {dados['desconto_valor']:.2f}
-✅ *VALOR TOTAL DO PEDIDO:* R$ {total:.2f}
+Subtotal: R$ {subtotal_geral:.2f}
+Desconto: R$ {dados['desconto_valor']:.2f}
+VALOR TOTAL DO PEDIDO: R$ {total:.2f}
 
-🚚 *Previsão de Entrega:* {dados['data_entrega']}
-🛠 *Prazo de Produção:* 10 dias úteis
-📍 *Frete/Entrega:* {dados['frete_tipo']}
-⏳ *Validade:* 5 dias corridos
+Previsão de Entrega: {dados['data_entrega']}
+Prazo de Produção: 10 dias úteis
+Frete/Entrega: {dados['frete_tipo']}
+Validade: 5 dias corridos
 
-💳 *PAGAMENTO VIA PIX (100%):*
-👉 *Pix:* https://linkspix.app/alphafestitatiba
-👉 *Titular:* Ana Lúcia Zepelini
-👉 *Banco:* Cora SCD (403)
-👉 *Agência:* 0001 | *Conta:* 2515972-5
-👉 *Empresa:* ANA LÚCIA VIEIRA ZEPELINI 29480359880
+PAGAMENTO VIA PIX (100%):
+Pix: https://linkspix.app/alphafestitatiba
+Titular: Ana Lúcia Zepelini
+Banco: Cora SCD (403)
+Agência: 0001 | Conta: 2515972-5
+Empresa: ANA LÚCIA VIEIRA ZEPELINI 29480359880
 
-👇 Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido! 😍"""
+Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!"""
     
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     return f"https://wa.me/{num_wa if len(num_wa)>10 else '55'+num_wa}?text={urllib.parse.quote(msg)}"
 
 # --- INTERFACE ---
-st.markdown("""<style>.stButton>button {background-color: #003366; color: white;}</style>""", unsafe_allow_html=True)
 if "itens" not in st.session_state: st.session_state.itens = []
-if "previa_dados" not in st.session_state: st.previa_dados = None
+if "previa_dados" not in st.session_state: st.session_state.previa_dados = None
 
 st.title("📝 Orçamentos Alphafest")
 
