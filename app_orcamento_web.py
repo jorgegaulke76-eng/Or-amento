@@ -11,15 +11,16 @@ import os
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamentos | Alphafest", page_icon="📝", layout="centered")
 
-# --- FUNÇÃO PARA CARREGAR IMAGEM (Base64 para evitar erros) ---
+# --- FUNÇÃO PARA EMBUTIR IMAGENS ---
 def get_image_base64(path):
+    # Procura pelo arquivo na pasta raiz
     if os.path.exists(path):
         with open(path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     return ""
 
 logo_b64 = get_image_base64("logo.png")
-qr_b64 = get_image_base64("qrcode.png")
+qr_b64 = get_image_base64("pix.png") # Corrigido para pix.png
 
 # --- CONEXÃO COM GOOGLE SHEETS ---
 def get_sheets_client():
@@ -48,11 +49,12 @@ def gerar_proposta_html(dados):
     for item in dados["itens"]:
         sub = item["Qtd"] * item["Valor Unit."]
         subtotal_geral += sub
+        # Detalhes formatados
         d = item['Detalhes'].split('|')
         detalhes_txt = f"{d[0]} {d[1]} {d[2]} {d[3]}"
         linhas_tabela += f"""
         <tr>
-            <td style="padding:5px;">{item['Produto']}<br><small>{detalhes_txt}</small></td>
+            <td style="padding:5px;"><b>{item['Produto']}</b><br><small>{detalhes_txt}</small></td>
             <td style="padding:5px; text-align:center;">{item['Qtd']} un.</td>
             <td style="padding:5px; text-align:right;">R$ {item['Valor Unit.']:.2f}</td>
             <td style="padding:5px; text-align:right;">R$ {sub:.2f}</td>
@@ -60,9 +62,9 @@ def gerar_proposta_html(dados):
     
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
     
-    # Se a imagem carregou, exibe, senão mostra apenas o texto
-    img_tag = f'<img src="data:image/png;base64,{qr_b64}" style="width:70px; margin-right:10px;">' if qr_b64 else "QR Code"
-    logo_tag = f'<img src="data:image/png;base64,{logo_b64}" style="max-width: 120px;">' if logo_b64 else "ALPHAFEST"
+    # Imagens em Base64
+    logo_tag = f'<img src="data:image/png;base64,{logo_b64}" style="max-width: 120px;">'
+    qr_tag = f'<img src="data:image/png;base64,{qr_b64}" style="width:70px; margin-right:10px;">'
 
     return f"""
     <html>
@@ -95,7 +97,7 @@ def gerar_proposta_html(dados):
         <div style="border: 1px solid #ccc; padding: 5px; font-size: 11px; margin-top: 10px;">
             <b>Condições de Produção & Pagamento:</b>
             <div style="display:flex; align-items:center; margin-top:5px;">
-                {img_tag}
+                {qr_tag}
                 <div>
                     <b>Titular:</b> Ana Lúcia Zepelini | <b>Banco:</b> Cora SCD (403)<br>
                     <b>Agência:</b> 0001 | <b>Conta:</b> 2515972-5<br>
@@ -108,7 +110,7 @@ def gerar_proposta_html(dados):
     </html>
     """
 
-# --- WHATSAPP (Codificado em UTF-8) ---
+# --- WHATSAPP ---
 def formatar_mensagem_whatsapp(dados):
     subtotal_geral = sum(item["Qtd"] * item["Valor Unit."] for item in dados["itens"])
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
@@ -116,7 +118,7 @@ def formatar_mensagem_whatsapp(dados):
     lista_itens = ""
     for i, item in enumerate(dados["itens"], 1):
         d = item['Detalhes'].split('|')
-        lista_itens += f"{i}. {item['Produto']}\n└ Detalhes: {d[0]} {d[1]} {d[2]}\n└ Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Sub: R$ {item['Qtd'] * item['Valor Unit.']:.2f}\n"
+        lista_itens += f"{i}. {item['Produto']}\n Detalhes: {d[0]} {d[1]} {d[2]}\n Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Sub: R$ {item['Qtd'] * item['Valor Unit.']:.2f}\n\n"
 
     msg = f"""PROPOSTA ALPHAFEST ITATIBA
 Nº: {dados['numero_proposta']}
@@ -130,7 +132,7 @@ ITENS DO PEDIDO:
 ---
 Subtotal: R$ {subtotal_geral:.2f}
 Desconto: R$ {dados['desconto_valor']:.2f}
-VALOR TOTAL DO PEDIDO: R$ {total:.2f}
+VALOR TOTAL: R$ {total:.2f}
 
 Previsão de Entrega: {dados['data_entrega']}
 Frete/Entrega: {dados['frete_tipo']}
@@ -145,10 +147,8 @@ Empresa: ANA LÚCIA VIEIRA ZEPELINI
 
 Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!"""
     
-    # A MÁGICA ACONTECE AQUI: encode('utf-8')
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
-    encoded_msg = urllib.parse.quote(msg.encode('utf-8'))
-    return f"https://wa.me/{num_wa if len(num_wa)>10 else '55'+num_wa}?text={encoded_msg}"
+    return f"https://wa.me/{num_wa if len(num_wa)>10 else '55'+num_wa}?text={urllib.parse.quote(msg)}"
 
 # --- INTERFACE ---
 if "itens" not in st.session_state: st.session_state.itens = []
