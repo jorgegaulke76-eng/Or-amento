@@ -11,14 +11,13 @@ import os
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamentos | Alphafest", page_icon="📝", layout="centered")
 
-# --- FUNÇÃO PARA EMBUTIR IMAGENS ---
+# --- FUNÇÃO PARA CARREGAR IMAGEM (Base64 para evitar erros) ---
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     return ""
 
-# Tenta carregar as imagens da pasta raiz
 logo_b64 = get_image_base64("logo.png")
 qr_b64 = get_image_base64("qrcode.png")
 
@@ -42,69 +41,74 @@ def salvar_no_sheets(dados):
         st.error(f"Erro ao salvar: {e}")
         return False
 
-# --- HTML PROFISSIONAL (Com codificação UTF-8) ---
+# --- FUNÇÃO HTML ---
 def gerar_proposta_html(dados):
     linhas_tabela = ""
     subtotal_geral = 0.0
     for item in dados["itens"]:
         sub = item["Qtd"] * item["Valor Unit."]
         subtotal_geral += sub
-        # Detalhes Formatados
         d = item['Detalhes'].split('|')
         detalhes_txt = f"{d[0]} {d[1]} {d[2]} {d[3]}"
-        
         linhas_tabela += f"""
-        <tr style="border-bottom: 1px solid #ccc;">
-            <td style="padding:10px;"><b>{item['Produto']}</b><br><small>{detalhes_txt}</small></td>
-            <td style="padding:10px; text-align:center;">{item['Qtd']} un.</td>
-            <td style="padding:10px; text-align:right;">R$ {item['Valor Unit.']:.2f}</td>
-            <td style="padding:10px; text-align:right;">R$ {sub:.2f}</td>
+        <tr>
+            <td style="padding:5px;">{item['Produto']}<br><small>{detalhes_txt}</small></td>
+            <td style="padding:5px; text-align:center;">{item['Qtd']} un.</td>
+            <td style="padding:5px; text-align:right;">R$ {item['Valor Unit.']:.2f}</td>
+            <td style="padding:5px; text-align:right;">R$ {sub:.2f}</td>
         </tr>"""
     
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
     
+    # Se a imagem carregou, exibe, senão mostra apenas o texto
+    img_tag = f'<img src="data:image/png;base64,{qr_b64}" style="width:70px; margin-right:10px;">' if qr_b64 else "QR Code"
+    logo_tag = f'<img src="data:image/png;base64,{logo_b64}" style="max-width: 120px;">' if logo_b64 else "ALPHAFEST"
+
     return f"""
     <html>
     <head><meta charset="UTF-8"></head>
-    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px;">
-            <img src="data:image/png;base64,{logo_b64}" style="max-width: 150px;">
-            <div style="text-align: right; font-size: 11px;">
+    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 5px;">
+            {logo_tag}
+            <div style="text-align: right; font-size: 10px; line-height: 1.2;">
                 <b>ALPHAFEST ITATIBA</b><br>
-                CNPJ: 24.374.857/0001-30<br>
+                CNPJ: 24.374.857/0001-30 | IE: 382105300112<br>
                 Av. Manoel Verginio de Almeida, 442 - Itatiba - SP<br>
                 Emissão: {dados['data_geracao']}
             </div>
         </div>
-        <div style="background: #333; color: #fff; padding: 10px; margin-top: 15px;"><b>PROPOSTA Nº {dados['numero_proposta']}</b></div>
-        <div style="padding: 10px; border: 1px solid #ccc; font-size: 13px;">
-            <div><b>CLIENTE:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados['cliente_cpf_cnpj']}</div>
-            <div><b>WHATSAPP:</b> {dados['cliente_wa']} | <b>DATA PREVISTA:</b> {dados['data_entrega']}</div>
+        <div style="background: #333; color: #fff; padding: 5px; margin-top: 10px; font-weight: bold; font-size: 14px;">
+            PROPOSTA Nº {dados['numero_proposta']}
         </div>
-        <table style="width:100%; border-collapse:collapse; margin-top:15px; font-size: 13px;">
-            <thead><tr style="background:#f4f4f4; text-align:left;"><th style="padding:8px;">ITEM / DESCRIÇÃO</th><th style="padding:8px; text-align:center;">QTD</th><th style="padding:8px; text-align:right;">VALOR UNIT.</th><th style="padding:8px; text-align:right;">SUBTOTAL</th></tr></thead>
+        <div style="padding: 5px; border: 1px solid #ccc; font-size: 12px; margin-top: 5px;">
+            <b>CLIENTE:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados['cliente_cpf_cnpj']}<br>
+            <b>WHATSAPP:</b> {dados['cliente_wa']} | <b>DATA PREVISTA:</b> {dados['data_entrega']}
+        </div>
+        <table style="width:100%; border-collapse:collapse; margin-top:10px; font-size: 12px;">
+            <thead><tr style="background:#f4f4f4; text-align:left;"><th style="padding:5px;">ITEM / DESCRIÇÃO</th><th style="padding:5px; text-align:center;">QTD</th><th style="padding:5px; text-align:right;">VALOR UNIT.</th><th style="padding:5px; text-align:right;">SUBTOTAL</th></tr></thead>
             <tbody>{linhas_tabela}</tbody>
         </table>
-        <div style="text-align:right; margin-top:15px; font-size: 14px;">
-            <p>Subtotal: R$ {subtotal_geral:.2f} | Desconto: R$ {dados['desconto_valor']:.2f}</p>
-            <h3 style="color:green;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</h3>
+        <div style="text-align:right; margin-top:10px; font-size: 13px;">
+            Subtotal: R$ {subtotal_geral:.2f} | Desconto: R$ {dados['desconto_valor']:.2f}<br>
+            <b style="color:green;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</b>
         </div>
-        <div style="border: 1px solid #ccc; padding: 10px; font-size: 12px; margin-top: 20px;">
-            <b>Condições de Produção & Pagamento:</b><br>
-            <div style="display:flex; align-items:center;">
-                <img src="data:image/png;base64,{qr_b64}" style="width:80px; margin-right:15px;">
+        <div style="border: 1px solid #ccc; padding: 5px; font-size: 11px; margin-top: 10px;">
+            <b>Condições de Produção & Pagamento:</b>
+            <div style="display:flex; align-items:center; margin-top:5px;">
+                {img_tag}
                 <div>
                     <b>Titular:</b> Ana Lúcia Zepelini | <b>Banco:</b> Cora SCD (403)<br>
                     <b>Agência:</b> 0001 | <b>Conta:</b> 2515972-5<br>
                     <a href="https://linkspix.app/alphafestitatiba">Acesse nosso link PIX</a>
                 </div>
             </div>
-            <p><i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i></p>
+            <i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i>
         </div>
     </body>
     </html>
     """
 
+# --- WHATSAPP (Codificado em UTF-8) ---
 def formatar_mensagem_whatsapp(dados):
     subtotal_geral = sum(item["Qtd"] * item["Valor Unit."] for item in dados["itens"])
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
@@ -112,25 +116,27 @@ def formatar_mensagem_whatsapp(dados):
     lista_itens = ""
     for i, item in enumerate(dados["itens"], 1):
         d = item['Detalhes'].split('|')
-        lista_itens += f"{i}. *{item['Produto']}*\n└ Detalhes: {d[0]} {d[1]} {d[2]}\n└ Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f}\n"
+        lista_itens += f"{i}. {item['Produto']}\n└ Detalhes: {d[0]} {d[1]} {d[2]}\n└ Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Sub: R$ {item['Qtd'] * item['Valor Unit.']:.2f}\n"
 
-    msg = f"""🔥 PROPOSTA ALPHAFEST ITATIBA
+    msg = f"""PROPOSTA ALPHAFEST ITATIBA
 Nº: {dados['numero_proposta']}
 Emissão: {dados['data_geracao']}
 
-👤 CLIENTE: {dados['cliente_nome']}
+CLIENTE: {dados['cliente_nome']}
 CPF/CNPJ: {dados['cliente_cpf_cnpj']}
 
-📦 ITENS DO PEDIDO:
+ITENS DO PEDIDO:
 {lista_itens}
+---
 Subtotal: R$ {subtotal_geral:.2f}
 Desconto: R$ {dados['desconto_valor']:.2f}
-VALOR TOTAL: R$ {total:.2f}
+VALOR TOTAL DO PEDIDO: R$ {total:.2f}
 
-🚚 Previsão de Entrega: {dados['data_entrega']}
-📍 Frete/Entrega: {dados['frete_tipo']}
+Previsão de Entrega: {dados['data_entrega']}
+Frete/Entrega: {dados['frete_tipo']}
+Validade: 5 dias corridos
 
-💳 PAGAMENTO VIA PIX:
+PAGAMENTO VIA PIX:
 Pix: https://linkspix.app/alphafestitatiba
 Titular: Ana Lúcia Zepelini
 Banco: Cora SCD (403)
@@ -139,8 +145,10 @@ Empresa: ANA LÚCIA VIEIRA ZEPELINI
 
 Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!"""
     
+    # A MÁGICA ACONTECE AQUI: encode('utf-8')
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
-    return f"https://wa.me/{num_wa if len(num_wa)>10 else '55'+num_wa}?text={urllib.parse.quote(msg)}"
+    encoded_msg = urllib.parse.quote(msg.encode('utf-8'))
+    return f"https://wa.me/{num_wa if len(num_wa)>10 else '55'+num_wa}?text={encoded_msg}"
 
 # --- INTERFACE ---
 if "itens" not in st.session_state: st.session_state.itens = []
@@ -201,7 +209,7 @@ if st.session_state.previa_dados:
     
     if st.button("🚀 CONFIRMAR E SALVAR NO HISTÓRICO"):
         if salvar_no_sheets(st.session_state.previa_dados):
-            st.success("Orçamento salvo no Google Sheets!")
+            st.success("Orçamento salvo!")
             st.session_state.itens = []
             st.session_state.previa_dados = None
             st.rerun()
