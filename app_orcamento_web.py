@@ -36,19 +36,6 @@ def salvar_no_historico(dados_proposta):
     historico.insert(0, dados_proposta)
     salvar_historico_completo(historico)
 
-def alternar_status(num_proposta, campo, status_atual):
-    historico = carregar_historico()
-    for p in historico:
-        if p.get("numero_proposta") == num_proposta:
-            p[campo] = not status_atual
-            break
-    salvar_historico_completo(historico)
-
-def excluir_proposta_por_id(num_proposta):
-    historico = carregar_historico()
-    historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
-    salvar_historico_completo(historico_atualizado)
-
 def carregar_logo_base64():
     if os.path.exists(PATH_LOGO_OFICIAL):
         try:
@@ -115,7 +102,6 @@ with aba1:
         c_d.download_button("📥 Baixar HTML", p_info["html"], "proposta.html", use_container_width=True)
         c_w.link_button("📱 WhatsApp", p_info["link_wa"], type="primary", use_container_width=True)
 
-    # DADOS DO CLIENTE (Chaves fixas para não perder o texto)
     st.subheader("1. Dados do Cliente")
     cliente_nome = st.text_input("Nome / Razão Social", key="c_nome")
     col1, col2 = st.columns(2)
@@ -124,21 +110,29 @@ with aba1:
     
     st.subheader("2. Itens")
     prod = st.text_input("Produto", key="i_prod")
-    with st.expander("🎨 Detalhes"):
-        c1, c2 = st.columns(2)
-        tema = c1.text_input("Tema", key="i_tema")
-        nome = c1.text_input("Nome", key="i_nome")
-        cor = c1.text_input("Cor", key="i_cor")
-        idade = c2.text_input("Idade", key="i_idade")
-        obs = c2.text_input("Obs", key="i_obs")
+    
+    # CAMPOS DETALHADOS REINSERIDOS AQUI
+    with st.expander("🎨 Detalhes de Personalização (Tema, Nome, Idade, Cor, Obs)", expanded=True):
+        col_esp1, col_esp2 = st.columns(2)
+        tema = col_esp1.text_input("Tema / Ocasião", key="i_tema")
+        nome = col_esp1.text_input("Nome(s) Personalizado(s)", key="i_nome")
+        cor = col_esp1.text_input("Cor / Material", key="i_cor")
+        idade = col_esp2.text_input("Idade / Data do Evento", key="i_idade")
+        obs = col_esp2.text_input("Outros Detalhes", key="i_obs")
     
     cq, cv = st.columns(2)
     qtd = cq.number_input("Qtd", 1, key="i_qtd")
-    v_unit = cv.number_input("Valor", 0.0, key="i_vunit")
+    v_unit = cv.number_input("Valor Unit.", 0.0, key="i_vunit")
     
     if st.button("➕ Adicionar Item"):
-        detalhes = f"Tema:{tema}|Nome:{nome}|Cor:{cor}|Idade:{idade}|Obs:{obs}"
-        st.session_state.itens.append({"produto": prod, "quantidade": qtd, "valor_unitario": v_unit, "especificacoes": detalhes})
+        # Monta a string de especificações usando os campos acima
+        detalhes = f"Tema: {tema} | Nome: {nome} | Cor: {cor} | Idade: {idade} | Obs: {obs}"
+        st.session_state.itens.append({
+            "produto": prod, 
+            "quantidade": qtd, 
+            "valor_unitario": v_unit, 
+            "especificacoes": detalhes if detalhes.strip() != "Tema:  | Nome:  | Cor:  | Idade:  | Obs: " else "Conforme alinhado"
+        })
         st.rerun()
 
     if st.session_state.itens:
@@ -164,7 +158,6 @@ with aba1:
             }
             salvar_no_historico(dados)
             st.session_state.ultima_proposta = {"html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
-            # Limpa itens, mas mantém os campos de texto preenchidos (se desejar limpar tudo, teria que resetar as chaves)
             st.session_state.itens = []
             st.rerun()
 
@@ -175,4 +168,10 @@ with aba2:
         if p.get("data_entrega") == hoje: st.error(f"🚨 ENTREGA HOJE: {p['cliente_nome']}")
         with st.expander(f"{p['numero_proposta']} - {p['cliente_nome']}"):
             st.write(p)
-            if st.button("🗑️ Excluir", key=f"del_{p['numero_proposta']}"): excluir_proposta_por_id(p['numero_proposta']); st.rerun()
+            if st.button("🗑️ Excluir", key=f"del_{p['numero_proposta']}"): 
+                # (Lógica de exclusão aqui)
+                import json
+                h = carregar_historico()
+                new_h = [x for x in h if x['numero_proposta'] != p['numero_proposta']]
+                salvar_historico_completo(new_h)
+                st.rerun()
