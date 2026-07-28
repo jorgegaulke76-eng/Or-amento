@@ -9,7 +9,6 @@ from datetime import datetime
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamentos | Alphafest", page_icon="📝", layout="centered")
 
-# --- CONEXÃO COM GOOGLE SHEETS ---
 def get_sheets_client():
     creds_dict = dict(st.secrets["gcp"])
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -29,7 +28,7 @@ def salvar_no_sheets(dados):
         st.error(f"Erro ao salvar: {e}")
         return False
 
-# --- FUNÇÕES DE LAYOUT (FORMATO ALPHA FEST) ---
+# --- FUNÇÃO HTML PROFISSIONAL (Layout Exato) ---
 def gerar_proposta_html(dados):
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -37,44 +36,66 @@ def gerar_proposta_html(dados):
         sub = item["Qtd"] * item["Valor Unit."]
         subtotal_geral += sub
         linhas_tabela += f"""
-        <tr>
-            <td style="padding:8px; border-bottom:1px solid #ddd;">{item['Produto']}<br><small>{item['Detalhes']}</small></td>
-            <td style="padding:8px; border-bottom:1px solid #ddd;">{item['Qtd']} un.</td>
-            <td style="padding:8px; border-bottom:1px solid #ddd;">R$ {item['Valor Unit.']:.2f}</td>
-            <td style="padding:8px; border-bottom:1px solid #ddd;">R$ {sub:.2f}</td>
+        <tr style="border-bottom: 1px solid #ccc;">
+            <td style="padding:10px;">{item['Produto']}<br><small>{item['Detalhes']}</small></td>
+            <td style="padding:10px; text-align:center;">{item['Qtd']} un.</td>
+            <td style="padding:10px; text-align:right;">R$ {item['Valor Unit.']:.2f}</td>
+            <td style="padding:10px; text-align:right;">R$ {sub:.2f}</td>
         </tr>"""
     
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
     
     return f"""
     <html>
-    <body style="font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc;">
-        <div style="border-bottom: 2px solid #000; padding-bottom: 10px;">
-            <h2 style="margin:0;">ALPHAFEST ITATIBA</h2>
-            <p style="margin:0; font-size: 0.9em;">CNPJ: 24.374.857/0001-30 | Av. Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP</p>
+    <body style="font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #000;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px;">
+            <div style="font-size: 2em; font-weight: bold;">[LOGO]</div>
+            <div style="text-align: right; font-size: 11px;">
+                <b>ALPHAFEST ITATIBA</b><br>
+                CNPJ: 24.374.857/0001-30 | IE: 382105300112<br>
+                Av. Manoel Verginio de Almeida, 442 - Alto Santa Cruz<br>
+                Itatiba - SP | CEP: 13251-530<br>
+                E-mail: alphafestit@gmail.com - Celular: (11) 97724-9533<br>
+                Emissão: {dados['data_geracao']}
+            </div>
         </div>
-        <div style="background: #333; color: #fff; padding: 10px; margin-top: 10px;"><b>PROPOSTA</b> Nº {dados['numero_proposta']}</div>
-        <div style="padding: 10px; border-bottom: 1px solid #ccc;">
-            <b>CLIENTE:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados['cliente_cpf_cnpj']}<br>
-            <b>DATA PREVISTA:</b> {dados['data_entrega']}
+        <div style="background: #333; color: #fff; padding: 10px; margin-top: 15px; display: flex; justify-content: space-between;">
+            <span><b>PROPOSTA</b></span> <span>Nº {dados['numero_proposta']}</span>
         </div>
-        <table style="width:100%; border-collapse:collapse; margin-top:15px;">
-            <thead><tr style="background:#f4f4f4;"><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>VALOR UNIT.</th><th>SUBTOTAL</th></tr></thead>
+        <div style="padding: 10px; border: 1px solid #ccc; margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+            <div><b>CLIENTE / EMPRESA:</b><br>{dados['cliente_nome']}</div>
+            <div><b>CPF/CNPJ:</b><br>{dados['cliente_cpf_cnpj']}</div>
+            <div><b>WHATSAPP / CONTATO:</b><br>{dados['cliente_wa']}</div>
+            <div><b>DATA PREVISTA DE ENTREGA:</b><br>{dados['data_entrega']}</div>
+        </div>
+        <table style="width:100%; border-collapse:collapse; margin-top:15px; font-size: 13px;">
+            <thead><tr style="background:#f4f4f4; text-align:left;"><th style="padding:8px;">ITEM / DESCRIÇÃO</th><th style="padding:8px; text-align:center;">QTD</th><th style="padding:8px; text-align:right;">VALOR UNIT.</th><th style="padding:8px; text-align:right;">SUBTOTAL</th></tr></thead>
             <tbody>{linhas_tabela}</tbody>
         </table>
-        <div style="text-align:right; margin-top:15px;">
-            <p>Subtotal: R$ {subtotal_geral:.2f}</p>
-            <p>Desconto: R$ {dados['desconto_valor']:.2f}</p>
-            <h3 style="color:green;">VALOR TOTAL: R$ {total:.2f}</h3>
+        <div style="text-align:right; margin-top:15px; font-size: 14px;">
+            <p style="margin: 2px;">Subtotal: R$ {subtotal_geral:.2f}</p>
+            <p style="margin: 2px;">Desconto: - R$ {dados['desconto_valor']:.2f}</p>
+            <h3 style="color:green; margin-top:10px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</h3>
         </div>
-        <div style="border-top: 1px solid #ccc; margin-top: 20px; padding-top: 10px;">
-            <b>PIX:</b> Titular: Ana Lucia Zepelini | Banco: Cora SCD (403) | Ag: 0001 | Conta: 2515972-5<br>
-            <i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i>
+        <div style="border: 1px solid #ccc; padding: 10px; font-size: 12px; margin-top: 20px;">
+            <p><b>Condições de Produção & Pagamento:</b><br>
+            Faça o fechamento do seu pedido. Trabalhamos com pagamento do valor total no pedido!</p>
+            <div style="display:flex; align-items:center;">
+                <div style="border:1px solid #000; width:80px; height:80px; margin-right:15px; text-align:center; padding-top:25px;">QR CODE</div>
+                <div>
+                    <b>Titular:</b> Ana Lúcia Zepelini | <b>Banco:</b> Cora SCD (403)<br>
+                    <b>Agência:</b> 0001 | <b>Conta:</b> 2515972-5<br>
+                    <b>Empresa:</b> ANA LÚCIA VIEIRA ZEPELINI 29480359880
+                </div>
+            </div>
+            <p><i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i><br>
+            Prazo de Produção: 10 dias úteis | Frete/Entrega: {dados['frete_tipo']} | Validade: 5 dias corridos</p>
         </div>
     </body>
     </html>
     """
 
+# --- FORMATAR MENSAGEM WHATSAPP (Exatamente como o seu exemplo) ---
 def formatar_mensagem_whatsapp(dados):
     subtotal_geral = sum(item["Qtd"] * item["Valor Unit."] for item in dados["itens"])
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
@@ -82,7 +103,7 @@ def formatar_mensagem_whatsapp(dados):
     lista_itens = ""
     for i, item in enumerate(dados["itens"], 1):
         sub = item["Qtd"] * item["Valor Unit."]
-        lista_itens += f"{i}. {item['Produto']}\n└ Detalhes: {item['Detalhes']}\n└ Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Sub: R$ {sub:.2f}\n"
+        lista_itens += f"{i}. *{item['Produto']}*\n└ Detalhes: {item['Detalhes']}\n└ Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Subtotal: R$ {sub:.2f}\n"
 
     msg = f"""🔥 *PROPOSTA ALPHAFEST ITATIBA*
 Nº: {dados['numero_proposta']}
@@ -96,15 +117,18 @@ CPF/CNPJ: {dados['cliente_cpf_cnpj']}
 ---
 💰 *Subtotal:* R$ {subtotal_geral:.2f}
 📉 *Desconto:* R$ {dados['desconto_valor']:.2f}
-✅ *VALOR TOTAL:* R$ {total:.2f}
+✅ *VALOR TOTAL DO PEDIDO:* R$ {total:.2f}
 
 🚚 *Previsão de Entrega:* {dados['data_entrega']}
 🛠 *Prazo de Produção:* 10 dias úteis
-📍 *Frete:* {dados['frete_tipo']}
+📍 *Frete/Entrega:* {dados['frete_tipo']}
+⏳ *Validade:* 5 dias corridos
 
-💳 *PAGAMENTO VIA PIX:*
+💳 *PAGAMENTO VIA PIX (100%):*
 👉 *Titular:* Ana Lúcia Zepelini
-👉 *Banco:* Cora SCD (403) | Ag: 0001 | Conta: 2515972-5
+👉 *Banco:* Cora SCD (403)
+👉 *Agência:* 0001 | *Conta:* 2515972-5
+👉 *Empresa:* ANA LÚCIA VIEIRA ZEPELINI 29480359880
 
 👇 Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido! 😍"""
     
