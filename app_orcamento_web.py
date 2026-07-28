@@ -11,8 +11,6 @@ import os
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamentos | Alphafest", page_icon="📝", layout="centered")
 
-st.markdown("""<style>.stButton>button { background-color: #003366 !important; color: white !important; }</style>""", unsafe_allow_html=True)
-
 # --- FUNÇÃO PARA EMBUTIR IMAGENS ---
 def get_image_base64(path):
     if os.path.exists(path):
@@ -43,7 +41,7 @@ def salvar_no_sheets(dados):
         st.error(f"Erro ao salvar: {e}")
         return False
 
-# --- FUNÇÃO HTML PROFISSIONAL (A4) ---
+# --- FUNÇÃO HTML ---
 def gerar_proposta_html(dados):
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -64,13 +62,8 @@ def gerar_proposta_html(dados):
     
     return f"""
     <html>
-    <head><meta charset="UTF-8">
-        <style>
-            @media print {{ @page {{ size: A4 portrait; margin: 0.5cm; }} body {{ width: 210mm; }} }}
-            body {{ font-family: Arial, sans-serif; padding: 10px; box-sizing: border-box; }}
-        </style>
-    </head>
-    <body>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; max-width: 700px; margin: auto; padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #003366; padding-bottom: 5px;">
             <img src="data:image/png;base64,{logo_b64}" style="max-width: 80px;">
             <div style="text-align: right; font-size: 9px; line-height: 1.1;">
@@ -109,7 +102,6 @@ def gerar_proposta_html(dados):
     </html>
     """
 
-# --- WHATSAPP ---
 def formatar_mensagem_whatsapp(dados):
     subtotal_geral = sum(item["Qtd"] * item["Valor Unit."] for item in dados["itens"])
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
@@ -119,7 +111,6 @@ def formatar_mensagem_whatsapp(dados):
         lista_itens += f"{i}. {item['Produto']}\n Detalhes: {d[0]} {d[1]} {d[2]}\n Qtd: {item['Qtd']} un. | Unit: R$ {item['Valor Unit.']:.2f} | Sub: R$ {item['Qtd'] * item['Valor Unit.']:.2f}\n\n"
 
     msg = f"PROPOSTA ALPHAFEST ITATIBA\nNº: {dados['numero_proposta']}\nEmissão: {dados['data_geracao']}\n\nCLIENTE: {dados['cliente_nome']}\nCPF/CNPJ: {dados['cliente_cpf_cnpj']}\n\nITENS DO PEDIDO:\n{lista_itens}---\nSubtotal: R$ {subtotal_geral:.2f}\nDesconto: R$ {dados['desconto_valor']:.2f}\nVALOR TOTAL: R$ {total:.2f}\n\nPrevisão: {dados['data_entrega']}\nFrete: {dados['frete_tipo']}\nValidade: 5 dias\n\nPAGAMENTO VIA PIX:\nPix: https://linkspix.app/alphafestitatiba\nTitular: Ana Lúcia Zepelini\nBanco: Cora SCD (403)\nAgência: 0001 | Conta: 2515972-5\n\nSomente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!"
-    
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     return f"https://wa.me/{num_wa if len(num_wa)>10 else '55'+num_wa}?text={urllib.parse.quote(msg)}"
 
@@ -128,6 +119,21 @@ if "itens" not in st.session_state: st.session_state.itens = []
 if "previa_dados" not in st.session_state: st.session_state.previa_dados = None
 
 st.title("📝 Orçamentos Alphafest")
+
+# MUDANÇA IMPORTANTE: A Prévia aparece NO TOPO para você não perder!
+if st.session_state.previa_dados:
+    st.success("✅ Prévia gerada com sucesso!")
+    c_baixar, c_wa = st.columns(2)
+    c_baixar.download_button("📥 Baixar Proposta", gerar_proposta_html(st.session_state.previa_dados), "proposta.html")
+    c_wa.link_button("📱 WhatsApp", formatar_mensagem_whatsapp(st.session_state.previa_dados))
+    
+    if st.button("🚀 CONFIRMAR E SALVAR"):
+        if salvar_no_sheets(st.session_state.previa_dados):
+            st.success("Orçamento salvo!")
+            st.session_state.itens = []
+            st.session_state.previa_dados = None
+            st.rerun()
+
 with st.expander("👤 Dados do Cliente", expanded=True):
     st.text_input("Nome / Razão Social", key="c_nome")
     c1, c2 = st.columns(2)
@@ -159,15 +165,3 @@ if st.session_state.itens:
     if st.button("👁️ GERAR PRÉVIA", type="primary"):
         st.session_state.previa_dados = {"numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}", "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": entrega.strftime("%d/%m/%Y"), "cliente_nome": st.session_state.c_nome, "cliente_cpf_cnpj": st.session_state.c_cpf, "cliente_wa": st.session_state.c_wa, "itens": st.session_state.itens, "desconto_valor": desc, "prazo_dias": "10", "frete_tipo": "Retirada em Itatiba"}
         st.rerun()
-
-if st.session_state.previa_dados:
-    st.success("✅ Prévia gerada!")
-    c_baixar, c_wa = st.columns(2)
-    c_baixar.download_button("📥 Baixar Proposta", gerar_proposta_html(st.session_state.previa_dados), "proposta.html")
-    c_wa.link_button("📱 WhatsApp", formatar_mensagem_whatsapp(st.session_state.previa_dados))
-    if st.button("🚀 CONFIRMAR E SALVAR"):
-        if salvar_no_sheets(st.session_state.previa_dados):
-            st.success("Orçamento salvo!")
-            st.session_state.itens = []
-            st.session_state.previa_dados = None
-            st.rerun()
