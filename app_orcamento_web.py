@@ -11,6 +11,16 @@ import os
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamentos | Alphafest", page_icon="📝", layout="centered")
 
+# --- ESTILIZAÇÃO DO FORMULÁRIO (AZUL ALPHAFEST) ---
+st.markdown("""
+<style>
+    /* Cor de fundo e elementos */
+    .stButton>button { background-color: #003366 !important; color: white !important; }
+    h1 { color: #003366; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- FUNÇÃO PARA EMBUTIR IMAGENS ---
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as image_file:
@@ -20,6 +30,7 @@ def get_image_base64(path):
 logo_b64 = get_image_base64("logo.png")
 qr_b64 = get_image_base64("pix.png")
 
+# --- CONEXÃO COM GOOGLE SHEETS ---
 def get_sheets_client():
     creds_dict = dict(st.secrets["gcp"])
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -39,7 +50,7 @@ def salvar_no_sheets(dados):
         st.error(f"Erro ao salvar: {e}")
         return False
 
-# --- FUNÇÃO HTML AJUSTADA (Cabeçalho compacto e corpo com respiro) ---
+# --- HTML FORMATADO PARA IMPRESSÃO A4 ---
 def gerar_proposta_html(dados):
     linhas_tabela = ""
     subtotal_geral = 0.0
@@ -50,64 +61,73 @@ def gerar_proposta_html(dados):
         detalhes_txt = f"{d[0]} {d[1]} {d[2]}"
         linhas_tabela += f"""
         <tr>
-            <td style="padding:8px; border-bottom:1px solid #ddd;"><b>{item['Produto']}</b><br><small style="color:#555;">{detalhes_txt}</small></td>
-            <td style="padding:8px; text-align:center; border-bottom:1px solid #ddd;">{item['Qtd']} un.</td>
-            <td style="padding:8px; text-align:right; border-bottom:1px solid #ddd;">R$ {item['Valor Unit.']:.2f}</td>
-            <td style="padding:8px; text-align:right; border-bottom:1px solid #ddd;">R$ {sub:.2f}</td>
+            <td style="padding:10px; border-bottom:1px solid #ddd;"><b>{item['Produto']}</b><br><small style="color:#666;">{detalhes_txt}</small></td>
+            <td style="padding:10px; text-align:center; border-bottom:1px solid #ddd;">{item['Qtd']} un.</td>
+            <td style="padding:10px; text-align:right; border-bottom:1px solid #ddd;">R$ {item['Valor Unit.']:.2f}</td>
+            <td style="padding:10px; text-align:right; border-bottom:1px solid #ddd;">R$ {sub:.2f}</td>
         </tr>"""
     
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
     
     return f"""
     <html>
-    <head><meta charset="UTF-8"></head>
-    <body style="font-family: Arial, sans-serif; max-width: 700px; margin: auto; padding: 20px;">
-        <!-- Cabeçalho mais compacto -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px;">
-            <img src="data:image/png;base64,{logo_b64}" style="max-width: 90px;">
-            <div style="text-align: right; font-size: 10px; line-height: 1.1;">
-                <b>ALPHAFEST ITATIBA</b><br>
-                CNPJ: 24.374.857/0001-30<br>
-                Av. Manoel Verginio de Almeida, 442 - Itatiba - SP<br>
-                Emissão: {dados['data_geracao']}
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @media print {{ @page {{ size: A4; margin: 1cm; }} }}
+            body {{ font-family: sans-serif; height: 297mm; display: flex; flex-direction: column; }}
+            .content {{ flex: 1; }}
+            .footer-box {{ margin-top: auto; border: 1px solid #ccc; padding: 15px; font-size: 11px; }}
+        </style>
+    </head>
+    <body>
+        <div class="content">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #003366; padding-bottom: 10px;">
+                <img src="data:image/png;base64,{logo_b64}" style="max-width: 100px;">
+                <div style="text-align: right; font-size: 10px; line-height: 1.2;">
+                    <b>ALPHAFEST ITATIBA</b><br>
+                    CNPJ: 24.374.857/0001-30<br>
+                    Av. Manoel Verginio de Almeida, 442 - Itatiba - SP<br>
+                    Emissão: {dados['data_geracao']}
+                </div>
+            </div>
+            
+            <div style="background: #003366; color: #fff; padding: 8px; margin-top: 15px; font-weight: bold;">
+                PROPOSTA Nº {dados['numero_proposta']}
+            </div>
+            
+            <div style="padding: 10px; border: 1px solid #ccc; font-size: 12px; margin-top: 10px;">
+                <b>CLIENTE:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados['cliente_cpf_cnpj']} | <b>ENTREGA:</b> {dados['data_entrega']}
+            </div>
+            
+            <table style="width:100%; border-collapse:collapse; margin-top:20px; font-size: 12px;">
+                <thead><tr style="background:#f4f4f4; text-align:left;"><th style="padding:10px;">ITEM / DESCRIÇÃO</th><th style="padding:10px; text-align:center;">QTD</th><th style="padding:10px; text-align:right;">VALOR UNIT.</th><th style="padding:10px; text-align:right;">SUBTOTAL</th></tr></thead>
+                <tbody>{linhas_tabela}</tbody>
+            </table>
+            
+            <div style="text-align:right; margin-top:20px; font-size: 13px;">
+                Subtotal: R$ {subtotal_geral:.2f} | Desconto: R$ {dados['desconto_valor']:.2f}<br>
+                <b style="color:green; font-size: 16px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</b>
             </div>
         </div>
-        
-        <div style="background: #333; color: #fff; padding: 6px; font-weight: bold; font-size: 13px;">
-            PROPOSTA Nº {dados['numero_proposta']}
-        </div>
-        <div style="padding: 10px; border: 1px solid #ccc; font-size: 12px; margin-bottom: 20px;">
-            <b>CLIENTE:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados['cliente_cpf_cnpj']} | <b>ENTREGA:</b> {dados['data_entrega']}
-        </div>
-        
-        <table style="width:100%; border-collapse:collapse; font-size: 12px; margin-bottom: 30px;">
-            <thead><tr style="background:#f4f4f4; text-align:left;"><th style="padding:8px;">ITEM / DESCRIÇÃO</th><th style="padding:8px; text-align:center;">QTD</th><th style="padding:8px; text-align:right;">VALOR UNIT.</th><th style="padding:8px; text-align:right;">SUBTOTAL</th></tr></thead>
-            <tbody>{linhas_tabela}</tbody>
-        </table>
-        
-        <div style="text-align:right; font-size: 13px; margin-bottom: 40px;">
-            Subtotal: R$ {subtotal_geral:.2f} | Desconto: R$ {dados['desconto_valor']:.2f}<br>
-            <b style="color:green; font-size: 15px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</b>
-        </div>
-        
-        <!-- Condições mais espaçosas -->
-        <div style="border: 1px solid #ccc; padding: 15px; font-size: 11px;">
-            <b style="font-size: 12px;">Condições de Produção & Pagamento:</b>
+
+        <div class="footer-box">
+            <b>Condições de Produção & Pagamento:</b>
             <div style="display:flex; align-items:center; margin-top:10px;">
                 <img src="data:image/png;base64,{qr_b64}" style="width:70px; margin-right:15px;">
                 <div>
                     <b>Titular:</b> Ana Lúcia Zepelini | <b>Banco:</b> Cora SCD (403)<br>
                     <b>Agência:</b> 0001 | <b>Conta:</b> 2515972-5<br>
-                    <a href="https://linkspix.app/alphafestitatiba" style="color:#000;">Acesse nosso link PIX</a>
+                    <a href="https://linkspix.app/alphafestitatiba">Acesse nosso link PIX</a>
                 </div>
             </div>
-            <p style="margin-top: 10px;"><i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i></p>
+            <p style="margin-top:10px;"><i>Somente após realizado pagamento e envio de comprovante daremos seguimento ao pedido!</i></p>
         </div>
     </body>
     </html>
     """
 
-# --- WHATSAPP (Sem caracteres estranhos) ---
+# --- WHATSAPP (Limpando caracteres especiais) ---
 def formatar_mensagem_whatsapp(dados):
     subtotal_geral = sum(item["Qtd"] * item["Valor Unit."] for item in dados["itens"])
     total = max(0, subtotal_geral - dados.get('desconto_valor', 0))
