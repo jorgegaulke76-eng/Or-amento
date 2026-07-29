@@ -98,6 +98,13 @@ def gerar_proposta_html(dados):
 # --- INTERFACE ---
 exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
+
+# --- ALERTA DE ENTREGA HOJE ---
+hoje = datetime.now().strftime("%d/%m/%Y")
+entregas_hoje = [p for p in carregar_historico() if p.get("data_entrega") == hoje and not p.get("entregue")]
+for p in entregas_hoje:
+    st.error(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - Cliente: {p['cliente_nome']}")
+
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
 with aba1:
@@ -168,14 +175,11 @@ with aba1:
 
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
-    hoje = date.today().strftime("%d/%m/%Y")
     for prop in carregar_historico():
         is_pago = prop.get("pago", False)
         is_entregue = prop.get("entregue", False)
-        data_entrega = prop.get("data_entrega", "")
         
         with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if is_entregue else ''}"):
-            if data_entrega == hoje and not is_entregue: st.error("⚠️ ENTREGA HOJE!")
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
             for it in prop.get("itens", []): st.write(f"• {it['produto']} — {it['quantidade']} un.")
             
@@ -185,7 +189,7 @@ with aba2:
             if st.button("✏️ Editar Proposta", key=f"edit_{prop['numero_proposta']}"):
                 st.session_state.itens = prop['itens']
                 st.info("Itens carregados! Vá para a aba 'Novo Orçamento'.")
-                st.rerun()
+            
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
 
 with aba3:
