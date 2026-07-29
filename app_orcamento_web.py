@@ -94,7 +94,7 @@ def gerar_proposta_html(dados):
     logo_base64 = carregar_logo_base64()
     logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ""
     linhas = "".join([f"<tr><td><strong>{i['produto']}</strong><br><small>{i['especificacoes']}</small></td><td>{i['quantidade']} un.</td><td>R$ {i['valor_unitario']:.2f}</td><td>R$ {(i['quantidade']*i['valor_unitario']):.2f}</td></tr>" for i in dados["itens"]])
-    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page {{ size: A4 portrait; margin: 8mm; }} body {{ font-family: sans-serif; padding: 20px; }} table {{ width: 100%; border-collapse: collapse; }} th {{ background: #334155; color: white; padding: 10px; text-align: left; }} td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; }}</style></head><body><div class="header">{logo_tag}</div><h2>Proposta {dados['numero_proposta']}</h2><div style="background:#f1f5f9; padding:10px;"><b>Cliente:</b> {dados['cliente_nome']}</div><table><thead><tr><th>ITEM</th><th>QTD</th><th>UNIT.</th><th>TOTAL</th></tr></thead><tbody>{linhas}</tbody></table><div style="text-align:right; font-weight:bold;">TOTAL: R$ {(sum(i['quantidade']*i['valor_unitario'] for i in dados['itens']) - dados.get('desconto_valor', 0)):.2f}</div></body></html>"""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page {{ size: A4 portrait; margin: 8mm; }} body {{ font-family: sans-serif; padding: 20px; }} table {{ width: 100%; border-collapse: collapse; }} th {{ background: #334155; color: white; padding: 10px; text-align: left; }} td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; }}</style></head><body><div class="header">{logo_tag}</div><h2>Proposta {dados['numero_proposta']}</h2><div style="background:#f1f5f9; padding:10px;"><b>Cliente:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados.get('cliente_cpf_cnpj', 'N/A')}</div><table><thead><tr><th>ITEM</th><th>QTD</th><th>UNIT.</th><th>TOTAL</th></tr></thead><tbody>{linhas}</tbody></table><div style="text-align:right; font-weight:bold;">TOTAL: R$ {(sum(i['quantidade']*i['valor_unitario'] for i in dados['itens']) - dados.get('desconto_valor', 0)):.2f}</div></body></html>"""
 
 # --- INTERFACE ---
 exibir_logo_interface()
@@ -104,9 +104,9 @@ aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", 
 with aba1:
     if st.session_state.ultima_proposta:
         p = st.session_state.ultima_proposta
-        st.success(f"✅ Proposta {p['numero']} gerada!")
+        st.success(f"✅ Proposta {p['numero']} ({p['cliente']}) gerada!")
         c1, c2 = st.columns(2)
-        c1.download_button("📥 Baixar", p["html"], f"Proposta_{p['numero']}.html", mime="text/html", use_container_width=True)
+        c1.download_button("📥 Baixar Proposta", p["html"], f"Proposta_{p['numero']}.html", mime="text/html", use_container_width=True)
         c2.link_button("📱 WhatsApp", p["link_wa"], type="primary", use_container_width=True)
         st.divider()
 
@@ -121,19 +121,21 @@ with aba1:
     st.subheader("2. Adicionar Itens")
     prod = st.text_input("Produto", key=f"prod_{fk}")
     q = st.number_input("Qtd", 1, key=f"q_{fk}")
-    v = st.number_input("Valor Unitário", 10.0, key=f"v_{fk}")
-    if st.button("➕ Adicionar"):
+    v = st.number_input("Valor", 10.0, key=f"v_{fk}")
+    
+    if st.button("Adicionar"):
         st.session_state.itens.append({"produto": prod, "especificacoes": "Conforme alinhado", "quantidade": q, "valor_unitario": v})
         st.rerun()
 
     if st.session_state.itens:
-        st.write("Itens:", len(st.session_state.itens))
+        st.write("Itens adicionados:", len(st.session_state.itens))
         if st.button("🗑️ Limpar"): st.session_state.itens = []; st.rerun()
 
     st.divider()
-    desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
+    desc = st.number_input("Desconto", 0.0, key=f"desc_{fk}")
     
-    if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary"):
+    if st.button("🚀 GERAR PROPOSTA"):
+        # LEITURA DOS CAMPOS ORIGINAIS
         dados = {
             "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
             "data_geracao": datetime.now().strftime("%d/%m/%Y"),
@@ -161,22 +163,17 @@ with aba2:
         is_pago = prop.get("pago", False)
         is_entregue = prop.get("entregue", False)
         data_entrega = prop.get("data_entrega", "")
-        
-        aviso = ""
-        if data_entrega == hoje and not is_entregue:
-            aviso = "⚠️ **ENTREGA HOJE!**"
+        aviso = "⚠️ **ENTREGA HOJE!**" if data_entrega == hoje and not is_entregue else ""
         
         with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if is_entregue else ''}"):
             st.markdown(aviso)
-            st.write(f"**Cliente:** {prop['cliente_nome']} | **Data Entrega:** {data_entrega}")
+            st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
+            for it in prop.get("itens", []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
             if st.checkbox("Marcar como PAGO", value=is_pago, key=f"pago_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "pago", is_pago); st.rerun()
             if st.checkbox("Marcar como ENTREGUE", value=is_entregue, key=f"ent_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "entregue", is_entregue); st.rerun()
-            
-            if st.button("✏️ Editar Proposta", key=f"edit_{prop['numero_proposta']}"):
-                st.session_state.ultima_proposta = None
+            if st.button("✏️ Editar", key=f"edit_{prop['numero_proposta']}"):
                 st.session_state.itens = prop['itens']
-                st.write("Edite os dados na aba 'Novo Orçamento'")
-            
+                st.rerun()
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
 
 with aba3:
