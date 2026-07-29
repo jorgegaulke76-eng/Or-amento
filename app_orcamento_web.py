@@ -17,8 +17,7 @@ LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "itens" not in st.session_state: st.session_state.itens = []
 if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
-if "edit_mode" not in st.session_state: st.session_state.edit_mode = None
-if "target_prop" not in st.session_state: st.session_state.target_prop = None
+if "edit_id" not in st.session_state: st.session_state.edit_id = None
 
 # --- FUNÇÕES ---
 def carregar_historico():
@@ -34,7 +33,6 @@ def salvar_historico_completo(historico):
 
 def salvar_no_historico(dados_proposta):
     historico = carregar_historico()
-    # Remove a versão antiga se for edição
     historico = [p for p in historico if p.get("numero_proposta") != dados_proposta["numero_proposta"]]
     historico.insert(0, dados_proposta)
     salvar_historico_completo(historico)
@@ -55,7 +53,6 @@ def excluir_proposta_por_id(num_proposta):
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
-    
     subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
@@ -93,7 +90,7 @@ if os.path.exists(PATH_LOGO_OFICIAL):
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
 # --- ALERTA DE ENTREGA ---
-hoje = datetime.now().strftime("%d/%m/%Y")
+hoje = date.today().strftime("%d/%m/%Y")
 entregas = [p for p in carregar_historico() if p.get("data_entrega") == hoje and not p.get("entregue")]
 for p in entregas:
     if st.button(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - Cliente: {p['cliente_nome']}"):
@@ -112,13 +109,11 @@ with aba1:
         st.divider()
 
     fk = st.session_state.form_key
-    edit = st.session_state.edit_mode
-    
-    st.subheader("1. Dados do Cliente")
-    nome = st.text_input("Nome / Razão Social", value=edit['cliente_nome'] if edit else "", key=f"cliente_{fk}")
+    # Carrega dados do state para edição
+    nome = st.text_input("Nome / Razão Social", value=st.session_state.get(f"v_nome_{fk}", ""), key=f"cliente_{fk}")
     c1, c2 = st.columns(2)
-    doc = c1.text_input("CPF / CNPJ", value=edit.get('cliente_cpf_cnpj', '') if edit else "", key=f"cpf_{fk}")
-    wa = c2.text_input("WhatsApp", value=edit.get('cliente_wa', '') if edit else "", key=f"wa_{fk}")
+    doc = c1.text_input("CPF / CNPJ", value=st.session_state.get(f"v_cpf_{fk}", ""), key=f"cpf_{fk}")
+    wa = c2.text_input("WhatsApp", value=st.session_state.get(f"v_wa_{fk}", ""), key=f"wa_{fk}")
     
     st.divider()
     st.subheader("2. Adicionar Itens")
@@ -142,36 +137,44 @@ with aba1:
         if st.button("🗑️ Limpar Lista"): st.session_state.itens = []; st.rerun()
 
     st.divider()
-    desc = st.number_input("Desconto (R$)", value=edit['desconto_valor'] if edit else 0.0, key=f"desc_{fk}")
-    prazo = st.text_input("Prazo (Dias)", value=edit['prazo_dias'] if edit else "10", key=f"prazo_{fk}")
+    desc = st.number_input("Desconto (R$)", value=st.session_state.get(f"v_desc_{fk}", 0.0), key=f"desc_{fk}")
+    prazo = st.text_input("Prazo (Dias)", value=st.session_state.get(f"v_prazo_{fk}", "10"), key=f"prazo_{fk}")
     dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_{fk}")
-    frete = st.text_input("Frete", value=edit['frete_tipo'] if edit else "Retirada em Itatiba", key=f"frete_{fk}")
+    frete = st.text_input("Frete", value=st.session_state.get(f"v_frete_{fk}", "Retirada em Itatiba"), key=f"frete_{fk}")
     
     if st.button("🚀 SALVAR PROPOSTA"):
-        num = edit['numero_proposta'] if edit else f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
-        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": edit['pago'] if edit else False, "entregue": edit['entregue'] if edit else False}
+        num = st.session_state.edit_id if st.session_state.edit_id else f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
+        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": False, "entregue": False}
         salvar_no_historico(dados)
         st.session_state.ultima_proposta = {"numero": num, "cliente": nome, "html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
-        st.session_state.itens = []; st.session_state.edit_mode = None; st.session_state.target_prop = None; st.session_state.form_key += 1; st.rerun()
+        st.session_state.itens = []; st.session_state.edit_id = None; st.session_state.form_key += 1; st.rerun()
 
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
     for prop in carregar_historico():
-        is_pago = prop.get("pago", False)
-        is_entregue = prop.get("entregue", False)
-        
-        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if is_entregue else ''}", expanded=(prop['numero_proposta'] == st.session_state.target_prop)):
+        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(prop['numero_proposta'] == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
             for it in prop.get('itens', []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
             
-            pago = st.checkbox("Pago", value=is_pago, key=f"p_{prop['numero_proposta']}")
-            if pago != is_pago: alternar_status(prop['numero_proposta'], "pago", pago); st.rerun()
+            pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}")
+            if pago != prop.get("pago", False): alternar_status(prop['numero_proposta'], "pago", pago); st.rerun()
             
-            entregue = st.checkbox("Entregue", value=is_entregue, key=f"e_{prop['numero_proposta']}")
-            if entregue != is_entregue: alternar_status(prop['numero_proposta'], "entregue", entregue); st.rerun()
+            entregue = st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{prop['numero_proposta']}")
+            if entregue != prop.get("entregue", False): alternar_status(prop['numero_proposta'], "entregue", entregue); st.rerun()
             
             if st.button("✏️ Editar Proposta", key=f"edit_{prop['numero_proposta']}"):
-                st.session_state.edit_mode = prop
+                st.session_state.edit_id = prop['numero_proposta']
                 st.session_state.itens = prop['itens']
-                st.info("Dados carregados! Vá para a aba 'Novo Orçamento'."); st.rerun()
+                st.session_state[f"v_nome_{fk}"] = prop['cliente_nome']
+                st.session_state[f"v_cpf_{fk}"] = prop.get('cliente_cpf_cnpj', "")
+                st.session_state[f"v_wa_{fk}"] = prop.get('cliente_wa', "")
+                st.session_state[f"v_desc_{fk}"] = prop.get('desconto_valor', 0.0)
+                st.session_state[f"v_prazo_{fk}"] = prop.get('prazo_dias', "10")
+                st.session_state[f"v_frete_{fk}"] = prop.get('frete_tipo', "Retirada em Itatiba")
+                st.info("Dados carregados! Clique em 'Novo Orçamento'."); st.rerun()
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
+
+with aba3:
+    st.subheader("📊 Relatórios")
+    h = carregar_historico()
+    if h: st.metric("Total", f"R$ {sum(sum(i['quantidade']*i['valor_unitario'] for i in p['itens']) - p.get('desconto_valor', 0) for p in h):.2f}")
