@@ -13,15 +13,7 @@ PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 
-# --- GERENCIAMENTO DE ESTADO ---
-if "form_key" not in st.session_state: st.session_state.form_key = 0
-if "itens" not in st.session_state: st.session_state.itens = []
-if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
-if "edit_id" not in st.session_state: st.session_state.edit_id = None
-if "edit_values" not in st.session_state: st.session_state.edit_values = {}
-if "target_prop" not in st.session_state: st.session_state.target_prop = None
-
-# --- FUNÇÕES ---
+# --- FUNÇÕES (DEFINIDAS NO TOPO) ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
         try:
@@ -51,6 +43,11 @@ def excluir_proposta_por_id(num_proposta):
     historico = carregar_historico()
     historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
     salvar_historico_completo(historico_atualizado)
+
+def exibir_logo_interface():
+    if os.path.exists(PATH_LOGO_OFICIAL):
+        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+        with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
 
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
@@ -84,11 +81,16 @@ def gerar_proposta_html(dados):
     linhas = "".join([f"<tr><td><strong>{i['produto']}</strong><br><small>{i['especificacoes']}</small></td><td>{i['quantidade']} un.</td><td>R$ {i['valor_unitario']:.2f}</td><td>R$ {(i['quantidade']*i['valor_unitario']):.2f}</td></tr>" for i in dados["itens"]])
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{{font-family:sans-serif; padding:20px;}} table{{width:100%; border-collapse:collapse;}} th{{background:#334155; color:white; padding:10px;}} td{{padding:10px; border-bottom:1px solid #ddd;}}</style></head><body><h2>Proposta {dados['numero_proposta']}</h2><div style="background:#f1f5f9; padding:10px;"><b>Cliente:</b> {dados['cliente_nome']}</div><table><thead><tr><th>ITEM</th><th>QTD</th><th>UNIT.</th><th>TOTAL</th></tr></thead><tbody>{linhas}</tbody></table><div style="text-align:right; font-weight:bold;">TOTAL: R$ {(sum(i['quantidade']*i['valor_unitario'] for i in dados['itens']) - dados.get('desconto_valor', 0)):.2f}</div></body></html>"""
 
-# --- INTERFACE ---
-if os.path.exists(PATH_LOGO_OFICIAL):
-    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
+# --- GERENCIAMENTO DE ESTADO ---
+if "form_key" not in st.session_state: st.session_state.form_key = 0
+if "itens" not in st.session_state: st.session_state.itens = []
+if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
+if "edit_id" not in st.session_state: st.session_state.edit_id = None
+if "edit_data" not in st.session_state: st.session_state.edit_data = {}
+if "target_prop" not in st.session_state: st.session_state.target_prop = None
 
+# --- INTERFACE ---
+exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
 # --- ALERTA DE ENTREGA ---
@@ -111,13 +113,13 @@ with aba1:
         st.divider()
 
     fk = st.session_state.form_key
-    ev = st.session_state.edit_values
+    edit = st.session_state.edit_data
     
     st.subheader("1. Dados do Cliente")
-    nome = st.text_input("Nome / Razão Social", value=ev.get('cliente_nome', ''), key=f"cliente_{fk}")
+    nome = st.text_input("Nome / Razão Social", value=edit.get('cliente_nome', ''), key=f"cliente_{fk}")
     c1, c2 = st.columns(2)
-    doc = c1.text_input("CPF / CNPJ", value=ev.get('cliente_cpf_cnpj', ''), key=f"cpf_{fk}")
-    wa = c2.text_input("WhatsApp", value=ev.get('cliente_wa', ''), key=f"wa_{fk}")
+    doc = c1.text_input("CPF / CNPJ", value=edit.get('cliente_cpf_cnpj', ''), key=f"cpf_{fk}")
+    wa = c2.text_input("WhatsApp", value=edit.get('cliente_wa', ''), key=f"wa_{fk}")
     
     st.divider()
     st.subheader("2. Adicionar Itens")
@@ -141,17 +143,17 @@ with aba1:
         if st.button("🗑️ Limpar Lista"): st.session_state.itens = []; st.rerun()
 
     st.divider()
-    desc = st.number_input("Desconto (R$)", value=ev.get('desconto_valor', 0.0), key=f"desc_{fk}")
-    prazo = st.text_input("Prazo (Dias)", value=ev.get('prazo_dias', "10"), key=f"prazo_{fk}")
+    desc = st.number_input("Desconto (R$)", value=edit.get('desconto_valor', 0.0), key=f"desc_{fk}")
+    prazo = st.text_input("Prazo (Dias)", value=edit.get('prazo_dias', "10"), key=f"prazo_{fk}")
     dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_{fk}")
-    frete = st.text_input("Frete", value=ev.get('frete_tipo', "Retirada em Itatiba"), key=f"frete_{fk}")
+    frete = st.text_input("Frete", value=edit.get('frete_tipo', "Retirada em Itatiba"), key=f"frete_{fk}")
     
     if st.button("🚀 SALVAR PROPOSTA"):
         num = st.session_state.edit_id if st.session_state.edit_id else f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
-        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": ev.get('pago', False), "entregue": ev.get('entregue', False)}
+        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": edit.get('pago', False), "entregue": edit.get('entregue', False)}
         salvar_no_historico(dados)
         st.session_state.ultima_proposta = {"numero": num, "cliente": nome, "html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
-        st.session_state.itens = []; st.session_state.edit_id = None; st.session_state.edit_values = {}; st.session_state.form_key += 1; st.rerun()
+        st.session_state.itens = []; st.session_state.edit_id = None; st.session_state.edit_data = {}; st.session_state.form_key += 1; st.rerun()
 
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
@@ -168,7 +170,7 @@ with aba2:
             
             if st.button("✏️ Editar", key=f"edit_{prop['numero_proposta']}"):
                 st.session_state.edit_id = prop['numero_proposta']
-                st.session_state.edit_values = prop
+                st.session_state.edit_data = prop
                 st.session_state.itens = prop['itens']
                 st.info("Dados carregados! Vá para a aba 'Novo Orçamento'."); st.rerun()
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
