@@ -167,33 +167,57 @@ with aba3:
     st.subheader("📊 Relatórios Detalhados")
     h = carregar_historico()
     if h:
-        # Prepara dados para pandas
-        lista_linhas = []
+        props_unicas = []
+        itens_lista = []
+        
         for p in h:
             val_total = sum(i['quantidade'] * i['valor_unitario'] for i in p['itens']) - p.get('desconto_valor', 0)
+            dt = pd.to_datetime(p['data_geracao'], dayfirst=True)
+            
+            props_unicas.append({
+                'Data': dt,
+                'Proposta': p['numero_proposta'],
+                'Cliente': p['cliente_nome'],
+                'Valor': max(0.0, val_total),
+                'Pago': p.get('pago', False)
+            })
+            
             for it in p['itens']:
-                lista_linhas.append({'Data': pd.to_datetime(p['data_geracao'], dayfirst=True), 'Cliente': p['cliente_nome'], 'Produto': it['produto'], 'Qtd': it['quantidade'], 'Valor': val_total, 'Pago': p.get('pago', False)})
+                itens_lista.append({
+                    'Data': dt,
+                    'Cliente': p['cliente_nome'],
+                    'Produto': it['produto'],
+                    'Qtd': it['quantidade'],
+                    'Pago': p.get('pago', False)
+                })
         
-        df = pd.DataFrame(lista_linhas)
+        df_props = pd.DataFrame(props_unicas)
+        df_itens = pd.DataFrame(itens_lista)
         
-        periodo = st.selectbox("Selecione o Período", ["Dia", "Semana", "Mês", "Ano"])
-        resample_map = {"Dia": "D", "Semana": "W", "Mês": "M", "Ano": "Y"}
-        resample_rule = resample_map[periodo]
+        periodo = st.selectbox("Selecione o Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"])
+        
+        resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
+        format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
 
         # 1. Vendas por Período
         st.subheader(f"💰 Valor de Vendas por {periodo}")
-        vendas = df.set_index('Data').resample(resample_rule)['Valor'].sum()
-        st.bar_chart(vendas)
+        df_vendas = df_props.set_index('Data').resample(resample_rule)['Valor'].sum().reset_index()
+        df_vendas['Data_Fmt'] = df_vendas['Data'].dt.strftime(format_str)
+        st.bar_chart(df_vendas.set_index('Data_Fmt')['Valor'])
 
         # 2. Qtd Compras por Cliente
-        st.subheader("👥 Compras por Cliente")
-        st.bar_chart(df.groupby('Cliente')['Qtd'].sum())
+        st.subheader("👥 Total de Compras por Cliente")
+        st.bar_chart(df_props.groupby('Cliente')['Proposta'].count())
 
         # 3. Propostas Pagas
         st.subheader(f"✅ Propostas Pagas por {periodo}")
-        pagas = df[df['Pago'] == True].set_index('Data').resample(resample_rule)['Pago'].count()
-        st.bar_chart(pagas)
+        df_pagas = df_props[df_props['Pago'] == True].set_index('Data').resample(resample_rule)['Proposta'].count().reset_index()
+        if not df_pagas.empty:
+            df_pagas['Data_Fmt'] = df_pagas['Data'].dt.strftime(format_str)
+            st.bar_chart(df_pagas.set_index('Data_Fmt')['Proposta'])
+        else:
+            st.info("Nenhuma proposta paga registrada até o momento.")
 
         # 4. Produto mais vendido
-        st.subheader("📦 Produtos Mais Vendidos")
-        st.bar_chart(df.groupby('Produto')['Qtd'].sum())
+        st.subheader("📦 Produtos Mais Vendidos (Quantidade Total)")
+        st.bar_chart(df_itens.groupby('Produto')['Qtd'].sum())
