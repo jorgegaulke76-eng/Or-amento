@@ -4,8 +4,8 @@ import os
 import re
 import json
 import urllib.parse
+import pandas as pd
 from datetime import datetime, date, timedelta
-from collections import defaultdict
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Orçamento Alphafest", page_icon="📄", layout="centered")
@@ -54,6 +54,7 @@ def excluir_proposta_por_id(num_proposta):
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
+    
     subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
@@ -151,36 +152,48 @@ with aba1:
         st.session_state.itens = []; st.session_state.form_key += 1; st.rerun()
 
 with aba2:
-    st.subheader("📋 Central de Propostas")
-    historico = carregar_historico()
-    
-    # Lógica de Agrupamento
-    agrupado = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    for p in historico:
-        try:
-            d = datetime.strptime(p['data_geracao'], '%d/%m/%Y')
-            agrupado[d.year][d.strftime('%B')][p['data_geracao']].append(p)
-        except: continue
-
-    # Exibição Hierárquica
-    for ano in sorted(agrupado.keys(), reverse=True):
-        with st.expander(f"📅 {ano}", expanded=True):
-            for mes in agrupado[ano]:
-                st.markdown(f"**{mes.upper()}**")
-                for data, lista_props in agrupado[ano][mes].items():
-                    with st.expander(f"Dia {data} ({len(lista_props)} propostas)"):
-                        for prop in lista_props:
-                            is_entregue = prop.get('entregue', False)
-                            with st.container():
-                                st.write(f"---")
-                                st.write(f"**{prop['numero_proposta']} - {prop['cliente_nome']}** {'✅' if is_entregue else ''}")
-                                pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}")
-                                if pago != prop.get("pago", False): alternar_status(prop['numero_proposta'], "pago", pago); st.rerun()
-                                ent = st.checkbox("Entregue", value=is_entregue, key=f"e_{prop['numero_proposta']}")
-                                if ent != is_entregue: alternar_status(prop['numero_proposta'], "entregue", ent); st.rerun()
-                                if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
+    st.subheader("📋 Central de Propostas Geradas")
+    for prop in carregar_historico():
+        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(prop['numero_proposta'] == st.session_state.target_prop)):
+            st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
+            for it in prop.get('itens', []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
+            pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}")
+            if pago != prop.get("pago", False): alternar_status(prop['numero_proposta'], "pago", pago); st.rerun()
+            entregue = st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{prop['numero_proposta']}")
+            if entregue != prop.get("entregue", False): alternar_status(prop['numero_proposta'], "entregue", entregue); st.rerun()
+            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
 
 with aba3:
-    st.subheader("📊 Relatórios")
+    st.subheader("📊 Relatórios Detalhados")
     h = carregar_historico()
-    if h: st.metric("Total de Vendas", f"R$ {sum(sum(i['quantidade']*i['valor_unitario'] for i in p['itens']) - p.get('desconto_valor', 0) for p in h):.2f}")
+    if h:
+        # Prepara dados para pandas
+        lista_linhas = []
+        for p in h:
+            val_total = sum(i['quantidade'] * i['valor_unitario'] for i in p['itens']) - p.get('desconto_valor', 0)
+            for it in p['itens']:
+                lista_linhas.append({'Data': pd.to_datetime(p['data_geracao'], dayfirst=True), 'Cliente': p['cliente_nome'], 'Produto': it['produto'], 'Qtd': it['quantidade'], 'Valor': val_total, 'Pago': p.get('pago', False)})
+        
+        df = pd.DataFrame(lista_linhas)
+        
+        periodo = st.selectbox("Selecione o Período", ["Dia", "Semana", "Mês", "Ano"])
+        resample_map = {"Dia": "D", "Semana": "W", "Mês": "M", "Ano": "Y"}
+        resample_rule = resample_map[periodo]
+
+        # 1. Vendas por Período
+        st.subheader(f"💰 Valor de Vendas por {periodo}")
+        vendas = df.set_index('Data').resample(resample_rule)['Valor'].sum()
+        st.bar_chart(vendas)
+
+        # 2. Qtd Compras por Cliente
+        st.subheader("👥 Compras por Cliente")
+        st.bar_chart(df.groupby('Cliente')['Qtd'].sum())
+
+        # 3. Propostas Pagas
+        st.subheader(f"✅ Propostas Pagas por {periodo}")
+        pagas = df[df['Pago'] == True].set_index('Data').resample(resample_rule)['Pago'].count()
+        st.bar_chart(pagas)
+
+        # 4. Produto mais vendido
+        st.subheader("📦 Produtos Mais Vendidos")
+        st.bar_chart(df.groupby('Produto')['Qtd'].sum())
