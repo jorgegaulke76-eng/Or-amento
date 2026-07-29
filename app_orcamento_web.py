@@ -17,6 +17,7 @@ LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "itens" not in st.session_state: st.session_state.itens = []
 if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
+if "target_prop" not in st.session_state: st.session_state.target_prop = None
 
 # --- FUNÇÕES ---
 def carregar_historico():
@@ -32,6 +33,8 @@ def salvar_historico_completo(historico):
 
 def salvar_no_historico(dados_proposta):
     historico = carregar_historico()
+    # Remove duplicata se for edição
+    historico = [p for p in historico if p.get("numero_proposta") != dados_proposta["numero_proposta"]]
     historico.insert(0, dados_proposta)
     salvar_historico_completo(historico)
 
@@ -48,22 +51,9 @@ def excluir_proposta_por_id(num_proposta):
     historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
     salvar_historico_completo(historico_atualizado)
 
-def carregar_logo_base64():
-    if os.path.exists(PATH_LOGO_OFICIAL):
-        try:
-            with open(PATH_LOGO_OFICIAL, "rb") as image_file: return base64.b64encode(image_file.read()).decode('utf-8')
-        except: pass
-    return ""
-
-def exibir_logo_interface():
-    if os.path.exists(PATH_LOGO_OFICIAL):
-        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-        with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
-
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
-    
     subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
     desc_v = dados.get("desconto_valor", 0.0)
     total_final = max(0.0, subtotal_geral - desc_v)
@@ -90,20 +80,19 @@ def extrair_link_whatsapp_completo(dados):
     return f"https://wa.me/{num_wa}?text={msg_enc}" if num_wa and len(num_wa) >= 12 else f"https://api.whatsapp.com/send?text={msg_enc}"
 
 def gerar_proposta_html(dados):
-    logo_base64 = carregar_logo_base64()
-    logo_tag = f'<img src="data:image/png;base64,{logo_base64}" class="logo">' if logo_base64 else ""
     linhas = "".join([f"<tr><td><strong>{i['produto']}</strong><br><small>{i['especificacoes']}</small></td><td>{i['quantidade']} un.</td><td>R$ {i['valor_unitario']:.2f}</td><td>R$ {(i['quantidade']*i['valor_unitario']):.2f}</td></tr>" for i in dados["itens"]])
-    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page {{ size: A4 portrait; margin: 8mm; }} body {{ font-family: sans-serif; padding: 20px; }} table {{ width: 100%; border-collapse: collapse; }} th {{ background: #334155; color: white; padding: 10px; text-align: left; }} td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; }}</style></head><body><div class="header">{logo_tag}</div><h2>Proposta {dados['numero_proposta']}</h2><div style="background:#f1f5f9; padding:10px;"><b>Cliente:</b> {dados['cliente_nome']} | <b>CPF/CNPJ:</b> {dados.get('cliente_cpf_cnpj', 'N/A')}</div><table><thead><tr><th>ITEM</th><th>QTD</th><th>UNIT.</th><th>TOTAL</th></tr></thead><tbody>{linhas}</tbody></table><div style="text-align:right; font-weight:bold;">TOTAL: R$ {(sum(i['quantidade']*i['valor_unitario'] for i in dados['itens']) - dados.get('desconto_valor', 0)):.2f}</div></body></html>"""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{{font-family:sans-serif; padding:20px;}} table{{width:100%; border-collapse:collapse;}} th{{background:#334155; color:white; padding:10px;}} td{{padding:10px; border-bottom:1px solid #ddd;}}</style></head><body><h2>Proposta {dados['numero_proposta']}</h2><div style="background:#f1f5f9; padding:10px;"><b>Cliente:</b> {dados['cliente_nome']}</div><table><thead><tr><th>ITEM</th><th>QTD</th><th>UNIT.</th><th>TOTAL</th></tr></thead><tbody>{linhas}</tbody></table><div style="text-align:right; font-weight:bold;">TOTAL: R$ {(sum(i['quantidade']*i['valor_unitario'] for i in dados['itens']) - dados.get('desconto_valor', 0)):.2f}</div></body></html>"""
 
 # --- INTERFACE ---
 exibir_logo_interface()
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTA DE ENTREGA HOJE ---
+# --- ALERTA DE ENTREGA ---
 hoje = datetime.now().strftime("%d/%m/%Y")
-entregas_hoje = [p for p in carregar_historico() if p.get("data_entrega") == hoje and not p.get("entregue")]
-for p in entregas_hoje:
-    st.error(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - Cliente: {p['cliente_nome']}")
+entregas = [p for p in carregar_historico() if p.get("data_entrega") == hoje and not p.get("entregue")]
+for p in entregas:
+    if st.error(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - Cliente: {p['cliente_nome']}"):
+        st.session_state.target_prop = p['numero_proposta']
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
@@ -112,38 +101,36 @@ with aba1:
         p = st.session_state.ultima_proposta
         st.success(f"✅ Proposta {p['numero']} ({p['cliente']}) gerada!")
         c1, c2 = st.columns(2)
-        c1.download_button("📥 Baixar Proposta", p["html"], f"Proposta_{p['numero']}.html", mime="text/html", use_container_width=True)
+        c1.download_button("📥 Baixar", p["html"], f"Proposta_{p['numero']}.html", mime="text/html", use_container_width=True)
         c2.link_button("📱 WhatsApp", p["link_wa"], type="primary", use_container_width=True)
         st.divider()
 
     fk = st.session_state.form_key
     st.subheader("1. Dados do Cliente")
     nome = st.text_input("Nome / Razão Social", key=f"cliente_{fk}")
-    col_doc, col_wa = st.columns(2)
-    doc = col_doc.text_input("CPF / CNPJ", key=f"cpf_{fk}")
-    wa = col_wa.text_input("WhatsApp", key=f"wa_{fk}")
+    c1, c2 = st.columns(2)
+    doc = c1.text_input("CPF / CNPJ", key=f"cpf_{fk}")
+    wa = c2.text_input("WhatsApp", key=f"wa_{fk}")
     
     st.divider()
     st.subheader("2. Adicionar Itens")
     prod = st.text_input("Produto", key=f"prod_{fk}")
     with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
-        col_esp1, col_esp2 = st.columns(2)
-        esp_tema = col_esp1.text_input("Tema / Ocasião", key=f"et_{fk}")
-        esp_nome = col_esp1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
-        esp_cor = col_esp1.text_input("Cor / Material", key=f"ec_{fk}")
-        esp_idade = col_esp2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
-        esp_geral = col_esp2.text_input("Outros Detalhes", key=f"eg_{fk}")
+        c1, c2 = st.columns(2)
+        et = c1.text_input("Tema / Ocasião", key=f"et_{fk}")
+        en = c1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
+        ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
+        ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
+        eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
     q = st.number_input("Qtd", 1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário", 10.0, key=f"v_{fk}")
     
     if st.button("➕ Adicionar Item à Lista"):
-        partes = [f"Tema: {esp_tema}", f"Nome: {esp_nome}", f"Idade: {esp_idade}", f"Cor: {esp_cor}", f"Obs: {esp_geral}"]
-        detalhes = " | ".join([p for p in partes if p.split(": ")[1]])
-        st.session_state.itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
+        det = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
+        st.session_state.itens.append({"produto": prod, "especificacoes": det, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
     if st.session_state.itens:
-        st.write("Itens adicionados:", len(st.session_state.itens))
         if st.button("🗑️ Limpar Lista"): st.session_state.itens = []; st.rerun()
 
     st.divider()
@@ -152,47 +139,26 @@ with aba1:
     dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_{fk}")
     frete = st.text_input("Frete", value="Retirada em Itatiba", key=f"frete_{fk}")
     
-    if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary"):
-        dados = {
-            "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
-            "data_geracao": datetime.now().strftime("%d/%m/%Y"),
-            "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
-            "cliente_nome": st.session_state.get(f"cliente_{fk}", "N/A"),
-            "cliente_cpf_cnpj": st.session_state.get(f"cpf_{fk}", "N/A"),
-            "cliente_wa": st.session_state.get(f"wa_{fk}", "N/A"),
-            "itens": list(st.session_state.itens),
-            "desconto_valor": desc,
-            "prazo_dias": prazo,
-            "frete_tipo": frete,
-            "pago": False,
-            "entregue": False
-        }
+    if st.button("🚀 SALVAR PROPOSTA"):
+        num = f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
+        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": False, "entregue": False}
         salvar_no_historico(dados)
-        st.session_state.ultima_proposta = {"numero": dados["numero_proposta"], "cliente": dados["cliente_nome"], "html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
-        st.session_state.itens = []
-        st.session_state.form_key += 1
-        st.rerun()
+        st.session_state.ultima_proposta = {"numero": num, "cliente": nome, "html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
+        st.session_state.itens = []; st.session_state.form_key += 1; st.rerun()
 
 with aba2:
-    st.subheader("📋 Central de Propostas Geradas")
+    st.subheader("📋 Central de Propostas")
     for prop in carregar_historico():
-        is_pago = prop.get("pago", False)
-        is_entregue = prop.get("entregue", False)
-        
-        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if is_entregue else ''}"):
-            st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
-            for it in prop.get("itens", []): st.write(f"• {it['produto']} — {it['quantidade']} un.")
-            
-            if st.checkbox("Marcar como PAGO", value=is_pago, key=f"pago_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "pago", is_pago); st.rerun()
-            if st.checkbox("Marcar como ENTREGUE", value=is_entregue, key=f"ent_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "entregue", is_entregue); st.rerun()
+        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}", expanded=(prop['numero_proposta'] == st.session_state.target_prop)):
+            st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
+            for it in prop.get("itens", []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
+            if st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "pago", False); st.rerun()
+            if st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "entregue", False); st.rerun()
             
             if st.button("✏️ Editar Proposta", key=f"edit_{prop['numero_proposta']}"):
                 st.session_state.itens = prop['itens']
-                st.info("Itens carregados! Vá para a aba 'Novo Orçamento'.")
-            
+                st.session_state[f"cliente_{fk}"] = prop['cliente_nome']
+                st.session_state[f"cpf_{fk}"] = prop.get('cliente_cpf_cnpj', "")
+                st.session_state[f"wa_{fk}"] = prop.get('cliente_wa', "")
+                st.info("Dados carregados na Aba 1! Altere e salve novamente."); st.rerun()
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
-
-with aba3:
-    st.subheader("📊 Relatórios")
-    h = carregar_historico()
-    if h: st.metric("Total", f"R$ {sum(sum(i['quantidade']*i['valor_unitario'] for i in p['itens']) - p.get('desconto_valor', 0) for p in h):.2f}")
