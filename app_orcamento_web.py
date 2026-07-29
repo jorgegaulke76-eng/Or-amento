@@ -166,7 +166,7 @@ def gerar_proposta_html(dados):
         <meta charset="utf-8">
         <title>Proposta - {dados['numero_proposta']}</title>
         <style>
-            @media print {{ @page {{ size: A4 portrait; margin: 8mm; }} }}
+            @page {{ size: A4 portrait; margin: 8mm; }}
             * {{ box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 10px; }}
             .container {{ max-width: 780px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }}
@@ -205,25 +205,32 @@ def gerar_proposta_html(dados):
                     <strong>Emissão:</strong> {data_hoje}
                 </div>
             </div>
+            
             <div class="title-box">
                 <h2>Proposta</h2>
                 <span>Nº {dados['numero_proposta']}</span>
             </div>
+            
             <div class="info-grid">
                 <div class="info-item"><label>Cliente / Empresa</label><span>{dados['cliente_nome']}</span></div>
                 <div class="info-item"><label>CPF / CNPJ</label><span>{dados.get('cliente_cpf_cnpj', 'Não informado')}</span></div>
                 <div class="info-item"><label>WhatsApp / Contato</label><span>{dados.get('cliente_wa', 'Não informado')}</span></div>
                 <div class="info-item"><label>Data Prevista de Entrega</label><span style="color:#0284c7;">📅 {data_entrega}</span></div>
             </div>
+            
             <table>
-                <thead><tr><th>ITEM / DESCRIÇÃO</th><th style="text-align:center;">QTD</th><th style="text-align:right;">VALOR UNIT.</th><th style="text-align:right;">SUBTOTAL</th></tr></thead>
+                <thead>
+                    <tr><th>ITEM / DESCRIÇÃO</th><th style="text-align:center;">QTD</th><th style="text-align:right;">VALOR UNIT.</th><th style="text-align:right;">SUBTOTAL</th></tr>
+                </thead>
                 <tbody>{linhas_tabela}</tbody>
             </table>
+            
             <div class="summary-box">
                 <div class="summary-row"><span>Subtotal:</span><span>R$ {subtotal_geral:.2f}</span></div>
                 <div class="summary-row"><span>Desconto:</span><span>- R$ {valor_desconto:.2f}</span></div>
                 <div class="summary-row total"><span>VALOR TOTAL DO PEDIDO:</span><span>R$ {total_final:.2f}</span></div>
             </div>
+            
             <div class="conditions">
                 <strong>📌 Condições de Produção & Pagamento:</strong><br>
                 🤝 <strong>Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!</strong><br>
@@ -239,6 +246,11 @@ def gerar_proposta_html(dados):
                 👇 <strong>Somente após realizado pagamento e envio do comprovante daremos seguimento ao seu pedido ! 🥰</strong><br>
                 • <strong>Prazo de Produção:</strong> {dados['prazo_dias']} dias úteis (Entrega prevista: {data_entrega}).<br>
                 • <strong>Frete / Entrega:</strong> {dados['frete_tipo']} &bull; <strong>Validade:</strong> 5 dias corridos.
+            </div>
+            <div class="terms-box">
+                <strong>Cláusulas Gerais:</strong><br>
+                1. A produção seguirá estritamente o layout aprovado pelo cliente.<br>
+                2. Por se tratar de produto personalizado, não aceitamos devolução por desistência após o início da confecção.
             </div>
             <a href="{link_wa}" class="btn-wa" target="_blank">✅ Enviar Comprovante de Pagamento no WhatsApp</a>
         </div>
@@ -268,16 +280,16 @@ with aba1:
     fk = st.session_state.form_key
 
     st.subheader("1. Dados do Cliente")
-    # Usando variáveis que o Streamlit já captura pelos campos abaixo
-    cliente_nome_input = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
+    cliente_nome = st.text_input("Nome / Razão Social", placeholder="Ex: Ana Silva / Empresa X", key=f"cliente_{fk}")
     
     col_doc, col_wa = st.columns(2)
     with col_doc:
-        cliente_cpf_cnpj_input = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
+        cliente_cpf_cnpj = st.text_input("CPF / CNPJ (para Cupom Fiscal/NF)", placeholder="Ex: 000.000.000-00", key=f"cpf_cnpj_{fk}")
     with col_wa:
-        cliente_wa_input = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
+        cliente_wa = st.text_input("WhatsApp / Telefone", placeholder="Ex: (11) 99999-9999", key=f"wa_{fk}")
 
     st.divider()
+
     st.subheader("2. Adicionar Itens ao Orçamento")
     
     prod = st.text_input("Produto / Item", placeholder="Ex: Copo Térmico 360ml / Letras Impressas 3D", key=f"p_{fk}")
@@ -334,14 +346,14 @@ with aba1:
         if not st.session_state.itens:
             st.error("Adicione itens!")
         else:
-            # FIX: Capturando os dados direto do Session State (via chaves)
+            # FIX: Leitura direta das variáveis preenchidas
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
-                "cliente_nome": st.session_state.get(f"cliente_{fk}", "Cliente Não Informado"),
-                "cliente_cpf_cnpj": st.session_state.get(f"cpf_cnpj_{fk}", "Não informado"),
-                "cliente_wa": st.session_state.get(f"wa_{fk}", ""),
+                "cliente_nome": cliente_nome,
+                "cliente_cpf_cnpj": cliente_cpf_cnpj,
+                "cliente_wa": cliente_wa,
                 "itens": list(st.session_state.itens),
                 "desconto_valor": desconto_valor,
                 "prazo_dias": prazo,
