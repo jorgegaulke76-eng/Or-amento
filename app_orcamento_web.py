@@ -8,6 +8,7 @@ from datetime import datetime, date, timedelta
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Orçamento Alphafest", page_icon="📄", layout="centered")
 
+# --- CONFIGURAÇÕES GERAIS ---
 MARCA_FABRICANTE = "ALPHAFEST ITATIBA"
 PATH_LOGO_OFICIAL = "logo.png"
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
@@ -33,7 +34,6 @@ def salvar_historico_completo(historico):
 
 def salvar_no_historico(dados_proposta):
     historico = carregar_historico()
-    # Remove duplicata se for edição
     historico = [p for p in historico if p.get("numero_proposta") != dados_proposta["numero_proposta"]]
     historico.insert(0, dados_proposta)
     salvar_historico_completo(historico)
@@ -51,6 +51,18 @@ def excluir_proposta_por_id(num_proposta):
     historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
     salvar_historico_completo(historico_atualizado)
 
+def carregar_logo_base64():
+    if os.path.exists(PATH_LOGO_OFICIAL):
+        try:
+            with open(PATH_LOGO_OFICIAL, "rb") as image_file: return base64.b64encode(image_file.read()).decode('utf-8')
+        except: pass
+    return ""
+
+def exibir_logo_interface():
+    if os.path.exists(PATH_LOGO_OFICIAL):
+        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+        with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
+
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
@@ -66,7 +78,7 @@ def extrair_link_whatsapp_completo(dados):
         texto_itens += f"     └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
 
     msg = (f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n📄 *Nº:* {dados['numero_proposta']}\n🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
-           f"👤 *CLIENTE:* {dados['cliente_nome']}\n🪪 *CPF/CNPJ:* {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
+           f"👤 *CLIENTE:* {dados['cliente_nome']}\n🪪 *CPF/CNPJ:* {dados['cliente_cpf_cnpj']}\n"
            f"-----------------------------------\n📦 *ITENS DO PEDIDO:*\n\n{texto_itens}-----------------------------------\n"
            f"💵 *Subtotal:* R$ {subtotal_geral:.2f}\n🏷️ *Desconto:* - R$ {desc_v:.2f}\n✅ *VALOR TOTAL DO PEDIDO:* R$ {total_final:.2f}\n"
            f"-----------------------------------\n📅 *Previsão de Entrega:* {dados.get('data_entrega', 'A combinar')}\n"
@@ -151,14 +163,15 @@ with aba2:
     for prop in carregar_historico():
         with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}", expanded=(prop['numero_proposta'] == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
-            for it in prop.get("itens", []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
+            for it in prop.get('itens', []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
             if st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "pago", False); st.rerun()
             if st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{prop['numero_proposta']}"): alternar_status(prop['numero_proposta'], "entregue", False); st.rerun()
             
             if st.button("✏️ Editar Proposta", key=f"edit_{prop['numero_proposta']}"):
                 st.session_state.itens = prop['itens']
+                # Carrega campos para edição
                 st.session_state[f"cliente_{fk}"] = prop['cliente_nome']
                 st.session_state[f"cpf_{fk}"] = prop.get('cliente_cpf_cnpj', "")
                 st.session_state[f"wa_{fk}"] = prop.get('cliente_wa', "")
-                st.info("Dados carregados na Aba 1! Altere e salve novamente."); st.rerun()
+                st.info("Dados carregados! Vá para a aba 'Novo Orçamento'."); st.rerun()
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
