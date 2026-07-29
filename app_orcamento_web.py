@@ -87,7 +87,7 @@ def extrair_link_whatsapp_completo(dados):
            f"• *Empresa:* ANA LUCIA VIEIRA ZEPELINI 29480359880\n\n"
            f"👇 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido ! 🥰*")
     
-    # CORREÇÃO AQUI: Codificação utf-8 forçada para evitar interrogações
+    # Esta linha codifica corretamente para não aparecer ? no WhatsApp
     msg_enc = urllib.parse.quote(msg.encode('utf-8'))
     return f"https://wa.me/{num_wa}?text={msg_enc}" if num_wa and len(num_wa) >= 12 else f"https://api.whatsapp.com/send?text={msg_enc}"
 
@@ -129,9 +129,10 @@ with aba1:
 
     fk = st.session_state.form_key
     st.subheader("1. Dados do Cliente")
-    nome = st.text_input("Nome / Razão Social", key=f"cliente_{fk}")
-    doc = st.text_input("CPF / CNPJ", key=f"cpf_{fk}")
-    wa = st.text_input("WhatsApp", key=f"wa_{fk}")
+    # Campos originais
+    cliente_nome = st.text_input("Nome / Razão Social", key=f"cliente_{fk}")
+    cliente_cpf = st.text_input("CPF / CNPJ", key=f"cpf_{fk}")
+    cliente_wa = st.text_input("WhatsApp", key=f"wa_{fk}")
     
     st.divider()
     st.subheader("2. Adicionar Itens")
@@ -150,7 +151,8 @@ with aba1:
     st.divider()
     desc = st.number_input("Desconto", 0.0, key=f"desc_{fk}")
     
-    if st.button("🚀 GERAR PROPOSTA"):
+    if st.button("🚀 GERAR, SALVAR E ZERAR FORMULÁRIO", type="primary"):
+        # CAPTURA FORÇADA DOS DADOS USANDO A CHAVE DO CAMPO
         dados = {
             "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
             "data_geracao": datetime.now().strftime("%d/%m/%Y"),
@@ -173,9 +175,7 @@ with aba2:
     st.subheader("📋 Central de Propostas")
     for prop in carregar_historico():
         with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}"):
-            st.write(f"**Cliente:** {prop['cliente_nome']}")
-            st.write(f"**CPF/CNPJ:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
-            for it in prop['itens']: st.write(f"- {it['produto']} ({it['quantidade']} un)")
+            st.write(prop)
             if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
 
 with aba3:
