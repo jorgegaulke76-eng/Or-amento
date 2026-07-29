@@ -558,13 +558,18 @@ with aba1:
         if not st.session_state.itens:
             st.error("Adicione pelo menos 1 item antes de gerar a proposta!")
         else:
+            # CAPTURANDO VALORES DIRETAMENTE DA SESSÃO PARA GARANTIR A GRAVAÇÃO
+            nome_val = st.session_state.get(f"cliente_{fk}", "")
+            cpf_val = st.session_state.get(f"cpf_cnpj_{fk}", "")
+            wa_val = st.session_state.get(f"wa_{fk}", "")
+            
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega_input.strftime("%d/%m/%Y"),
-                "cliente_nome": cliente_nome or "Cliente Não Informado",
-                "cliente_cpf_cnpj": cliente_cpf_cnpj or "Não informado",
-                "cliente_wa": cliente_wa or "",
+                "cliente_nome": nome_val if nome_val else "Cliente Não Informado",
+                "cliente_cpf_cnpj": cpf_val if cpf_val else "Não informado",
+                "cliente_wa": wa_val if wa_val else "",
                 "itens": list(st.session_state.itens),
                 "desconto_valor": desconto_valor,
                 "desconto": 0.0,
