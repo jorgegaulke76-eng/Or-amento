@@ -16,17 +16,23 @@ ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 
 # --- GERENCIAMENTO DE ESTADO ---
-if "form_key" not in st.session_state: st.session_state.form_key = 0
-if "itens" not in st.session_state: st.session_state.itens = []
-if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
-if "target_prop" not in st.session_state: st.session_state.target_prop = None
+if "form_key" not in st.session_state: 
+    st.session_state.form_key = 0
+if "itens" not in st.session_state: 
+    st.session_state.itens = []
+if "ultima_proposta" not in st.session_state: 
+    st.session_state.ultima_proposta = None
+if "target_prop" not in st.session_state: 
+    st.session_state.target_prop = None
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES DE APOIO ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
         try:
-            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f: return json.load(f)
-        except: return []
+            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f: 
+                return json.load(f)
+        except: 
+            return []
     return []
 
 def salvar_historico_completo(historico):
@@ -53,7 +59,8 @@ def excluir_proposta_por_id(num_proposta):
 
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
-    if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
+    if len(num_wa) <= 11 and not num_wa.startswith("55"): 
+        num_wa = "55" + num_wa
     
     subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
     desc_v = dados.get("desconto_valor", 0.0)
@@ -63,7 +70,8 @@ def extrair_link_whatsapp_completo(dados):
     for idx, item in enumerate(dados["itens"], 1):
         sub_item = item["quantidade"] * item["valor_unitario"]
         texto_itens += f"  *{idx}. {item['produto']}*\n"
-        if item.get('especificacoes'): texto_itens += f"     └ Detalhes: {item['especificacoes']}\n"
+        if item.get('especificacoes'): 
+            texto_itens += f"     └ Detalhes: {item['especificacoes']}\n"
         texto_itens += f"     └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
 
     msg = (f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n📄 *Nº:* {dados['numero_proposta']}\n🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
@@ -87,7 +95,8 @@ def gerar_proposta_html(dados):
 # --- INTERFACE ---
 if os.path.exists(PATH_LOGO_OFICIAL):
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
+    with col_l2: 
+        st.image(PATH_LOGO_OFICIAL, use_container_width=True)
 
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
@@ -101,6 +110,7 @@ for p in entregas:
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
+# --- ABA 1: NOVO ORÇAMENTO ---
 with aba1:
     if st.session_state.ultima_proposta:
         p = st.session_state.ultima_proposta
@@ -136,7 +146,6 @@ with aba1:
         st.session_state.itens.append({"produto": prod, "especificacoes": det, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
-    # --- PRÉVIA DOS ITENS ---
     if st.session_state.itens:
         st.write("📋 **Prévia dos itens adicionados:**")
         df_previo = pd.DataFrame(st.session_state.itens)
@@ -153,23 +162,60 @@ with aba1:
     
     if st.button("🚀 SALVAR PROPOSTA"):
         num = f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
-        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": False, "entregue": False}
+        dados = {
+            "numero_proposta": num, 
+            "data_geracao": datetime.now().strftime("%d/%m/%Y"), 
+            "data_entrega": dt_entrega.strftime("%d/%m/%Y"), 
+            "cliente_nome": nome, 
+            "cliente_cpf_cnpj": doc, 
+            "cliente_wa": wa, 
+            "itens": list(st.session_state.itens), 
+            "desconto_valor": desc, 
+            "prazo_dias": prazo, 
+            "frete_tipo": frete, 
+            "pago": False, 
+            "entregue": False
+        }
         salvar_no_historico(dados)
-        st.session_state.ultima_proposta = {"numero": num, "cliente": nome, "html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
-        st.session_state.itens = []; st.session_state.form_key += 1; st.rerun()
+        st.session_state.ultima_proposta = {
+            "numero": num, 
+            "cliente": nome, 
+            "html": gerar_proposta_html(dados), 
+            "link_wa": extrair_link_whatsapp_completo(dados)
+        }
+        st.session_state.itens = []
+        st.session_state.form_key += 1
+        st.rerun()
 
+# --- ABA 2: HISTÓRICO (Com correção de chaves) ---
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
-    for prop in carregar_historico():
-        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(prop['numero_proposta'] == st.session_state.target_prop)):
+    # Utilizamos enumerate para garantir chaves únicas baseadas no índice
+    for idx, prop in enumerate(carregar_historico()):
+        num_p = prop['numero_proposta']
+        # Chave única composta para evitar erro de duplicidade
+        unique_key = f"{num_p}_{idx}"
+        
+        with st.expander(f"{num_p} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(num_p == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
-            for it in prop.get('itens', []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
-            pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}")
-            if pago != prop.get("pago", False): alternar_status(prop['numero_proposta'], "pago", pago); st.rerun()
-            entregue = st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{prop['numero_proposta']}")
-            if entregue != prop.get("entregue", False): alternar_status(prop['numero_proposta'], "entregue", entregue); st.rerun()
-            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta_por_id(prop['numero_proposta']); st.rerun()
+            for it in prop.get('itens', []): 
+                st.write(f"• {it['produto']} ({it['quantidade']} un)")
+            
+            pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"pago_{unique_key}")
+            if pago != prop.get("pago", False): 
+                alternar_status(num_p, "pago", pago)
+                st.rerun()
+            
+            entregue = st.checkbox("Entregue", value=prop.get("entregue", False), key=f"entregue_{unique_key}")
+            if entregue != prop.get("entregue", False): 
+                alternar_status(num_p, "entregue", entregue)
+                st.rerun()
+                
+            if st.button("🗑️ Excluir", key=f"del_{unique_key}"): 
+                excluir_proposta_por_id(num_p)
+                st.rerun()
 
+# --- ABA 3: RELATÓRIOS ---
 with aba3:
     st.subheader("📊 Relatórios Detalhados")
     h = carregar_historico()
