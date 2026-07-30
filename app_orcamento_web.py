@@ -18,23 +18,17 @@ ARQUIVO_HISTORICO = "historico_orcamentos.json"
 LINK_PIX_OFICIAL = "https://linkspix.app/alphafestitatiba"
 
 # --- GERENCIAMENTO DE ESTADO ---
-if "form_key" not in st.session_state: 
-    st.session_state.form_key = 0
-if "itens" not in st.session_state: 
-    st.session_state.itens = []
-if "ultima_proposta" not in st.session_state: 
-    st.session_state.ultima_proposta = None
-if "target_prop" not in st.session_state: 
-    st.session_state.target_prop = None
+if "form_key" not in st.session_state: st.session_state.form_key = 0
+if "itens" not in st.session_state: st.session_state.itens = []
+if "ultima_proposta" not in st.session_state: st.session_state.ultima_proposta = None
+if "target_prop" not in st.session_state: st.session_state.target_prop = None
 
 # --- FUNÇÕES DE APOIO ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
         try:
-            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f: 
-                return json.load(f)
-        except: 
-            return []
+            with open(ARQUIVO_HISTORICO, "r", encoding="utf-8") as f: return json.load(f)
+        except: return []
     return []
 
 def salvar_historico_completo(historico):
@@ -69,8 +63,7 @@ def excluir_proposta_por_id(num_proposta):
 
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
-    if len(num_wa) <= 11 and not num_wa.startswith("55"): 
-        num_wa = "55" + num_wa
+    if len(num_wa) <= 11 and not num_wa.startswith("55"): num_wa = "55" + num_wa
     
     subtotal_geral = sum(i["quantidade"] * i["valor_unitario"] for i in dados["itens"])
     desc_v = dados.get("desconto_valor", 0.0)
@@ -80,8 +73,7 @@ def extrair_link_whatsapp_completo(dados):
     for idx, item in enumerate(dados["itens"], 1):
         sub_item = item["quantidade"] * item["valor_unitario"]
         texto_itens += f"  *{idx}. {item['produto']}*\n"
-        if item.get('especificacoes'): 
-            texto_itens += f"      └ Detalhes: {item['especificacoes']}\n"
+        if item.get('especificacoes'): texto_itens += f"      └ Detalhes: {item['especificacoes']}\n"
         texto_itens += f"      └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
 
     msg = (f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n📄 *Nº:* {dados['numero_proposta']}\n🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
@@ -105,8 +97,7 @@ def gerar_proposta_html(dados):
 # --- INTERFACE ---
 if os.path.exists(PATH_LOGO_OFICIAL):
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2: 
-        st.image(PATH_LOGO_OFICIAL, use_container_width=True)
+    with col_l2: st.image(PATH_LOGO_OFICIAL, use_container_width=True)
 
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
@@ -120,7 +111,6 @@ for p in entregas:
 
 aba1, aba2, aba3, aba4 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos", "🚀 Marketing"])
 
-# --- ABA 1: NOVO ORÇAMENTO ---
 with aba1:
     if st.session_state.ultima_proposta:
         p = st.session_state.ultima_proposta
@@ -129,14 +119,12 @@ with aba1:
         c1.download_button("📥 Baixar", p["html"], f"Proposta_{p['numero']}.html", mime="text/html", use_container_width=True)
         c2.link_button("📱 WhatsApp", p["link_wa"], type="primary", use_container_width=True)
         st.divider()
-
     fk = st.session_state.form_key
     st.subheader("1. Dados do Cliente")
     nome = st.text_input("Nome / Razão Social", key=f"cliente_{fk}")
     c1, c2 = st.columns(2)
     doc = c1.text_input("CPF / CNPJ", key=f"cpf_{fk}")
     wa = c2.text_input("WhatsApp", key=f"wa_{fk}")
-    
     st.divider()
     st.subheader("2. Adicionar Itens")
     prod = st.text_input("Produto", key=f"prod_{fk}")
@@ -147,15 +135,12 @@ with aba1:
         ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
         ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
         eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
-    
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", min_value=0.0, value=0.0, step=0.5, key=f"v_{fk}")
-    
     if st.button("➕ Adicionar Item à Lista"):
         det = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
         st.session_state.itens.append({"produto": prod, "especificacoes": det, "quantidade": q, "valor_unitario": v})
         st.rerun()
-
     if st.session_state.itens:
         st.write("📋 **Prévia dos itens adicionados:**")
         df_previo = pd.DataFrame(st.session_state.itens)
@@ -163,76 +148,40 @@ with aba1:
         if st.button("🗑️ Limpar Lista"): 
             st.session_state.itens = []
             st.rerun()
-
     st.divider()
     desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
     prazo = st.text_input("Prazo (Dias)", value="10", key=f"prazo_{fk}")
     dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_{fk}")
     frete = st.text_input("Frete", value="Retirada em Itatiba", key=f"frete_{fk}")
-    
     if st.button("🚀 SALVAR PROPOSTA"):
         num = f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
-        dados = {
-            "numero_proposta": num, 
-            "data_geracao": datetime.now().strftime("%d/%m/%Y"), 
-            "data_entrega": dt_entrega.strftime("%d/%m/%Y"), 
-            "cliente_nome": nome, 
-            "cliente_cpf_cnpj": doc, 
-            "cliente_wa": wa, 
-            "itens": list(st.session_state.itens), 
-            "desconto_valor": desc, 
-            "prazo_dias": prazo, 
-            "frete_tipo": frete, 
-            "pago": False, 
-            "entregue": False
-        }
+        dados = {"numero_proposta": num, "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_entrega.strftime("%d/%m/%Y"), "cliente_nome": nome, "cliente_cpf_cnpj": doc, "cliente_wa": wa, "itens": list(st.session_state.itens), "desconto_valor": desc, "prazo_dias": prazo, "frete_tipo": frete, "pago": False, "entregue": False}
         salvar_no_historico(dados)
-        st.session_state.ultima_proposta = {
-            "numero": num, 
-            "cliente": nome, 
-            "html": gerar_proposta_html(dados), 
-            "link_wa": extrair_link_whatsapp_completo(dados)
-        }
+        st.session_state.ultima_proposta = {"numero": num, "cliente": nome, "html": gerar_proposta_html(dados), "link_wa": extrair_link_whatsapp_completo(dados)}
         st.session_state.itens = []
         st.session_state.form_key += 1
         st.rerun()
 
-# --- ABA 2: HISTÓRICO ---
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
     for idx, prop in enumerate(carregar_historico()):
         num_p = prop['numero_proposta']
         unique_key = f"{num_p}_{idx}"
-        
         with st.expander(f"{num_p} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(num_p == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
-            
             col_d1, col_d2 = st.columns([2, 1])
             data_atual = datetime.strptime(prop.get('data_entrega', date.today().strftime("%d/%m/%Y")), "%d/%m/%Y")
             nova_data = col_d1.date_input("Alterar Data de Entrega", value=data_atual, key=f"data_{unique_key}")
-            
             if col_d2.button("💾 Salvar Entrega", key=f"btn_data_{unique_key}"):
                 atualizar_data_entrega(num_p, nova_data.strftime("%d/%m/%Y"))
                 st.rerun()
-
-            for it in prop.get('itens', []): 
-                st.write(f"• {it['produto']} ({it['quantidade']} un)")
-            
+            for it in prop.get('itens', []): st.write(f"• {it['produto']} ({it['quantidade']} un)")
             pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"pago_{unique_key}")
-            if pago != prop.get("pago", False): 
-                alternar_status(num_p, "pago", pago)
-                st.rerun()
-            
+            if pago != prop.get("pago", False): alternar_status(num_p, "pago", pago); st.rerun()
             entregue = st.checkbox("Entregue", value=prop.get("entregue", False), key=f"entregue_{unique_key}")
-            if entregue != prop.get("entregue", False): 
-                alternar_status(num_p, "entregue", entregue)
-                st.rerun()
-                
-            if st.button("🗑️ Excluir", key=f"del_{unique_key}"): 
-                excluir_proposta_por_id(num_p)
-                st.rerun()
+            if entregue != prop.get("entregue", False): alternar_status(num_p, "entregue", entregue); st.rerun()
+            if st.button("🗑️ Excluir", key=f"del_{unique_key}"): excluir_proposta_por_id(num_p); st.rerun()
 
-# --- ABA 3: RELATÓRIOS ---
 with aba3:
     st.subheader("📊 Relatórios Detalhados")
     h = carregar_historico()
@@ -245,61 +194,44 @@ with aba3:
             props_unicas.append({'Data': dt, 'Proposta': p['numero_proposta'], 'Cliente': p['cliente_nome'], 'Valor': max(0.0, val_total), 'Pago': p.get('pago', False)})
             for it in p['itens']:
                 itens_lista.append({'Data': dt, 'Cliente': p['cliente_nome'], 'Produto': it['produto'], 'Qtd': it['quantidade'], 'Pago': p.get('pago', False)})
-        
         df_props = pd.DataFrame(props_unicas)
         df_itens = pd.DataFrame(itens_lista)
         periodo = st.selectbox("Selecione o Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"])
         resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
         format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
-
         def grafico_com_label(df, x_col, y_col, titulo, is_currency=False):
-            bars = alt.Chart(df).mark_bar(color='#2563EB').encode(
-                x=alt.X(f'{x_col}:O', title='', sort=None, axis=alt.Axis(labelAngle=0)),
-                y=alt.Y(f'{y_col}:Q', title='')
-            )
-            text = bars.mark_text(align='center', baseline='bottom', dy=-10, color='white', size=14, fontWeight='bold').encode(
-                text=alt.Text(f'{y_col}:Q', format=',.2f' if is_currency else '.0f')
-            )
+            bars = alt.Chart(df).mark_bar(color='#2563EB').encode(x=alt.X(f'{x_col}:O', title='', sort=None, axis=alt.Axis(labelAngle=0)), y=alt.Y(f'{y_col}:Q', title=''))
+            text = bars.mark_text(align='center', baseline='bottom', dy=-10, color='white', size=14, fontWeight='bold').encode(text=alt.Text(f'{y_col}:Q', format=',.2f' if is_currency else '.0f'))
             return (bars + text).properties(title=titulo)
-
         st.subheader(f"💰 Valor de Vendas por {periodo}")
         df_vendas = df_props.set_index('Data').resample(resample_rule)['Valor'].sum().reset_index()
         df_vendas['Data_Fmt'] = df_vendas['Data'].dt.strftime(format_str)
         st.altair_chart(grafico_com_label(df_vendas, 'Data_Fmt', 'Valor', f'Vendas (R$) por {periodo}', is_currency=True), use_container_width=True)
-
         st.subheader("👥 Total de Compras por Cliente")
         df_cli = df_props.groupby('Cliente')['Proposta'].count().reset_index()
         st.altair_chart(grafico_com_label(df_cli, 'Cliente', 'Proposta', 'Total de Propostas por Cliente'), use_container_width=True)
-
         st.subheader(f"✅ Propostas Pagas por {periodo}")
         df_pagas = df_props[df_props['Pago'] == True].set_index('Data').resample(resample_rule)['Proposta'].count().reset_index()
         if not df_pagas.empty:
             df_pagas['Data_Fmt'] = df_pagas['Data'].dt.strftime(format_str)
             st.altair_chart(grafico_com_label(df_pagas, 'Data_Fmt', 'Proposta', f'Propostas Pagas por {periodo}'), use_container_width=True)
-        else:
-            st.info("Nenhuma proposta paga registrada até o momento.")
-
+        else: st.info("Nenhuma proposta paga registrada até o momento.")
         st.subheader("📦 Produtos Mais Vendidos (Quantidade Total)")
         df_prod = df_itens.groupby('Produto')['Qtd'].sum().reset_index()
         st.altair_chart(grafico_com_label(df_prod, 'Produto', 'Qtd', 'Quantidade Vendida por Produto'), use_container_width=True)
 
-# --- ABA 4: MARKETING ---
 with aba4:
     st.subheader("🚀 Gerador de Conteúdo Alphafest")
     api_key = st.text_input("Cole sua Google Gemini API Key", type="password")
     descricao = st.text_area("O que você produziu hoje?", placeholder="Ex: Fiz um topo de bolo em papel...")
-    
     if st.button("✨ Gerar Roteiros e Posts"):
-        if not api_key:
-            st.error("Por favor, insira sua chave da API do Gemini.")
+        if not api_key: st.error("Por favor, insira sua chave da API do Gemini.")
         else:
             try:
                 genai.configure(api_key=api_key)
-                # Modelo 'gemini-1.0-pro' para máxima compatibilidade
-                model = genai.GenerativeModel('gemini-1.0-pro')
+                model = genai.GenerativeModel('gemini-pro')
                 prompt = f"Atue como um especialista em marketing da Alphafest Itatiba. Com base na descrição: '{descricao}', crie 3 variações de posts para Reels, TikTok e Shorts. Forneça: 1. Título; 2. Roteiro curto com indicações visuais; 3. Legenda engajadora com hashtags #AlphafestItatiba e outras relevantes; 4. Sugestão de capa."
                 with st.spinner("Criando sua estratégia..."):
                     response = model.generate_content(prompt)
                     st.markdown(response.text)
-            except Exception as e:
-                st.error(f"Erro ao conectar com a API: {e}")
+            except Exception as e: st.error(f"Erro ao conectar com a API: {e}")
