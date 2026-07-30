@@ -7,6 +7,7 @@ import urllib.parse
 import pandas as pd
 from datetime import datetime, date, timedelta
 import altair as alt
+import google.generativeai as genai
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Orçamento Alphafest", page_icon="📄", layout="centered")
@@ -117,7 +118,7 @@ for p in entregas:
         st.session_state.target_prop = p['numero_proposta']
         st.rerun()
 
-aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
+aba1, aba2, aba3, aba4 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos", "🚀 Marketing"])
 
 # --- ABA 1: NOVO ORÇAMENTO ---
 with aba1:
@@ -252,36 +253,25 @@ with aba3:
         resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
         format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
 
-        # Função aprimorada para criar os gráficos com rótulos brancos, negrito e tamanho maior
         def grafico_com_label(df, x_col, y_col, titulo, is_currency=False):
             bars = alt.Chart(df).mark_bar(color='#2563EB').encode(
                 x=alt.X(f'{x_col}:O', title='', sort=None, axis=alt.Axis(labelAngle=0)),
                 y=alt.Y(f'{y_col}:Q', title='')
             )
-            text = bars.mark_text(
-                align='center', 
-                baseline='bottom', 
-                dy=-10, 
-                color='white', 
-                size=14, 
-                fontWeight='bold'
-            ).encode(
+            text = bars.mark_text(align='center', baseline='bottom', dy=-10, color='white', size=14, fontWeight='bold').encode(
                 text=alt.Text(f'{y_col}:Q', format=',.2f' if is_currency else '.0f')
             )
             return (bars + text).properties(title=titulo)
 
-        # 1. Vendas por Período
         st.subheader(f"💰 Valor de Vendas por {periodo}")
         df_vendas = df_props.set_index('Data').resample(resample_rule)['Valor'].sum().reset_index()
         df_vendas['Data_Fmt'] = df_vendas['Data'].dt.strftime(format_str)
         st.altair_chart(grafico_com_label(df_vendas, 'Data_Fmt', 'Valor', f'Vendas (R$) por {periodo}', is_currency=True), use_container_width=True)
 
-        # 2. Vendas por Cliente
         st.subheader("👥 Total de Compras por Cliente")
         df_cli = df_props.groupby('Cliente')['Proposta'].count().reset_index()
         st.altair_chart(grafico_com_label(df_cli, 'Cliente', 'Proposta', 'Total de Propostas por Cliente'), use_container_width=True)
 
-        # 3. Propostas Pagas
         st.subheader(f"✅ Propostas Pagas por {periodo}")
         df_pagas = df_props[df_props['Pago'] == True].set_index('Data').resample(resample_rule)['Proposta'].count().reset_index()
         if not df_pagas.empty:
@@ -290,7 +280,23 @@ with aba3:
         else:
             st.info("Nenhuma proposta paga registrada até o momento.")
 
-        # 4. Produtos Mais Vendidos
         st.subheader("📦 Produtos Mais Vendidos (Quantidade Total)")
         df_prod = df_itens.groupby('Produto')['Qtd'].sum().reset_index()
         st.altair_chart(grafico_com_label(df_prod, 'Produto', 'Qtd', 'Quantidade Vendida por Produto'), use_container_width=True)
+
+# --- ABA 4: MARKETING ---
+with aba4:
+    st.subheader("🚀 Gerador de Conteúdo Alphafest")
+    api_key = st.text_input("Cole sua Google Gemini API Key", type="password")
+    descricao = st.text_area("O que você produziu hoje?", placeholder="Ex: Fiz um topo de bolo em PLA impresso na 3D e um copo Stanley gravado a laser...")
+    
+    if st.button("✨ Gerar Roteiros e Posts"):
+        if not api_key:
+            st.error("Por favor, insira sua chave da API do Gemini.")
+        else:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-pro')
+            prompt = f"Atue como um especialista em marketing da Alphafest Itatiba. Com base na descrição: '{descricao}', crie 3 variações de posts para Reels, TikTok e Shorts. Forneça: 1. Título; 2. Roteiro curto com indicações visuais; 3. Legenda engajadora com hashtags #AlphafestItatiba e outras relevantes; 4. Sugestão de capa."
+            with st.spinner("Criando sua estratégia..."):
+                response = model.generate_content(prompt)
+                st.markdown(response.text)
