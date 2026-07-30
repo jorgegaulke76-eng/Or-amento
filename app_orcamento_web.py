@@ -295,6 +295,7 @@ with aba4:
         else:
             try:
                 genai.configure(api_key=api_key)
+                # Modelo estável e robusto
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 prompt = f"Atue como um especialista em marketing da Alphafest Itatiba. Com base na descrição: '{descricao}', crie 3 variações de posts para Reels, TikTok e Shorts. Forneça: 1. Título; 2. Roteiro curto com indicações visuais; 3. Legenda engajadora com hashtags #AlphafestItatiba e outras relevantes; 4. Sugestão de capa."
                 with st.spinner("Criando sua estratégia..."):
