@@ -52,6 +52,15 @@ def alternar_status(num_proposta, campo, novo_valor):
             break
     salvar_historico_completo(historico)
 
+# Nova função para atualizar data
+def atualizar_data_proposta(num_proposta, nova_data):
+    historico = carregar_historico()
+    for p in historico:
+        if p.get("numero_proposta") == num_proposta:
+            p["data_geracao"] = nova_data
+            break
+    salvar_historico_completo(historico)
+
 def excluir_proposta_por_id(num_proposta):
     historico = carregar_historico()
     historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
@@ -71,8 +80,8 @@ def extrair_link_whatsapp_completo(dados):
         sub_item = item["quantidade"] * item["valor_unitario"]
         texto_itens += f"  *{idx}. {item['produto']}*\n"
         if item.get('especificacoes'): 
-            texto_itens += f"     └ Detalhes: {item['especificacoes']}\n"
-        texto_itens += f"     └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
+            texto_itens += f"      └ Detalhes: {item['especificacoes']}\n"
+        texto_itens += f"      └ Qtd: {item['quantidade']} un. | Unit: R$ {item['valor_unitario']:.2f} | Subtotal: R$ {sub_item:.2f}\n\n"
 
     msg = (f"🔥 *PROPOSTA ALPHAFEST ITATIBA*\n📄 *Nº:* {dados['numero_proposta']}\n🗓️ *Emissão:* {dados.get('data_geracao', '')}\n\n"
            f"👤 *CLIENTE:* {dados['cliente_nome']}\n🪪 *CPF/CNPJ:* {dados.get('cliente_cpf_cnpj', 'Não informado')}\n"
@@ -187,17 +196,24 @@ with aba1:
         st.session_state.form_key += 1
         st.rerun()
 
-# --- ABA 2: HISTÓRICO (Com correção de chaves) ---
+# --- ABA 2: HISTÓRICO ---
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
-    # Utilizamos enumerate para garantir chaves únicas baseadas no índice
     for idx, prop in enumerate(carregar_historico()):
         num_p = prop['numero_proposta']
-        # Chave única composta para evitar erro de duplicidade
         unique_key = f"{num_p}_{idx}"
         
         with st.expander(f"{num_p} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(num_p == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
+            
+            # Edição de Data
+            col_d1, col_d2 = st.columns([2, 1])
+            data_atual = datetime.strptime(prop['data_geracao'], "%d/%m/%Y")
+            nova_data = col_d1.date_input("Alterar Data de Emissão", value=data_atual, key=f"data_{unique_key}")
+            if col_d2.button("💾 Salvar Data", key=f"btn_data_{unique_key}"):
+                atualizar_data_proposta(num_p, nova_data.strftime("%d/%m/%Y"))
+                st.rerun()
+
             for it in prop.get('itens', []): 
                 st.write(f"• {it['produto']} ({it['quantidade']} un)")
             
