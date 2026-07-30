@@ -252,13 +252,20 @@ with aba3:
         resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
         format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
 
-        # Função para criar os gráficos do Altair com rótulos de valores aparentes
+        # Função aprimorada para criar os gráficos com rótulos brancos, negrito e tamanho maior
         def grafico_com_label(df, x_col, y_col, titulo, is_currency=False):
             bars = alt.Chart(df).mark_bar(color='#2563EB').encode(
-                x=alt.X(f'{x_col}:O', title='', sort=None),
+                x=alt.X(f'{x_col}:O', title='', sort=None, axis=alt.Axis(labelAngle=0)),
                 y=alt.Y(f'{y_col}:Q', title='')
             )
-            text = bars.mark_text(align='center', baseline='bottom', dy=-5).encode(
+            text = bars.mark_text(
+                align='center', 
+                baseline='bottom', 
+                dy=-10, 
+                color='white', 
+                size=14, 
+                fontWeight='bold'
+            ).encode(
                 text=alt.Text(f'{y_col}:Q', format=',.2f' if is_currency else '.0f')
             )
             return (bars + text).properties(title=titulo)
