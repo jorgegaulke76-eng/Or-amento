@@ -37,7 +37,7 @@ def carregar_historico():
     return []
 
 def salvar_historico_completo(historico):
-    # SEGURANÇA: Esta trava impede que o sistema sobrescreva o arquivo com uma lista vazia por erro
+    # SEGURANÇA: Trava de segurança para não salvar lista vazia
     if not historico:
         st.error("⚠️ ERRO DE SEGURANÇA: O sistema tentou salvar uma lista vazia. Ação abortada para proteger seus dados!")
         return
@@ -130,17 +130,14 @@ for p in historico:
     except ValueError:
         continue 
 
-    # Pendente se não foi pago OU não foi entregue
     esta_pendente = not p.get("pago", False) or not p.get("entregue", False)
 
     if esta_pendente:
-        # Entrega hoje
         if data_entrega == hoje:
             if st.button(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}"):
                 st.session_state.target_prop = p['numero_proposta']
                 st.rerun()
         
-        # Atrasado (Data passou e não foi concluído)
         elif data_entrega < hoje:
             st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Data original: {p.get('data_entrega')}")
             if st.button(f"Ver detalhes de {p['numero_proposta']}", key=f"btn_atraso_{p['numero_proposta']}"):
@@ -229,6 +226,12 @@ with aba1:
 # --- ABA 2: HISTÓRICO ---
 with aba2:
     st.subheader("📋 Central de Propostas Geradas")
+    
+    # Botão de Backup Adicionado
+    h_data = json.dumps(carregar_historico(), ensure_ascii=False, indent=4)
+    st.download_button(label="💾 BAIXAR BACKUP DO HISTÓRICO", data=h_data, file_name="backup_historico.json", mime="application/json")
+    st.divider()
+
     for idx, prop in enumerate(carregar_historico()):
         num_p = prop['numero_proposta']
         unique_key = f"{num_p}_{idx}"
