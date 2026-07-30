@@ -6,6 +6,7 @@ import json
 import urllib.parse
 import pandas as pd
 from datetime import datetime, date, timedelta
+import altair as alt
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Orçamento Alphafest", page_icon="📄", layout="centered")
@@ -52,7 +53,6 @@ def alternar_status(num_proposta, campo, novo_valor):
             break
     salvar_historico_completo(historico)
 
-# Função para atualizar data de entrega
 def atualizar_data_entrega(num_proposta, nova_data):
     historico = carregar_historico()
     for p in historico:
@@ -208,7 +208,6 @@ with aba2:
             
             # Edição de Data de Entrega
             col_d1, col_d2 = st.columns([2, 1])
-            # Garante que busca a data de entrega salva, se não houver, usa hoje
             data_atual = datetime.strptime(prop.get('data_entrega', date.today().strftime("%d/%m/%Y")), "%d/%m/%Y")
             nova_data = col_d1.date_input("Alterar Data de Entrega", value=data_atual, key=f"data_{unique_key}")
             
@@ -253,21 +252,38 @@ with aba3:
         resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
         format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
 
+        # Função para criar os gráficos do Altair com rótulos de valores aparentes
+        def grafico_com_label(df, x_col, y_col, titulo, is_currency=False):
+            bars = alt.Chart(df).mark_bar(color='#2563EB').encode(
+                x=alt.X(f'{x_col}:O', title='', sort=None),
+                y=alt.Y(f'{y_col}:Q', title='')
+            )
+            text = bars.mark_text(align='center', baseline='bottom', dy=-5).encode(
+                text=alt.Text(f'{y_col}:Q', format=',.2f' if is_currency else '.0f')
+            )
+            return (bars + text).properties(title=titulo)
+
+        # 1. Vendas por Período
         st.subheader(f"💰 Valor de Vendas por {periodo}")
         df_vendas = df_props.set_index('Data').resample(resample_rule)['Valor'].sum().reset_index()
         df_vendas['Data_Fmt'] = df_vendas['Data'].dt.strftime(format_str)
-        st.bar_chart(df_vendas.set_index('Data_Fmt')['Valor'])
+        st.altair_chart(grafico_com_label(df_vendas, 'Data_Fmt', 'Valor', f'Vendas (R$) por {periodo}', is_currency=True), use_container_width=True)
 
+        # 2. Vendas por Cliente
         st.subheader("👥 Total de Compras por Cliente")
-        st.bar_chart(df_props.groupby('Cliente')['Proposta'].count())
+        df_cli = df_props.groupby('Cliente')['Proposta'].count().reset_index()
+        st.altair_chart(grafico_com_label(df_cli, 'Cliente', 'Proposta', 'Total de Propostas por Cliente'), use_container_width=True)
 
+        # 3. Propostas Pagas
         st.subheader(f"✅ Propostas Pagas por {periodo}")
         df_pagas = df_props[df_props['Pago'] == True].set_index('Data').resample(resample_rule)['Proposta'].count().reset_index()
         if not df_pagas.empty:
             df_pagas['Data_Fmt'] = df_pagas['Data'].dt.strftime(format_str)
-            st.bar_chart(df_pagas.set_index('Data_Fmt')['Proposta'])
+            st.altair_chart(grafico_com_label(df_pagas, 'Data_Fmt', 'Proposta', f'Propostas Pagas por {periodo}'), use_container_width=True)
         else:
             st.info("Nenhuma proposta paga registrada até o momento.")
 
+        # 4. Produtos Mais Vendidos
         st.subheader("📦 Produtos Mais Vendidos (Quantidade Total)")
-        st.bar_chart(df_itens.groupby('Produto')['Qtd'].sum())
+        df_prod = df_itens.groupby('Produto')['Qtd'].sum().reset_index()
+        st.altair_chart(grafico_com_label(df_prod, 'Produto', 'Qtd', 'Quantidade Vendida por Produto'), use_container_width=True)
