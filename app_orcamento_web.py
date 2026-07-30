@@ -114,13 +114,30 @@ if os.path.exists(PATH_LOGO_OFICIAL):
 
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTA DE ENTREGA (CORRIGIDO) ---
-hoje = date.today().strftime("%d/%m/%Y")
-entregas = [p for p in carregar_historico() if p.get("data_entrega") == hoje and not p.get("entregue")]
-for p in entregas:
-    if st.button(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - Cliente: {p['cliente_nome']}"):
-        st.session_state.target_prop = p['numero_proposta']
-        st.rerun()
+# --- ALERTA DE ENTREGA E ATRASOS ---
+hoje = date.today()
+historico = carregar_historico()
+
+for p in historico:
+    try:
+        data_entrega_str = p.get("data_entrega", "")
+        data_entrega = datetime.strptime(data_entrega_str, "%d/%m/%Y").date()
+    except ValueError:
+        continue 
+
+    esta_pendente = not p.get("pago", False) or not p.get("entregue", False)
+
+    if esta_pendente:
+        if data_entrega == hoje:
+            if st.button(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}"):
+                st.session_state.target_prop = p['numero_proposta']
+                st.rerun()
+        
+        elif data_entrega < hoje:
+            st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Data original: {p.get('data_entrega')}")
+            if st.button(f"Ver detalhes de {p['numero_proposta']}", key=f"btn_atraso_{p['numero_proposta']}"):
+                st.session_state.target_prop = p['numero_proposta']
+                st.rerun()
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
