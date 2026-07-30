@@ -127,16 +127,23 @@ with aba1:
         ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
         ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
         eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
-    q = st.number_input("Qtd", 1, key=f"q_{fk}")
-    v = st.number_input("Valor Unitário", 10.0, key=f"v_{fk}")
+    
+    q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
+    v = st.number_input("Valor Unitário (R$)", min_value=0.0, value=0.0, step=0.5, key=f"v_{fk}")
     
     if st.button("➕ Adicionar Item à Lista"):
         det = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
         st.session_state.itens.append({"produto": prod, "especificacoes": det, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
+    # --- PRÉVIA DOS ITENS ---
     if st.session_state.itens:
-        if st.button("🗑️ Limpar Lista"): st.session_state.itens = []; st.rerun()
+        st.write("📋 **Prévia dos itens adicionados:**")
+        df_previo = pd.DataFrame(st.session_state.itens)
+        st.dataframe(df_previo[['produto', 'quantidade', 'valor_unitario']], use_container_width=True)
+        if st.button("🗑️ Limpar Lista"): 
+            st.session_state.itens = []
+            st.rerun()
 
     st.divider()
     desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
@@ -169,47 +176,27 @@ with aba3:
     if h:
         props_unicas = []
         itens_lista = []
-        
         for p in h:
             val_total = sum(i['quantidade'] * i['valor_unitario'] for i in p['itens']) - p.get('desconto_valor', 0)
             dt = pd.to_datetime(p['data_geracao'], dayfirst=True)
-            
-            props_unicas.append({
-                'Data': dt,
-                'Proposta': p['numero_proposta'],
-                'Cliente': p['cliente_nome'],
-                'Valor': max(0.0, val_total),
-                'Pago': p.get('pago', False)
-            })
-            
+            props_unicas.append({'Data': dt, 'Proposta': p['numero_proposta'], 'Cliente': p['cliente_nome'], 'Valor': max(0.0, val_total), 'Pago': p.get('pago', False)})
             for it in p['itens']:
-                itens_lista.append({
-                    'Data': dt,
-                    'Cliente': p['cliente_nome'],
-                    'Produto': it['produto'],
-                    'Qtd': it['quantidade'],
-                    'Pago': p.get('pago', False)
-                })
+                itens_lista.append({'Data': dt, 'Cliente': p['cliente_nome'], 'Produto': it['produto'], 'Qtd': it['quantidade'], 'Pago': p.get('pago', False)})
         
         df_props = pd.DataFrame(props_unicas)
         df_itens = pd.DataFrame(itens_lista)
-        
         periodo = st.selectbox("Selecione o Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"])
-        
         resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
         format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
 
-        # 1. Vendas por Período
         st.subheader(f"💰 Valor de Vendas por {periodo}")
         df_vendas = df_props.set_index('Data').resample(resample_rule)['Valor'].sum().reset_index()
         df_vendas['Data_Fmt'] = df_vendas['Data'].dt.strftime(format_str)
         st.bar_chart(df_vendas.set_index('Data_Fmt')['Valor'])
 
-        # 2. Qtd Compras por Cliente
         st.subheader("👥 Total de Compras por Cliente")
         st.bar_chart(df_props.groupby('Cliente')['Proposta'].count())
 
-        # 3. Propostas Pagas
         st.subheader(f"✅ Propostas Pagas por {periodo}")
         df_pagas = df_props[df_props['Pago'] == True].set_index('Data').resample(resample_rule)['Proposta'].count().reset_index()
         if not df_pagas.empty:
@@ -218,6 +205,5 @@ with aba3:
         else:
             st.info("Nenhuma proposta paga registrada até o momento.")
 
-        # 4. Produto mais vendido
         st.subheader("📦 Produtos Mais Vendidos (Quantidade Total)")
         st.bar_chart(df_itens.groupby('Produto')['Qtd'].sum())
