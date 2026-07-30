@@ -6,7 +6,7 @@ import json
 import urllib.parse
 import pandas as pd
 from datetime import datetime, date, timedelta
-import altair as alt # Adicionado para permitir rótulos nos gráficos
+import altair as alt
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Orçamento Alphafest", page_icon="📄", layout="centered")
@@ -66,19 +66,15 @@ def excluir_proposta_por_id(num_proposta):
     historico_atualizado = [p for p in historico if p.get("numero_proposta") != num_proposta]
     salvar_historico_completo(historico_atualizado)
 
-# Função auxiliar para criar gráficos com labels (Altair)
 def criar_grafico_com_labels(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar().encode(
         x=alt.X(f'{x_col}:O', title=x_col),
         y=alt.Y(f'{y_col}:Q', title=y_col),
         tooltip=[x_col, y_col]
     ).properties(title=titulo)
-    
     text = chart.mark_text(align='center', baseline='bottom', dy=-5).encode(text=y_col)
     return chart + text
 
-# ... (funções extrair_link_whatsapp_completo e gerar_proposta_html permanecem iguais) ...
-# [MANTIVE AS FUNÇÕES ANTERIORES AQUI PARA O SCRIPT FUNCIONAR]
 def extrair_link_whatsapp_completo(dados):
     num_wa = re.sub(r'\D', '', dados.get('cliente_wa', ''))
     if len(num_wa) <= 11 and not num_wa.startswith("55"): 
@@ -128,15 +124,122 @@ for p in entregas:
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico & Pedidos", "📊 Relatórios & Gráficos"])
 
-# --- ABA 1, 2 (Omitidas por brevidade, permanecem iguais) ---
-# [O código das abas 1 e 2 continua como você enviou]
+# --- ABA 1: NOVO ORÇAMENTO ---
+with aba1:
+    if st.session_state.ultima_proposta:
+        p = st.session_state.ultima_proposta
+        st.success(f"✅ Proposta {p['numero']} ({p['cliente']}) gerada!")
+        c1, c2 = st.columns(2)
+        c1.download_button("📥 Baixar", p["html"], f"Proposta_{p['numero']}.html", mime="text/html", use_container_width=True)
+        c2.link_button("📱 WhatsApp", p["link_wa"], type="primary", use_container_width=True)
+        st.divider()
 
-# --- ABA 3: RELATÓRIOS (COM GRÁFICOS MELHORADOS) ---
+    fk = st.session_state.form_key
+    st.subheader("1. Dados do Cliente")
+    nome = st.text_input("Nome / Razão Social", key=f"cliente_{fk}")
+    c1, c2 = st.columns(2)
+    doc = c1.text_input("CPF / CNPJ", key=f"cpf_{fk}")
+    wa = c2.text_input("WhatsApp", key=f"wa_{fk}")
+    
+    st.divider()
+    st.subheader("2. Adicionar Itens")
+    prod = st.text_input("Produto", key=f"prod_{fk}")
+    with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
+        c1, c2 = st.columns(2)
+        et = c1.text_input("Tema / Ocasião", key=f"et_{fk}")
+        en = c1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
+        ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
+        ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
+        eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
+    
+    q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
+    v = st.number_input("Valor Unitário (R$)", min_value=0.0, value=0.0, step=0.5, key=f"v_{fk}")
+    
+    if st.button("➕ Adicionar Item à Lista"):
+        det = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
+        st.session_state.itens.append({"produto": prod, "especificacoes": det, "quantidade": q, "valor_unitario": v})
+        st.rerun()
+
+    if st.session_state.itens:
+        st.write("📋 **Prévia dos itens adicionados:**")
+        df_previo = pd.DataFrame(st.session_state.itens)
+        st.dataframe(df_previo[['produto', 'quantidade', 'valor_unitario']], use_container_width=True)
+        if st.button("🗑️ Limpar Lista"): 
+            st.session_state.itens = []
+            st.rerun()
+
+    st.divider()
+    desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
+    prazo = st.text_input("Prazo (Dias)", value="10", key=f"prazo_{fk}")
+    dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), format="DD/MM/YYYY", key=f"dt_{fk}")
+    frete = st.text_input("Frete", value="Retirada em Itatiba", key=f"frete_{fk}")
+    
+    if st.button("🚀 SALVAR PROPOSTA"):
+        num = f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}"
+        dados = {
+            "numero_proposta": num, 
+            "data_geracao": datetime.now().strftime("%d/%m/%Y"), 
+            "data_entrega": dt_entrega.strftime("%d/%m/%Y"), 
+            "cliente_nome": nome, 
+            "cliente_cpf_cnpj": doc, 
+            "cliente_wa": wa, 
+            "itens": list(st.session_state.itens), 
+            "desconto_valor": desc, 
+            "prazo_dias": prazo, 
+            "frete_tipo": frete, 
+            "pago": False, 
+            "entregue": False
+        }
+        salvar_no_historico(dados)
+        st.session_state.ultima_proposta = {
+            "numero": num, 
+            "cliente": nome, 
+            "html": gerar_proposta_html(dados), 
+            "link_wa": extrair_link_whatsapp_completo(dados)
+        }
+        st.session_state.itens = []
+        st.session_state.form_key += 1
+        st.rerun()
+
+# --- ABA 2: HISTÓRICO ---
+with aba2:
+    st.subheader("📋 Central de Propostas Geradas")
+    for idx, prop in enumerate(carregar_historico()):
+        num_p = prop['numero_proposta']
+        unique_key = f"{num_p}_{idx}"
+        
+        with st.expander(f"{num_p} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(num_p == st.session_state.target_prop)):
+            st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
+            
+            col_d1, col_d2 = st.columns([2, 1])
+            data_atual = datetime.strptime(prop['data_geracao'], "%d/%m/%Y")
+            nova_data = col_d1.date_input("Alterar Data de Emissão", value=data_atual, key=f"data_{unique_key}")
+            if col_d2.button("💾 Salvar Data", key=f"btn_data_{unique_key}"):
+                atualizar_data_proposta(num_p, nova_data.strftime("%d/%m/%Y"))
+                st.rerun()
+
+            for it in prop.get('itens', []): 
+                st.write(f"• {it['produto']} ({it['quantidade']} un)")
+            
+            pago = st.checkbox("Pago", value=prop.get("pago", False), key=f"pago_{unique_key}")
+            if pago != prop.get("pago", False): 
+                alternar_status(num_p, "pago", pago)
+                st.rerun()
+            
+            entregue = st.checkbox("Entregue", value=prop.get("entregue", False), key=f"entregue_{unique_key}")
+            if entregue != prop.get("entregue", False): 
+                alternar_status(num_p, "entregue", entregue)
+                st.rerun()
+                
+            if st.button("🗑️ Excluir", key=f"del_{unique_key}"): 
+                excluir_proposta_por_id(num_p)
+                st.rerun()
+
+# --- ABA 3: RELATÓRIOS ---
 with aba3:
     st.subheader("📊 Relatórios Detalhados")
     h = carregar_historico()
     if h:
-        # ... (lógica de preparação dos dados continua igual até o gráfico)
         props_unicas = []
         itens_lista = []
         for p in h:
@@ -152,18 +255,15 @@ with aba3:
         resample_rule = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[periodo]
         format_str = {"Dia": "%d/%m/%Y", "Semana": "Semana %W (%Y)", "Mês": "%m/%Y", "Ano": "%Y"}[periodo]
 
-        # Vendas
         st.subheader(f"💰 Valor de Vendas por {periodo}")
         df_vendas = df_props.set_index('Data').resample(resample_rule)['Valor'].sum().reset_index()
         df_vendas['Data_Fmt'] = df_vendas['Data'].dt.strftime(format_str)
         st.altair_chart(criar_grafico_com_labels(df_vendas, 'Data_Fmt', 'Valor', 'Vendas (R$)'), use_container_width=True)
 
-        # Clientes
         st.subheader("👥 Total de Compras por Cliente")
         df_cli = df_props.groupby('Cliente')['Proposta'].count().reset_index()
         st.altair_chart(criar_grafico_com_labels(df_cli, 'Cliente', 'Proposta', 'Nº de Propostas'), use_container_width=True)
 
-        # Pagas
         st.subheader(f"✅ Propostas Pagas por {periodo}")
         df_pagas = df_props[df_props['Pago'] == True].set_index('Data').resample(resample_rule)['Proposta'].count().reset_index()
         if not df_pagas.empty:
@@ -172,7 +272,6 @@ with aba3:
         else:
             st.info("Nenhuma proposta paga registrada.")
 
-        # Produtos
         st.subheader("📦 Produtos Mais Vendidos")
         df_prod = df_itens.groupby('Produto')['Qtd'].sum().reset_index()
         st.altair_chart(criar_grafico_com_labels(df_prod, 'Produto', 'Qtd', 'Quantidade Total'), use_container_width=True)
