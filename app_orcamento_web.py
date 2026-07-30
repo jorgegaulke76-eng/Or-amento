@@ -52,12 +52,12 @@ def alternar_status(num_proposta, campo, novo_valor):
             break
     salvar_historico_completo(historico)
 
-# Nova função para atualizar data
-def atualizar_data_proposta(num_proposta, nova_data):
+# Função para atualizar data de entrega
+def atualizar_data_entrega(num_proposta, nova_data):
     historico = carregar_historico()
     for p in historico:
         if p.get("numero_proposta") == num_proposta:
-            p["data_geracao"] = nova_data
+            p["data_entrega"] = nova_data
             break
     salvar_historico_completo(historico)
 
@@ -206,12 +206,14 @@ with aba2:
         with st.expander(f"{num_p} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(num_p == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
             
-            # Edição de Data
+            # Edição de Data de Entrega
             col_d1, col_d2 = st.columns([2, 1])
-            data_atual = datetime.strptime(prop['data_geracao'], "%d/%m/%Y")
-            nova_data = col_d1.date_input("Alterar Data de Emissão", value=data_atual, key=f"data_{unique_key}")
-            if col_d2.button("💾 Salvar Data", key=f"btn_data_{unique_key}"):
-                atualizar_data_proposta(num_p, nova_data.strftime("%d/%m/%Y"))
+            # Garante que busca a data de entrega salva, se não houver, usa hoje
+            data_atual = datetime.strptime(prop.get('data_entrega', date.today().strftime("%d/%m/%Y")), "%d/%m/%Y")
+            nova_data = col_d1.date_input("Alterar Data de Entrega", value=data_atual, key=f"data_{unique_key}")
+            
+            if col_d2.button("💾 Salvar Entrega", key=f"btn_data_{unique_key}"):
+                atualizar_data_entrega(num_p, nova_data.strftime("%d/%m/%Y"))
                 st.rerun()
 
             for it in prop.get('itens', []): 
