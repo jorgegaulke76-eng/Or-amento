@@ -37,6 +37,11 @@ def carregar_historico():
     return []
 
 def salvar_historico_completo(historico):
+    # SEGURANÇA: Esta trava impede que o sistema sobrescreva o arquivo com uma lista vazia por erro
+    if not historico:
+        st.error("⚠️ ERRO DE SEGURANÇA: O sistema tentou salvar uma lista vazia. Ação abortada para proteger seus dados!")
+        return
+        
     with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
         json.dump(historico, f, ensure_ascii=False, indent=4)
 
@@ -125,14 +130,17 @@ for p in historico:
     except ValueError:
         continue 
 
+    # Pendente se não foi pago OU não foi entregue
     esta_pendente = not p.get("pago", False) or not p.get("entregue", False)
 
     if esta_pendente:
+        # Entrega hoje
         if data_entrega == hoje:
             if st.button(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}"):
                 st.session_state.target_prop = p['numero_proposta']
                 st.rerun()
         
+        # Atrasado (Data passou e não foi concluído)
         elif data_entrega < hoje:
             st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Data original: {p.get('data_entrega')}")
             if st.button(f"Ver detalhes de {p['numero_proposta']}", key=f"btn_atraso_{p['numero_proposta']}"):
