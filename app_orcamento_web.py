@@ -207,7 +207,6 @@ with aba2:
         with st.expander(f"{num_p} - {prop['cliente_nome']} {'✅' if prop.get('entregue') else ''}", expanded=(num_p == st.session_state.target_prop)):
             st.write(f"**Cliente:** {prop['cliente_nome']} | **CPF:** {prop.get('cliente_cpf_cnpj', 'N/A')}")
             
-            # Edição de Data de Entrega
             col_d1, col_d2 = st.columns([2, 1])
             data_atual = datetime.strptime(prop.get('data_entrega', date.today().strftime("%d/%m/%Y")), "%d/%m/%Y")
             nova_data = col_d1.date_input("Alterar Data de Entrega", value=data_atual, key=f"data_{unique_key}")
@@ -288,15 +287,18 @@ with aba3:
 with aba4:
     st.subheader("🚀 Gerador de Conteúdo Alphafest")
     api_key = st.text_input("Cole sua Google Gemini API Key", type="password")
-    descricao = st.text_area("O que você produziu hoje?", placeholder="Ex: Fiz um topo de bolo em PLA impresso na 3D e um copo Stanley gravado a laser...")
+    descricao = st.text_area("O que você produziu hoje?", placeholder="Ex: Fiz um topo de bolo em papel...")
     
     if st.button("✨ Gerar Roteiros e Posts"):
         if not api_key:
             st.error("Por favor, insira sua chave da API do Gemini.")
         else:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-pro')
-            prompt = f"Atue como um especialista em marketing da Alphafest Itatiba. Com base na descrição: '{descricao}', crie 3 variações de posts para Reels, TikTok e Shorts. Forneça: 1. Título; 2. Roteiro curto com indicações visuais; 3. Legenda engajadora com hashtags #AlphafestItatiba e outras relevantes; 4. Sugestão de capa."
-            with st.spinner("Criando sua estratégia..."):
-                response = model.generate_content(prompt)
-                st.markdown(response.text)
+            try:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"Atue como um especialista em marketing da Alphafest Itatiba. Com base na descrição: '{descricao}', crie 3 variações de posts para Reels, TikTok e Shorts. Forneça: 1. Título; 2. Roteiro curto com indicações visuais; 3. Legenda engajadora com hashtags #AlphafestItatiba e outras relevantes; 4. Sugestão de capa."
+                with st.spinner("Criando sua estratégia..."):
+                    response = model.generate_content(prompt)
+                    st.markdown(response.text)
+            except Exception as e:
+                st.error(f"Erro ao conectar com a API: {e}")
