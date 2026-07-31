@@ -92,10 +92,10 @@ def gerar_html(prop):
             </div>
             <h2 style="color: #1e293b;">PROPOSTA {prop.get('numero_proposta', '')}</h2>
             <div class="info-grid">
-                <div class="info-item"><label>Cliente / Empresa</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
+                <div class="info-item"><label>Cliente</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
                 <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
-                <div class="info-item"><label>WhatsApp / Contato</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
-                <div class="info-item"><label>Data Prevista de Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+                <div class="info-item"><label>WhatsApp</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
+                <div class="info-item"><label>Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
             </div>
             <table>
                 <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>UNIT.</th><th>SUBTOTAL</th></tr></thead>
@@ -104,7 +104,7 @@ def gerar_html(prop):
             <div class="resumo">
                 <p>Subtotal: R$ {subtotal:.2f}</p>
                 <p>Desconto: R$ {desconto:.2f}</p>
-                <p style="font-size: 16px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</p>
+                <p style="font-size: 16px;">VALOR TOTAL: R$ {total:.2f}</p>
             </div>
             <div class="footer">
                 <div class="pix-section">
@@ -144,47 +144,41 @@ def criar_grafico_profissional(df, x_col, y_col, titulo):
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTAS DE VENCIMENTO ---
+# --- ALERTAS ---
 hoje = date.today()
 for p in carregar_historico():
     try:
-        data_entrega_str = p.get("data_entrega", "")
-        if data_entrega_str:
-            data_entrega = datetime.strptime(data_entrega_str, "%d/%m/%Y").date()
-            if (not p.get("pago", False) or not p.get("entregue", False)):
-                if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
-                elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
+        data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
+        if (not p.get("pago", False) or not p.get("entregue", False)):
+            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
+            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} - {p['cliente_nome']}")
     except: continue
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
     fk = st.session_state.form_key
-    nome = st.text_input("Nome / Razão Social", key=f"c_{fk}")
+    nome = st.text_input("Nome", key=f"c_{fk}")
     c1, c2 = st.columns(2)
-    doc = c1.text_input("CPF / CNPJ", key=f"d_{fk}")
+    doc = c1.text_input("CPF/CNPJ", key=f"d_{fk}")
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
     prod = st.text_input("Produto", key=f"p_{fk}")
-    with st.expander("🎨 Detalhes", expanded=True):
-        c1, c2 = st.columns(2)
-        et = c1.text_input("Tema", key=f"et_{fk}")
-        en = c1.text_input("Nome", key=f"en_{fk}")
-        ec = c1.text_input("Cor", key=f"ec_{fk}")
-        ei = c2.text_input("Idade", key=f"ei_{fk}")
-        eg = c2.text_input("Obs", key=f"eg_{fk}")
+    with st.expander("🎨 Detalhes"):
+        et = st.text_input("Tema", key=f"et_{fk}")
+        eg = st.text_input("Obs", key=f"eg_{fk}")
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
-    v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
-    if st.button("➕ Adicionar Item"):
-        st.session_state.temp_itens.append({"produto": prod, "especificacoes": f"{et}|{en}", "quantidade": q, "valor_unitario": v})
+    v = st.number_input("Valor", value=0.0, step=0.5, key=f"v_{fk}")
+    if st.button("➕ Adicionar"):
+        st.session_state.temp_itens.append({"produto": prod, "especificacoes": f"{et}|{eg}", "quantidade": q, "valor_unitario": v})
         st.rerun()
     if st.session_state.temp_itens:
-        desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
-        dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
-        if st.button("🚀 SALVAR PROPOSTA"):
+        desc = st.number_input("Desconto", 0.0, key=f"desc_{fk}")
+        dt_e = st.date_input("📅 Entrega")
+        if st.button("🚀 SALVAR"):
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
-                "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
+                "data_entrega": dt_e.strftime("%d/%m/%Y"),
                 "cliente_nome": nome, "documento": doc, "whatsapp": wa,
                 "itens": list(st.session_state.temp_itens),
                 "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc,
@@ -199,11 +193,15 @@ with aba1:
 
 with aba2:
     for prop in carregar_historico():
-        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}"):
+        num_p = prop['numero_proposta']
+        with st.expander(f"{num_p} - {prop['cliente_nome']}"):
+            st.write(f"📅 **Entrega:** {prop.get('data_entrega')}")
             c1, c2 = st.columns(2)
             c1.link_button("📱 WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
-            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{prop['numero_proposta']}.html")
-            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta(prop['numero_proposta'])
+            c2.download_button("📄 HTML", gerar_html(prop), file_name=f"{num_p}.html")
+            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
+            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
+            if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
 
 with aba3:
     h = carregar_historico()
