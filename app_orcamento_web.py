@@ -42,14 +42,53 @@ def gerar_html(prop):
     # Segurança para calcular valor se não existir
     total = prop.get('valor_total', 0)
     if total == 0: total = sum(i.get('quantidade',0) * i.get('valor_unitario',0) for i in prop.get('itens',[]))
-    html = f"<h1>Orçamento {prop['numero_proposta']}</h1><p>Cliente: {prop['cliente_nome']}</p><ul>"
+    
+    # Construção do HTML com CSS embutido e Grid 2x2
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: sans-serif; padding: 20px; }}
+            .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; }}
+            .info-item label {{ font-size: 10px; font-weight: bold; color: #555; text-transform: uppercase; display: block; }}
+            .info-item span {{ font-size: 13px; font-weight: 600; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th {{ background: #eee; padding: 8px; text-align: left; }}
+            td {{ padding: 8px; border-bottom: 1px solid #eee; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Orçamento {prop['numero_proposta']}</h1>
+            
+            <div class="info-grid">
+                <div class="info-item"><label>Cliente / Empresa</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
+                <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
+                <div class="info-item"><label>WhatsApp / Contato</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
+                <div class="info-item"><label>Data Prevista de Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+            </div>
+
+            <table>
+                <thead><tr><th>Produto</th><th>Qtd</th></tr></thead>
+                <tbody>
+    """
     for item in prop.get('itens', []):
-        html += f"<li>{item.get('produto', '')} - Qtd: {item.get('quantidade', 0)}</li>"
-    html += "</ul><h3>Total: R$ {:.2f}</h3>".format(total)
+        html += f"<tr><td>{item.get('produto', '')}</td><td>{item.get('quantidade', 0)}</td></tr>"
+    
+    html += f"""
+                </tbody>
+            </table>
+            <h3>Total: R$ {total:.2f}</h3>
+        </div>
+    </body>
+    </html>
+    """
     return html
 
 def formatar_msg_whatsapp(prop):
-    # SEGURANÇA TOTAL: Calcula o valor total se a chave não existir
     total = prop.get('valor_total', 0)
     if total == 0:
         total = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
@@ -64,7 +103,7 @@ def formatar_msg_whatsapp(prop):
 *Emissão:* {prop.get('data_geracao', '')}
 
 *CLIENTE:* {prop.get('cliente_nome', '')}
-*CPF/CNPJ:* 
+*CPF/CNPJ:* {prop.get('documento', 'N/A')}
 -----------------------------------
 *ITENS DO PEDIDO:*
 {itens_str}
@@ -77,12 +116,9 @@ def formatar_msg_whatsapp(prop):
 *Validade:* 5 dias corridos
 
 *PAGAMENTO VIA PIX:*
-*Clique no link para pagar:* https://linkspix.app/alphafestitatiba
+https://linkspix.app/alphafestitatiba
 
-* Titular: Ana Lúcia Zepelini | *Banco:* Cora SCD (403)
-* Agência: 0001 | *Conta:* 2515972-5
-* Empresa: ANA LUCIA VIEIRA ZEPELINI 29480359880
-
+* Titular: Ana Lúcia Zepelini | *Conta:* 2515972-5
 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !"""
     return msg
 
@@ -157,7 +193,10 @@ with aba1:
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
-                "cliente_nome": nome, "itens": list(st.session_state.temp_itens),
+                "cliente_nome": nome,
+                "documento": doc,
+                "whatsapp": wa,
+                "itens": list(st.session_state.temp_itens),
                 "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc,
                 "pago": False, "entregue": False
             }
@@ -176,12 +215,10 @@ with aba2:
             for item in prop.get('itens', []): 
                 st.write(f"• {item.get('produto', '')} (Qtd: {item.get('quantidade', 0)})")
             
-            # Botões WhatsApp e HTML
             c1, c2 = st.columns(2)
             c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
             c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
             
-            # Caixas de Seleção Restauradas
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
             st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
             
