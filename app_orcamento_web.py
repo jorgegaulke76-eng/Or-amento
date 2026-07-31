@@ -1099,6 +1099,28 @@ def aplicar_proposta_pendente_no_formulario():
     st.session_state.form_key += 1
 
 
+def agendar_limpeza_formulario():
+    """Limpa o formulário no próximo rerun, antes da criação dos widgets."""
+    st.session_state._limpar_formulario_pendente = True
+
+
+def aplicar_limpeza_formulario_pendente():
+    if not st.session_state.pop("_limpar_formulario_pendente", False):
+        return
+
+    st.session_state.temp_itens = []
+    st.session_state.editar_numero = None
+    st.session_state.form_cliente = ""
+    st.session_state.form_documento = ""
+    st.session_state.form_whatsapp = ""
+    st.session_state.form_desconto = 0.0
+    st.session_state.form_entrega = date.today()
+    st.session_state.form_prazo = "10"
+    st.session_state.form_frete = "Retirada em Itatiba"
+    st.session_state.form_validade = "5"
+    st.session_state.form_key += 1
+
+
 def remover_item_temp(indice):
     if 0 <= indice < len(st.session_state.temp_itens):
         st.session_state.temp_itens.pop(indice)
@@ -1134,7 +1156,7 @@ with st.sidebar:
             type="primary",
             use_container_width=True,
         )
-    st.caption("Versão 2.4")
+    st.caption("Versão 2.5")
 
 # --- ESTADO DO FORMULÁRIO ---
 def iniciar_estado(nome, valor):
@@ -1153,6 +1175,7 @@ iniciar_estado("editar_numero", None)
 iniciar_estado("alerta_proposta_numero", None)
 
 # Deve acontecer antes da criação dos widgets vinculados às chaves form_*.
+aplicar_limpeza_formulario_pendente()
 aplicar_proposta_pendente_no_formulario()
 
 st.title("📄 ORÇAMENTOS ALPHAFEST")
@@ -1240,17 +1263,17 @@ if st.session_state.alerta_proposta_numero:
     else:
         st.session_state.alerta_proposta_numero = None
 
+mensagem_sucesso = st.session_state.pop("_mensagem_sucesso_pendente", None)
+if mensagem_sucesso:
+    st.success(mensagem_sucesso)
+
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
     if st.session_state.editar_numero:
         st.info(f"✏️ Editando a proposta {st.session_state.editar_numero}")
         if st.button("Cancelar edição"):
-            st.session_state.editar_numero = None
-            st.session_state.temp_itens = []
-            st.session_state.form_cliente = ""
-            st.session_state.form_documento = ""
-            st.session_state.form_whatsapp = ""
+            agendar_limpeza_formulario()
             st.rerun()
 
     nome = st.text_input("Nome / Razão Social", key="form_cliente")
@@ -1304,40 +1327,42 @@ with aba1:
         rotulo_salvar = "💾 SALVAR ALTERAÇÕES" if st.session_state.editar_numero else "🚀 SALVAR PROPOSTA"
         if st.button(rotulo_salvar, type="primary"):
             numero = st.session_state.editar_numero or f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            antigo = {}
+            if st.session_state.editar_numero:
+                antigo = next((p for p in carregar_historico() if p.get("numero_proposta") == numero), {})
+
             dados = {
+                **antigo,
                 "numero_proposta": numero,
-                "data_geracao": datetime.now().strftime("%d/%m/%Y"),
+                "data_geracao": antigo.get("data_geracao", datetime.now().strftime("%d/%m/%Y")),
                 "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
-                "cliente_nome": nome,
-                "documento": doc,
-                "whatsapp": wa,
+                "cliente_nome": nome.strip(),
+                "documento": doc.strip(),
+                "whatsapp": wa.strip(),
+                # Mantém também os nomes antigos para compatibilidade com registros e telas antigas.
+                "cliente_cpf_cnpj": doc.strip(),
+                "cliente_wa": wa.strip(),
                 "itens": list(st.session_state.temp_itens),
                 "subtotal": subtotal,
                 "desconto": desc,
+                "desconto_valor": desc,
                 "valor_total": total,
                 "prazo_dias": prazo,
                 "frete_tipo": frete,
                 "validade_dias": validade,
-                "pago": False,
-                "entregue": False,
+                "pago": antigo.get("pago", False),
+                "entregue": antigo.get("entregue", False),
             }
+
             if st.session_state.editar_numero:
-                antigo = next((p for p in carregar_historico() if p.get("numero_proposta") == numero), {})
-                dados["pago"] = antigo.get("pago", False)
-                dados["entregue"] = antigo.get("entregue", False)
                 atualizar_proposta(numero, dados)
             else:
                 h = carregar_historico()
                 h.insert(0, dados)
                 salvar_historico_completo(h)
-            st.session_state.temp_itens = []
-            st.session_state.editar_numero = None
-            st.session_state.form_cliente = ""
-            st.session_state.form_documento = ""
-            st.session_state.form_whatsapp = ""
-            st.session_state.form_desconto = 0.0
-            st.session_state.form_key += 1
-            st.success("Proposta salva com sucesso.")
+
+            agendar_limpeza_formulario()
+            st.session_state._mensagem_sucesso_pendente = "Proposta salva com sucesso."
             st.rerun()
 
 with aba2:
@@ -1358,6 +1383,10 @@ with aba2:
         status_txt = " • ".join(status) if status else "Pendente"
         with st.expander(f"{num_p} - {cliente_p} | R$ {total_p:,.2f} | {status_txt}"):
             st.write(f"📅 **Entrega:** {prop.get('data_entrega', 'Não informada')}")
+            whatsapp_hist = prop.get("whatsapp", prop.get("cliente_wa", "")) or "Não informado"
+            documento_hist = prop.get("documento", prop.get("cliente_cpf_cnpj", "")) or "Não informado"
+            st.write(f"📱 **WhatsApp:** {whatsapp_hist}")
+            st.write(f"🪪 **CPF/CNPJ:** {documento_hist}")
             for item in prop.get('itens', []):
                 st.write(f"• {item.get('produto', '')} (Qtd: {item.get('quantidade', 0)})")
 
