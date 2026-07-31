@@ -46,25 +46,16 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def gerar_html(prop):
-    # Cálculo para o resumo
     subtotal = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
     total = prop.get('valor_total', subtotal)
     desconto = subtotal - total
-    
-    # Carrega imagens
     logo_base64 = get_image_base64("logo.png")
     pix_base64 = get_image_base64("pix.png")
     
     itens_html = ""
     for item in prop.get('itens', []):
         sub_item = item.get('quantidade', 0) * item.get('valor_unitario', 0)
-        itens_html += f"""
-        <tr>
-            <td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td>
-            <td>{item.get('quantidade', 0)}</td>
-            <td>R$ {item.get('valor_unitario', 0):.2f}</td>
-            <td>R$ {sub_item:.2f}</td>
-        </tr>"""
+        itens_html += f"<tr><td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td><td>{item.get('quantidade', 0)}</td><td>R$ {item.get('valor_unitario', 0):.2f}</td><td>R$ {sub_item:.2f}</td></tr>"
 
     html = f"""
     <!DOCTYPE html>
@@ -72,65 +63,57 @@ def gerar_html(prop):
     <head>
         <meta charset="utf-8">
         <style>
-            body {{ font-family: sans-serif; padding: 10px; color: #333; }}
-            .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 15px; }}
-            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 5px; margin-bottom: 10px; }}
-            .header-info {{ text-align: right; font-size: 9px; line-height: 1.2; color: #333; }}
-            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; padding: 8px; background: #f1f5f9; border: 1px solid #e2e8f0; }}
-            .info-item label {{ font-size: 9px; font-weight: bold; color: #1e293b; text-transform: uppercase; display: block; }}
-            .info-item span {{ font-size: 12px; font-weight: 600; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-            th {{ background: #1e293b; color: white; padding: 6px; text-align: left; font-size: 11px; }}
-            td {{ padding: 6px; border-bottom: 1px solid #eee; font-size: 12px; }}
-            .resumo {{ text-align: right; margin-top: 10px; font-weight: bold; color: #1e293b; font-size: 13px; }}
-            .footer-box {{ margin-top: 15px; padding: 10px; border: 1px solid #1e293b; border-radius: 5px; font-size: 11px; }}
-            .pix-section {{ display: flex; align-items: start; gap: 15px; }}
+            body {{ font-family: sans-serif; padding: 20px; color: #333; }}
+            .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
+            .header {{ display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #1e293b; margin-bottom: 20px; padding-bottom: 10px; }}
+            .header-info {{ text-align: right; font-size: 10px; line-height: 1.4; color: #333; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f1f5f9; border: 1px solid #e2e8f0; }}
+            .info-item label {{ font-size: 10px; font-weight: bold; color: #1e293b; text-transform: uppercase; display: block; }}
+            .info-item span {{ font-size: 13px; font-weight: 600; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th {{ background: #1e293b; color: white; padding: 8px; text-align: left; }}
+            td {{ padding: 8px; border-bottom: 1px solid #eee; }}
+            .resumo {{ text-align: right; margin-top: 20px; font-weight: bold; color: #1e293b; }}
+            .footer {{ margin-top: 30px; font-size: 11px; border-top: 2px solid #1e293b; padding-top: 10px; }}
+            .pix-section {{ display: flex; align-items: start; gap: 20px; margin-top: 15px; border: 1px solid #1e293b; padding: 10px; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <div><img src="data:image/png;base64,{logo_base64}" style="max-width: 100px;"></div>
+                <div><img src="data:image/png;base64,{logo_base64}" style="max-width: 150px;"></div>
                 <div class="header-info">
                     <strong>Alphafest Itatiba</strong><br>
-                    CNPJ: 24.374.857/0001-30 | IE: 382105300112<br>
-                    Av. Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP<br>
-                    Email: alphafesti@gmail.com | Cel: (11) 9724-9533<br>
+                    CNPJ - 24.374.857/0001-30 | IE - 382105300112<br>
+                    Avenida Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP<br>
+                    CEP - 13251-530 | Email - alphafesti@gmail.com | Celular - ( 11 ) 9724-9533<br>
                     <strong>Emissão: {prop.get('data_geracao', 'N/A')}</strong>
                 </div>
             </div>
-            
-            <h3 style="color: #1e293b; margin: 5px 0;">PROPOSTA {prop.get('numero_proposta', '')}</h3>
-            
+            <h2 style="color: #1e293b;">PROPOSTA {prop.get('numero_proposta', '')}</h2>
             <div class="info-grid">
-                <div class="info-item"><label>Cliente</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
+                <div class="info-item"><label>Cliente / Empresa</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
                 <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
-                <div class="info-item"><label>WhatsApp</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
-                <div class="info-item"><label>Data Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+                <div class="info-item"><label>WhatsApp / Contato</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
+                <div class="info-item"><label>Data Prevista de Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
             </div>
-
             <table>
                 <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>UNIT.</th><th>SUBTOTAL</th></tr></thead>
                 <tbody>{itens_html}</tbody>
             </table>
-            
             <div class="resumo">
-                <p style="margin: 2px;">Subtotal: R$ {subtotal:.2f}</p>
-                <p style="margin: 2px;">Desconto: R$ {desconto:.2f}</p>
-                <p style="margin: 2px; font-size: 15px;">VALOR TOTAL: R$ {total:.2f}</p>
+                <p>Subtotal: R$ {subtotal:.2f}</p>
+                <p>Desconto: R$ {desconto:.2f}</p>
+                <p style="font-size: 16px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</p>
             </div>
-            
-            <div class="footer-box">
+            <div class="footer">
                 <div class="pix-section">
-                    <img src="data:image/png;base64,{pix_base64}" style="width: 70px;">
-                    <div style="line-height: 1.3;">
+                    <img src="data:image/png;base64,{pix_base64}" style="width: 100px;">
+                    <div style="line-height: 1.5;">
                         🤝 Para fechar seu pedido, trabalhamos com pagamento do valor total!<br>
-                        *Tivemos mudanças devido ao novo regime de tributação.<br>
                         💳 <strong>PAGAMENTO VIA PIX</strong>: 24374857000130 (CNPJ)<br>
-                        <a href="https://linkspix.app/alphafestitatiba">Link para pagamento</a> | Banco CORA | Ana Lúcia Zepelini<br>
-                        <strong>Ag:</strong> 0001 | <strong>CC:</strong> 2515972-5<br>
-                        <strong>Empresa:</strong> ANA LUCIA VIEIRA ZEPELINI 29480359880<br>
-                        <em>Somente após enviado comprovante daremos seguimento ao pedido !!🥰</em><br>
+                        👉 <a href="https://linkspix.app/alphafestitatiba">Link para pagamento</a> | Banco CORA | Ana Lúcia Zepelini<br>
+                        <strong>Conta Jurídica:</strong> Ag: 0001 | CC: 2515972-5<br>
                         <strong>Ps. Orçamento válido por 5 dias.</strong>
                     </div>
                 </div>
@@ -148,15 +131,7 @@ def formatar_msg_whatsapp(prop):
         valor_unit = item.get('valor_unitario', 0)
         total_item = item.get('quantidade', 0) * valor_unit
         itens_str += f"{item.get('quantidade', 0)} {item.get('produto', '')} --- R${valor_unit:.2f} --- R${total_item:.2f}\n"
-    
-    return f"""*PROPOSTA ALPHAFEST ITATIBA*
-*Cliente:* {prop.get('cliente_nome', '')}
-*Valor Total:* R$ {total:.2f}
-*Entrega:* {prop.get('data_entrega', 'N/A')}
------------------------------------
-{itens_str}
------------------------------------
-*PAGAMENTO VIA PIX:* https://linkspix.app/alphafestitatiba"""
+    return f"*PROPOSTA ALPHAFEST ITATIBA*\n*Cliente:* {prop.get('cliente_nome', '')}\n*Valor Total:* R$ {total:.2f}\n\n{itens_str}\n\n*Pagamento:* https://linkspix.app/alphafestitatiba"
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
@@ -164,20 +139,23 @@ def criar_grafico_profissional(df, x_col, y_col, titulo):
         y=alt.Y(f'{y_col}:Q', title="", axis=None),
         tooltip=[x_col, y_col]
     ).properties(title=titulo, height=300)
-    text = chart.mark_text(align='center', baseline='bottom', dy=-5, fontWeight='bold', color='#2c3e50').encode(
-        text=alt.Text(y_col, format='.2f')
-    )
-    return (chart + text).configure_view(strokeWidth=0).configure_axis(grid=False)
-
-# --- SIDEBAR ---
-with st.sidebar:
-    st.header("⚙️ Painel de Segurança")
-    h_atual = carregar_historico()
-    if h_atual:
-        st.download_button("💾 BAIXAR BACKUP", data=json.dumps(h_atual, ensure_ascii=False, indent=4), file_name="backup_historico.json", mime="application/json", type="primary", use_container_width=True)
+    return chart
 
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
+
+# --- ALERTAS DE VENCIMENTO ---
+hoje = date.today()
+for p in carregar_historico():
+    try:
+        data_entrega_str = p.get("data_entrega", "")
+        if data_entrega_str:
+            data_entrega = datetime.strptime(data_entrega_str, "%d/%m/%Y").date()
+            if (not p.get("pago", False) or not p.get("entregue", False)):
+                if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
+                elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
+    except: continue
+
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
@@ -197,12 +175,9 @@ with aba1:
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
     if st.button("➕ Adicionar Item"):
-        detalhes = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
-        st.session_state.temp_itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
+        st.session_state.temp_itens.append({"produto": prod, "especificacoes": f"{et}|{en}", "quantidade": q, "valor_unitario": v})
         st.rerun()
     if st.session_state.temp_itens:
-        st.write("📋 **Prévia:**")
-        st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
         desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
         dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
         if st.button("🚀 SALVAR PROPOSTA"):
@@ -224,18 +199,13 @@ with aba1:
 
 with aba2:
     for prop in carregar_historico():
-        num_p = prop['numero_proposta']
-        with st.expander(f"{num_p} - {prop['cliente_nome']}"):
+        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}"):
             c1, c2 = st.columns(2)
-            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
-            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
-            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
-            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
-            if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
+            c1.link_button("📱 WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
+            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{prop['numero_proposta']}.html")
+            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta(prop['numero_proposta'])
 
 with aba3:
     h = carregar_historico()
     if h:
-        df = pd.DataFrame(h)
-        st.subheader("👥 Total por Cliente")
-        st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
+        st.altair_chart(criar_grafico_profissional(pd.DataFrame(h).groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total'), use_container_width=True)
