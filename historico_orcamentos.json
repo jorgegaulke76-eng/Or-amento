@@ -1,5 +1,73 @@
 [
     {
+        "numero_proposta": "PROP-202607311200",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "SILVIA ROSA",
+        "itens": [
+            {
+                "produto": "PAPEL DE ARROZ",
+                "especificacoes": "Tema:  | Nome:  | Idade:  | Cor:  | Obs: Desenho aprovado cliente  Tamanho -a4 impressao-20x28",
+                "quantidade": 1,
+                "valor_unitario": 12.0
+            }
+        ],
+        "valor_total": 12.0,
+        "pago": true,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607311156",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "30/07/2026",
+        "cliente_nome": "TATIANE CARVALHO",
+        "itens": [
+            {
+                "produto": "KIT FESTA RÁPIDA",
+                "especificacoes": "Tema: TOY STORY | Nome: LORENZO | Idade: 3 | Cor:  | Obs: MODELO ENVIADA PELA MÃE",
+                "quantidade": 1,
+                "valor_unitario": 35.0
+            }
+        ],
+        "valor_total": 35.0,
+        "pago": true,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607311154",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "DAGMAR BOLOS",
+        "itens": [
+            {
+                "produto": "TOPO DE BOLO",
+                "especificacoes": "Tema: ROBLOX | Nome: ANTHONY | Idade: 4 | Cor: VERMELHO E BRANCO | Obs: COLOCAR MAIS PERSONAGENS",
+                "quantidade": 1,
+                "valor_unitario": 15.0
+            }
+        ],
+        "valor_total": 15.0,
+        "pago": true,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607311150",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "ELISANGELA BOLOS",
+        "itens": [
+            {
+                "produto": "PAPEL DE ARROZ",
+                "especificacoes": "Tema: CINDERELA | Nome:  | Idade:  | Cor:  | Obs: 1 folha inteira e 2 folhas com faixas na altura de 10 cm",
+                "quantidade": 3,
+                "valor_unitario": 10.0
+            }
+        ],
+        "valor_total": 30.0,
+        "pago": false,
+        "entregue": false
+    },
+    {
         "numero_proposta": "PROP-202607310123",
         "data_geracao": "31/07/2026",
         "data_entrega": "09/08/2026",
