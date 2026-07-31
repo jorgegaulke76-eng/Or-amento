@@ -1,5 +1,57 @@
 [
     {
+        "numero_proposta": "PROP-202607310054",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "KELLEN CRISTINA",
+        "itens": [
+            {
+                "produto": "TOPO DE BOLO",
+                "especificacoes": "Tema: PACMAN | Nome: THEODORO | Idade: 6 | Cor:  | Obs: ARTE DO CLIENTE",
+                "quantidade": 1,
+                "valor_unitario": 18.0
+            },
+            {
+                "produto": "ADESIVO 5 cm",
+                "especificacoes": "Tema: PACMAN | Nome: THEODORO | Idade: 6 | Cor:  | Obs: ARTE DO CLIENTE",
+                "quantidade": 30,
+                "valor_unitario": 0.65
+            },
+            {
+                "produto": "TAG 5 cm",
+                "especificacoes": "Tema: PACMAN | Nome: THEODORO | Idade: 6 | Cor:  | Obs: ARTE DO CLIENTE",
+                "quantidade": 30,
+                "valor_unitario": 0.55
+            },
+            {
+                "produto": "ADESIVO 20X20",
+                "especificacoes": "Tema: PACMAN | Nome: THEODORO | Idade: 6 | Cor:  | Obs: ARTE DO CLIENTE",
+                "quantidade": 30,
+                "valor_unitario": 6.5
+            }
+        ],
+        "valor_total": 249.0,
+        "pago": true,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607310050",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "MARCELA jAYMES",
+        "itens": [
+            {
+                "produto": "PAPEL DE ARROZ",
+                "especificacoes": "Tema: GUERREIRA K-POP | Nome: PERSONALIZADO | Idade:  | Cor:  | Obs: 15 FIGURAS DE 5 CM POR FOLHA",
+                "quantidade": 2,
+                "valor_unitario": 12.0
+            }
+        ],
+        "valor_total": 24.0,
+        "pago": true,
+        "entregue": true
+    },
+    {
         "numero_proposta": "PROP-202607310016",
         "data_geracao": "31/07/2026",
         "data_entrega": "15/08/2026",
