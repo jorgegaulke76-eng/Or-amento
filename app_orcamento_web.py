@@ -46,12 +46,9 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def gerar_html(prop):
-    # Cálculo para o resumo
     subtotal = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
     total = prop.get('valor_total', subtotal)
     desconto = subtotal - total
-    
-    # Carrega imagens do diretório local
     logo_base64 = get_image_base64("logo.png")
     pix_base64 = get_image_base64("pix.png")
     
@@ -95,13 +92,12 @@ def gerar_html(prop):
                     <strong>Alphafest Itatiba</strong><br>
                     CNPJ - 24.374.857/0001-30 | IE - 382105300112<br>
                     Avenida Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP<br>
-                    CEP - 13251-530 | Email - alphafesti@gmail.com<br>
-                    Celular - ( 11 ) 9724-9533<br>
+                    CEP - 13251-530 | Email - alphafesti@gmail.com | Celular - ( 11 ) 9724-9533<br>
                     <strong>Emissão: {prop.get('data_geracao', 'N/A')}</strong>
                 </div>
             </div>
             
-            <h2 style="color: #1e293b;">PROPOSTA {prop['numero_proposta']}</h2>
+            <h2 style="color: #1e293b;">PROPOSTA {prop.get('numero_proposta', '')}</h2>
             
             <div class="info-grid">
                 <div class="info-item"><label>Cliente / Empresa</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
