@@ -57,123 +57,80 @@ def gerar_html(prop):
         sub_item = item.get('quantidade', 0) * item.get('valor_unitario', 0)
         itens_html += f"<tr><td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td><td>{item.get('quantidade', 0)}</td><td>R$ {item.get('valor_unitario', 0):.2f}</td><td>R$ {sub_item:.2f}</td></tr>"
 
-    html = f"""
+    return f"""
     <!DOCTYPE html>
     <html lang="pt-br">
-    <head>
-        <meta charset="utf-8">
-        <style>
-            body {{ font-family: sans-serif; padding: 20px; color: #333; }}
-            .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
-            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; margin-bottom: 15px; padding-bottom: 5px; }}
-            .header-info {{ text-align: right; font-size: 9px; line-height: 1.2; color: #333; }}
-            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; padding: 10px; background: #f1f5f9; border: 1px solid #e2e8f0; }}
-            .info-item label {{ font-size: 9px; font-weight: bold; color: #1e293b; text-transform: uppercase; display: block; }}
-            .info-item span {{ font-size: 12px; font-weight: 600; }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            th {{ background: #1e293b; color: white; padding: 6px; text-align: left; font-size: 11px; }}
-            td {{ padding: 6px; border-bottom: 1px solid #eee; font-size: 12px; }}
-            .resumo {{ text-align: right; margin-top: 15px; font-weight: bold; color: #1e293b; font-size: 13px; }}
-            .footer-box {{ margin-top: 20px; padding: 10px; border: 2px solid #1e293b; border-radius: 5px; font-size: 11px; display: flex; gap: 15px; }}
-        </style>
-    </head>
+    <head><style>
+        body {{ font-family: sans-serif; padding: 20px; color: #333; }}
+        .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
+        .header {{ display: flex; justify-content: space-between; border-bottom: 2px solid #1e293b; padding-bottom: 10px; }}
+        .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; background: #f1f5f9; padding: 10px; border: 1px solid #ddd; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th {{ background: #1e293b; color: white; padding: 8px; text-align: left; }}
+        td {{ padding: 8px; border-bottom: 1px solid #eee; }}
+        .footer-box {{ margin-top: 20px; padding: 10px; border: 2px solid #1e293b; font-size: 11px; display: flex; gap: 15px; }}
+    </style></head>
     <body>
         <div class="container">
             <div class="header">
-                <div><img src="data:image/png;base64,{logo_base64}" style="max-width: 120px;"></div>
-                <div class="header-info">
-                    <strong>Alphafest Itatiba</strong><br>
-                    CNPJ - 24.374.857/0001-30 | IE - 382105300112<br>
-                    Avenida Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP<br>
-                    Email - alphafesti@gmail.com | Celular - ( 11 ) 9724-9533<br>
-                    <strong>Emissão: {prop.get('data_geracao', 'N/A')}</strong>
-                </div>
+                <img src="data:image/png;base64,{logo_base64}" style="max-width: 120px;">
+                <div style="text-align: right; font-size: 9px;"><strong>Alphafest Itatiba</strong><br>CNPJ 24.374.857/0001-30 | Email - alphafesti@gmail.com<br>Emissão: {prop.get('data_geracao', 'N/A')}</div>
             </div>
-            <h2 style="color: #1e293b; margin: 5px 0;">PROPOSTA {prop.get('numero_proposta', '')}</h2>
+            <h3>PROPOSTA {prop.get('numero_proposta', '')}</h3>
             <div class="info-grid">
-                <div class="info-item"><label>Cliente</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
-                <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
-                <div class="info-item"><label>WhatsApp</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
-                <div class="info-item"><label>Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+                <div><label>CLIENTE</label><br>{prop.get('cliente_nome', 'N/A')}</div>
+                <div><label>WHATSAPP</label><br>{prop.get('whatsapp', 'N/A')}</div>
             </div>
-            <table>
-                <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>UNIT.</th><th>SUBTOTAL</th></tr></thead>
-                <tbody>{itens_html}</tbody>
-            </table>
-            <div class="resumo">
-                <p>Subtotal: R$ {subtotal:.2f} | Desconto: R$ {desconto:.2f}</p>
-                <p style="font-size: 15px;">VALOR TOTAL: R$ {total:.2f}</p>
-            </div>
+            <table><thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>UNIT.</th><th>SUBTOTAL</th></tr></thead><tbody>{itens_html}</tbody></table>
+            <div style="text-align: right; margin-top: 15px; font-weight: bold;">TOTAL: R$ {total:.2f}</div>
             <div class="footer-box">
-                <img src="data:image/png;base64,{pix_base64}" style="width: 80px;">
-                <div>
-                    🤝 Para fechar seu pedido, trabalhamos com pagamento do valor total!<br>
-                    💳 <strong>PAGAMENTO VIA PIX</strong>: 24374857000130 (CNPJ)<br>
-                    👉 <a href="https://linkspix.app/alphafestitatiba">Link para pagar</a> | Banco CORA | Ana Lúcia Zepelini<br>
-                    <strong>Conta Jurídica:</strong> Ag: 0001 | CC: 2515972-5<br>
-                    <em>Somente após enviado comprovante daremos seguimento ao seu pedido !!🥰</em><br>
-                    <strong>Ps. Orçamento válido por 5 dias.</strong>
-                </div>
+                <img src="data:image/png;base64,{pix_base64}" style="width: 70px;">
+                <div>💳 <strong>PIX:</strong> 24374857000130 | Banco CORA | Ana Lúcia Zepelini<br>Ag: 0001 | CC: 2515972-5<br><em>Ps. Orçamento válido por 5 dias.</em></div>
             </div>
         </div>
-    </body>
-    </html>
+    </body></html>
     """
-    return html
 
 def formatar_msg_whatsapp(prop):
     total = prop.get('valor_total', 0)
-    itens_str = ""
-    for item in prop.get('itens', []):
-        itens_str += f"{item.get('quantidade', 0)} {item.get('produto', '')} --- R${item.get('valor_unitario', 0):.2f}\n"
-    return f"*PROPOSTA ALPHAFEST ITATIBA*\n*Cliente:* {prop.get('cliente_nome', '')}\n*Valor:* R$ {total:.2f}\n\n{itens_str}\n\n*Pagamento:* https://linkspix.app/alphafestitatiba"
+    itens_str = "\n".join([f"{i.get('quantidade', 0)} {i.get('produto', '')}" for i in prop.get('itens', [])])
+    return f"*PROPOSTA ALPHAFEST*\nCliente: {prop.get('cliente_nome', '')}\nTotal: R$ {total:.2f}\n\n{itens_str}\n\nPagamento: https://linkspix.app/alphafestitatiba"
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
-    return alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
-        x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y(f'{y_col}:Q', title="", axis=None),
-        tooltip=[x_col, y_col]
-    ).properties(title=titulo, height=300)
+    return alt.Chart(df).mark_bar(color='#1e293b').encode(x=alt.X(f'{x_col}:O', axis=alt.Axis(labelAngle=-45)), y=alt.Y(f'{y_col}:Q')).properties(title=titulo, height=300)
 
-# --- INTERFACE ---
+# --- UI ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
-hoje = date.today()
 for p in carregar_historico():
     try:
-        data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
-        if (not p.get("pago", False) or not p.get("entregue", False)):
-            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']}")
-            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']}")
+        data_e = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
+        if (not p.get("pago", False) or not p.get("entregue", False)) and data_e == date.today(): st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']}")
     except: continue
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
-    fk = st.session_state.form_key
-    nome = st.text_input("Nome", key=f"c_{fk}")
+    nome = st.text_input("Nome", key="c_novo")
     c1, c2 = st.columns(2)
-    doc = c1.text_input("CPF/CNPJ", key=f"d_{fk}")
-    wa = c2.text_input("WhatsApp", key=f"w_{fk}")
-    prod = st.text_input("Produto", key=f"p_{fk}")
-    with st.expander("🎨 Detalhes", expanded=True):
-        c1, c2 = st.columns(2)
-        et = c1.text_input("Tema", key=f"et_{fk}")
-        eg = c1.text_input("Obs", key=f"eg_{fk}")
-    q = st.number_input("Qtd", 1, value=1, key=f"q_{fk}")
-    v = st.number_input("Valor", 0.0, step=0.5, key=f"v_{fk}")
+    doc = c1.text_input("CPF/CNPJ", key="d_novo")
+    wa = c2.text_input("WhatsApp", key="w_novo")
+    prod = st.text_input("Produto", key="p_novo")
+    with st.expander("🎨 Detalhes"):
+        et = st.text_input("Tema", key="et_novo")
+        eg = st.text_input("Obs", key="eg_novo")
+    q = st.number_input("Qtd", 1, value=1, key="q_novo")
+    v = st.number_input("Valor", 0.0, step=0.5, key="v_novo")
     if st.button("➕ Adicionar"):
         st.session_state.temp_itens.append({"produto": prod, "especificacoes": f"{et}|{eg}", "quantidade": q, "valor_unitario": v})
         st.rerun()
     if st.session_state.temp_itens:
-        desc = st.number_input("Desconto", 0.0, key=f"desc_{fk}")
-        dt_e = st.date_input("Entrega")
+        desc = st.number_input("Desconto", 0.0, key="desc_novo")
+        dt_e = st.date_input("📅 Entrega")
         if st.button("🚀 SALVAR"):
-            dados = {"numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}", "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_e.strftime("%d/%m/%Y"), "cliente_nome": nome, "documento": doc, "whatsapp": wa, "itens": list(st.session_state.temp_itens), "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc, "pago": False, "entregue": False}
             h = carregar_historico()
-            h.insert(0, dados)
+            h.insert(0, {"numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}", "data_geracao": datetime.now().strftime("%d/%m/%Y"), "data_entrega": dt_e.strftime("%d/%m/%Y"), "cliente_nome": nome, "documento": doc, "whatsapp": wa, "itens": list(st.session_state.temp_itens), "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc, "pago": False, "entregue": False})
             salvar_historico_completo(h)
             st.session_state.temp_itens = []
-            st.session_state.form_key += 1
             st.rerun()
 
 with aba2:
@@ -191,18 +148,11 @@ with aba3:
     if h:
         df = pd.DataFrame(h)
         df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
-        # Flatten itens para produtos mais vendidos
-        all_items = []
-        for prop in h:
-            for item in prop['itens']:
-                all_items.append({'Data': pd.to_datetime(prop['data_geracao'], dayfirst=True), 'Produto': item['produto'], 'Qtd': item['quantidade']})
-        df_itens = pd.DataFrame(all_items)
-        
-        per = st.selectbox("Agrupar por", ["Dia", "Semana", "Mês", "Ano"])
-        res = {"Dia": "%d/%m/%Y", "Semana": "W-MON", "Mês": "M", "Ano": "Y"}[per]
-        
-        st.subheader("💰 Total Receita")
-        st.altair_chart(criar_grafico_profissional(df.groupby(df['Data'].dt.strftime(res) if per == "Dia" else df.set_index('Data').resample(res).groups.keys())['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Receita'), use_container_width=True)
+        st.subheader("👥 Total por Cliente")
+        st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Receita'), use_container_width=True)
         
         st.subheader("🏆 Produtos Mais Vendidos")
-        st.altair_chart(criar_grafico_profissional(df_itens.groupby(['Produto'])['Qtd'].sum().reset_index(), 'Produto', 'Qtd', 'Vendas'), use_container_width=True)
+        all_items = []
+        for prop in h:
+            for item in prop['itens']: all_items.append({'Produto': item['produto'], 'Qtd': item['quantidade']})
+        st.altair_chart(criar_grafico_profissional(pd.DataFrame(all_items).groupby('Produto')['Qtd'].sum().reset_index(), 'Produto', 'Qtd', 'Vendas'), use_container_width=True)
