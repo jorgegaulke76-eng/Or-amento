@@ -39,6 +39,7 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
+    # Usamos o eixo X como Nominal (texto) para forçar a exibição do que está escrito (Data formatada)
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
         x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
         y=alt.Y(f'{y_col}:Q', title="", axis=None),
@@ -59,14 +60,17 @@ with st.sidebar:
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTA DE VENCIMENTO (LOGICA ESTRICTA) ---
+# --- ALERTAS DE VENCIMENTO (LOGICA REVISADA) ---
 hoje = date.today()
 for p in carregar_historico():
     try:
         data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
+        # Alerta apenas se for HOJE ou atrasado
         if (not p.get("pago", False) or not p.get("entregue", False)):
-            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
-            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
+            if data_entrega == hoje: 
+                st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
+            elif data_entrega < hoje: 
+                st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
     except: continue
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
@@ -98,7 +102,6 @@ with aba1:
     if st.session_state.temp_itens:
         st.write("📋 **Prévia dos itens:**")
         st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
-        
         st.divider()
         desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
         dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
@@ -133,7 +136,7 @@ with aba3:
     h = carregar_historico()
     if h:
         df = pd.DataFrame(h)
-        # CORREÇÃO CRÍTICA: Calcular valor se estiver faltando ou for zero
+        # Recalculo forçado para garantir valores
         df['valor_total'] = df.apply(lambda row: sum(i['quantidade'] * i['valor_unitario'] for i in row['itens']) if (pd.isna(row.get('valor_total')) or row.get('valor_total') == 0) else row['valor_total'], axis=1)
         
         df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
@@ -142,12 +145,24 @@ with aba3:
         
         st.subheader("👥 Total por Cliente")
         st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
+        
         st.divider()
+        
+        # --- PREPARAÇÃO DAS DATAS FORMATADAS PARA EVITAR O NÚMERO ESTRANHO ---
+        df_temp = df.set_index('Data').resample(r)['valor_total'].sum().reset_index()
+        df_temp['Data_Label'] = df_temp['Data'].dt.strftime('%d/%m/%Y')
+        
         st.subheader("💰 Faturamento no Período")
-        st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Receita (R$)'), use_container_width=True)
+        st.altair_chart(criar_grafico_profissional(df_temp, 'Data_Label', 'valor_total', 'Receita (R$)'), use_container_width=True)
+        
         st.divider()
+        
+        df_prop = df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
+        df_prop['Data_Label'] = df_prop['Data'].dt.strftime('%d/%m/%Y')
+        
         st.subheader("📝 Propostas Geradas no Período")
-        st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd Propostas'), use_container_width=True)
+        st.altair_chart(criar_grafico_profissional(df_prop, 'Data_Label', 'numero_proposta', 'Qtd Propostas'), use_container_width=True)
+        
         st.divider()
         st.subheader("📦 Produtos Mais Vendidos")
         df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade']} for p in h for it in p['itens']])
