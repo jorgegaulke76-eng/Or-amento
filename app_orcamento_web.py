@@ -233,7 +233,7 @@ def gerar_html(proposta):
     subtotal = proposta.get("subtotal", 0)
     desconto = proposta.get("desconto", proposta.get("desconto_valor", 0))
     total = proposta.get("valor_total", proposta.get("total", 0))
-    pagamento = proposta.get("pagamento", "Pagamento via PIX (100%): https://linkspix.app/alphafestitatiba")
+    pagamento = proposta.get("pagamento", "Pagamento via PIX: https://linkspix.app/alphafestitatiba")
     observacoes = proposta.get("observacoes", "")
     prazo_dias = str(proposta.get("prazo_dias", "10")).strip() or "10"
     frete_tipo = str(proposta.get("frete_tipo", "Retirada em Itatiba")).strip() or "Retirada em Itatiba"
@@ -369,6 +369,12 @@ def gerar_html(proposta):
     logo_html = (
         f'<img class="brand-logo" src="data:{mime_logo};base64,{logo_base64}" alt="Logo Alphafest">'
         if logo_base64 else '<div class="brand-mark">AF</div>'
+    )
+
+    pix_base64 = get_image_base64("pix.png")
+    pix_qr_html = (
+        f'<img class="pix-qr" src="data:image/png;base64,{pix_base64}" alt="QR Code PIX">'
+        if pix_base64 else ''
     )
 
     return f"""<!DOCTYPE html>
@@ -750,6 +756,28 @@ def gerar_html(proposta):
         color: #e5e7eb;
     }}
 
+    .payment-layout {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+    }}
+
+    .payment-copy {{
+        flex: 1;
+        min-width: 0;
+    }}
+
+    .pix-qr {{
+        width: 112px;
+        height: 112px;
+        object-fit: contain;
+        padding: 6px;
+        border-radius: 10px;
+        background: #ffffff;
+        flex: 0 0 auto;
+    }}
+
     .footer {{
         margin-top: 24px;
         padding: 17px 30px;
@@ -830,6 +858,15 @@ def gerar_html(proposta):
             grid-template-columns: 1fr 1fr;
         }}
 
+        .payment-layout {{
+            align-items: flex-start;
+        }}
+
+        .pix-qr {{
+            width: 96px;
+            height: 96px;
+        }}
+
         .footer {{
             flex-direction: column;
             align-items: flex-start;
@@ -863,7 +900,7 @@ def gerar_html(proposta):
         </div>
 
         <div class="proposal-meta">
-            <div class="proposal-label">Proposta Comercial</div>
+            <div class="proposal-label">Orçamento</div>
             <div class="proposal-number">#{numero_txt}</div>
             <div class="proposal-date">Emissão: {data_txt}</div>
         </div>
@@ -903,7 +940,6 @@ def gerar_html(proposta):
                     <span class="field-label">Previsão de entrega</span><br>
                     <strong>{entrega_txt}</strong>
                 </div>
-                <span class="badge">PROPOSTA COMERCIAL</span>
             </div>
         </section>
 
@@ -930,8 +966,13 @@ def gerar_html(proposta):
                 <div class="section-title">Condições comerciais</div>
 
                 <div class="payment-highlight">
-                    <div class="info-card-title">Forma de pagamento</div>
-                    <div class="info-text">{pagamento_txt}</div>
+                    <div class="payment-layout">
+                        <div class="payment-copy">
+                            <div class="info-card-title">Pagamento via PIX</div>
+                            <div class="info-text">{pagamento_txt}</div>
+                        </div>
+                        {pix_qr_html}
+                    </div>
                 </div>
 
                 <div class="info-card">
@@ -978,7 +1019,7 @@ def gerar_html(proposta):
     </main>
 
     <footer class="footer">
-        <div class="footer-brand">{empresa_nome}</div>
+        <div class="footer-brand">O poder de estar presente em cada presente...</div>
         <div class="footer-contact">
             CNPJ: {empresa_cnpj}<br>
             Celular: {empresa_celular}<br>
