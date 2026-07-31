@@ -83,8 +83,8 @@ def gerar_html(prop):
             th {{ background: #1e293b; color: white; padding: 8px; text-align: left; }}
             td {{ padding: 8px; border-bottom: 1px solid #eee; }}
             .resumo {{ text-align: right; margin-top: 20px; font-weight: bold; color: #1e293b; }}
-            .footer {{ margin-top: 30px; font-size: 12px; border-top: 2px solid #1e293b; padding-top: 10px; }}
-            .pix-section {{ display: flex; align-items: center; gap: 20px; margin-top: 15px; }}
+            .footer {{ margin-top: 30px; font-size: 11px; border-top: 2px solid #1e293b; padding-top: 10px; }}
+            .pix-section {{ display: flex; align-items: start; gap: 20px; margin-top: 15px; }}
         </style>
     </head>
     <body>
@@ -123,12 +123,22 @@ def gerar_html(prop):
             
             <div class="footer">
                 <div class="pix-section">
-                    <img src="data:image/png;base64,{pix_base64}" style="width: 120px;">
-                    <div>
-                        <p><strong>Condições de Produção & Pagamento:</strong><br>
-                        Para firmar seu pedido, trabalhamos com pagamento do valor total no pedido.<br>
-                        Titular: Ana Lúcia Zepelini | Conta: 2515972-5<br>
-                        Prazo de Produção: 1 dia útil | Validade: 5 dias corridos.</p>
+                    <img src="data:image/png;base64,{pix_base64}" style="width: 100px;">
+                    <div style="line-height: 1.5;">
+                        🤝 Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!<br>
+                        *Tivemos algumas mudanças devido ao novo regime de tributação.<br><br>
+                        💳 <strong>PAGAMENTO VIA PIX</strong> - Segue abaixo nossa conta e pix:<br>
+                        💳💳 Pix- 24374857000130 (CNPJ)<br>
+                        👉 <a href="https://linkspix.app/alphafestitatiba">Clique no link para pagar</a><br>
+                        Banco CORA | Ana Lúcia Zepelini<br><br>
+                        <strong>Conta Jurídica</strong><br>
+                        Agência: 0001 | Conta: 2515972-5<br>
+                        Instituição: 403 - Cora SCD<br>
+                        Nome da Empresa: ANA LUCIA VIEIRA ZEPELINI 29480359880<br>
+                        CNPJ: 24.374.857/0001-30<br><br>
+                        👇<br>
+                        <em>Somente após realizado pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!🥰</em><br>
+                        <strong>Ps. Orçamento válido por 5 dias.</strong>
                     </div>
                 </div>
             </div>
