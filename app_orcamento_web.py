@@ -1156,7 +1156,7 @@ with st.sidebar:
             type="primary",
             use_container_width=True,
         )
-    st.caption("Versão 2.5")
+    st.caption("Versão 2.6")
 
 # --- ESTADO DO FORMULÁRIO ---
 def iniciar_estado(nome, valor):
@@ -1377,11 +1377,23 @@ with aba2:
         num_p = prop.get("numero_proposta", "SEM-NÚMERO")
         cliente_p = prop.get("cliente_nome", "Cliente não informado")
         subtotal_p, desconto_p, total_p = calcular_valores_proposta(prop)
-        status = []
-        if prop.get("pago", False): status.append("Pago")
-        if prop.get("entregue", False): status.append("Entregue")
-        status_txt = " • ".join(status) if status else "Pendente"
+        pago_p = bool(prop.get("pago", False))
+        entregue_p = bool(prop.get("entregue", False))
+        proposta_fechada = pago_p and entregue_p
+
+        if proposta_fechada:
+            status_txt = "✅ FECHADA"
+        else:
+            status = []
+            if pago_p:
+                status.append("Pago")
+            if entregue_p:
+                status.append("Entregue")
+            status_txt = " • ".join(status) if status else "Pendente"
+
         with st.expander(f"{num_p} - {cliente_p} | R$ {total_p:,.2f} | {status_txt}"):
+            if proposta_fechada:
+                st.success("✅ Pedido fechado: pagamento recebido e entrega concluída.")
             st.write(f"📅 **Entrega:** {prop.get('data_entrega', 'Não informada')}")
             whatsapp_hist = prop.get("whatsapp", prop.get("cliente_wa", "")) or "Não informado"
             documento_hist = prop.get("documento", prop.get("cliente_cpf_cnpj", "")) or "Não informado"
