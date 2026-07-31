@@ -34,14 +34,18 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
-def criar_grafico(df, x_col, y_col, titulo):
-    chart = alt.Chart(df).mark_bar().encode(
-        x=alt.X(f'{x_col}:O', title=x_col),
-        y=alt.Y(f'{y_col}:Q', title=y_col),
+# --- NOVO ESTILO PROFISSIONAL PARA GRÁFICOS ---
+def criar_grafico_profissional(df, x_col, y_col, titulo):
+    chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
+        x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=0)),
+        y=alt.Y(f'{y_col}:Q', title="", axis=None), # Remove eixo Y para limpar
         tooltip=[x_col, y_col]
-    ).properties(title=titulo, height=300)
-    text = chart.mark_text(align='center', baseline='bottom', dy=-5).encode(text=alt.Text(y_col, format='.2f'))
-    return chart + text
+    ).properties(title=titulo, height=350)
+    
+    text = chart.mark_text(align='center', baseline='bottom', dy=-5, fontWeight='bold', color='#2c3e50').encode(
+        text=alt.Text(y_col, format='.2f')
+    )
+    return (chart + text).configure_view(strokeWidth=0).configure_axis(grid=False)
 
 # --- SIDEBAR: BACKUP ---
 with st.sidebar:
@@ -93,29 +97,27 @@ with aba1:
 
 with aba2:
     for prop in carregar_historico():
-        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}"):
-            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}", on_change=alternar_status, args=(prop['numero_proposta'], "pago", not prop.get("pago", False)))
-            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta(prop['numero_proposta'])
+        num_p = prop['numero_proposta']
+        with st.expander(f"{num_p} - {prop['cliente_nome']}"):
+            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
+            if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
 
 with aba3:
+    st.subheader("📊 Relatórios Executivos")
     h = carregar_historico()
     if h:
         df = pd.DataFrame(h)
         df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
         if 'valor_total' not in df.columns: df['valor_total'] = df['itens'].apply(lambda itens: sum(i['quantidade'] * i['valor_unitario'] for i in itens))
         
-        per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"])
+        per = st.selectbox("Período", ["Dia", "Semana", "Mês", "Ano"])
         r = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
         
-        st.subheader("👥 Total por Cliente")
-        st.altair_chart(criar_grafico(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor (R$)'), use_container_width=True)
-        
-        st.subheader("💰 Valor Pago por Periodo")
-        st.altair_chart(criar_grafico(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Valor (R$)'), use_container_width=True)
-        
-        st.subheader("📝 Propostas Geradas por Periodo")
-        st.altair_chart(criar_grafico(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd'), use_container_width=True)
-
-        st.subheader("📦 Produtos Mais Vendidos")
-        df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade'], 'Data': pd.to_datetime(p['data_geracao'], dayfirst=True)} for p in h for it in p['itens']])
-        st.altair_chart(criar_grafico(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Total Vendido'), use_container_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total por Cliente'), use_container_width=True)
+            st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Receita no Período'), use_container_width=True)
+        with col2:
+            st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd Propostas no Período'), use_container_width=True)
+            df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade']} for p in h for it in p['itens']])
+            st.altair_chart(criar_grafico_profissional(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Produtos Mais Vendidos'), use_container_width=True)
