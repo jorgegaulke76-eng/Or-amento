@@ -10,7 +10,7 @@ import altair as alt
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
-# --- INICIALIZAÇÃO DE SEGURANÇA ---
+# --- INICIALIZAÇÃO ---
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
@@ -39,16 +39,46 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def gerar_html(prop):
-    # SEGURANÇA: Calcula o total se a chave não existir ou for zero
     total = prop.get('valor_total', 0)
-    if total == 0 and 'itens' in prop:
-        total = sum(item.get('quantidade', 0) * item.get('valor_unitario', 0) for item in prop['itens'])
-        
     html = f"<h1>Orçamento {prop['numero_proposta']}</h1><p>Cliente: {prop['cliente_nome']}</p><ul>"
     for item in prop['itens']:
         html += f"<li>{item['produto']} - Qtd: {item['quantidade']}</li>"
     html += "</ul><h3>Total: R$ {:.2f}</h3>".format(total)
     return html
+
+def formatar_msg_whatsapp(prop):
+    itens_str = ""
+    for item in prop['itens']:
+        valor_unit = item.get('valor_unitario', 0)
+        total_item = item['quantidade'] * valor_unit
+        itens_str += f"{item['quantidade']} {item['produto']} --- R${valor_unit:.2f} --- R${total_item:.2f}\n"
+    
+    msg = f"""*PROPOSTA ALPHAFEST ITATIBA*
+*Emissão:* {prop['data_geracao']}
+
+*CLIENTE:* {prop['cliente_nome']}
+*CPF/CNPJ:* 
+-----------------------------------
+*ITENS DO PEDIDO:*
+{itens_str}
+{prop.get('itens', [{}])[0].get('especificacoes', '')}
+-----------------------------------
+*VALOR TOTAL DO PEDIDO:* R$ {prop['valor_total']:.2f}
+-----------------------------------
+*Previsão de Entrega:* {prop.get('data_entrega', 'N/A')}
+*Prazo de Produção:* 1 dia útil
+*Frete/Entrega:* Retirada em Itatiba
+*Validade:* 5 dias corridos
+
+*PAGAMENTO VIA PIX:*
+*Clique no link para pagar:* https://linkspix.app/alphafestitatiba
+
+* Titular: Ana Lúcia Zepelini | *Banco:* Cora SCD (403)
+* Agência: 0001 | *Conta:* 2515972-5
+* Empresa: ANA LUCIA VIEIRA ZEPELINI 29480359880
+
+*Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !"""
+    return msg
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
@@ -61,17 +91,10 @@ def criar_grafico_profissional(df, x_col, y_col, titulo):
     )
     return (chart + text).configure_view(strokeWidth=0).configure_axis(grid=False)
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.header("⚙️ Painel de Segurança")
-    h_atual = carregar_historico()
-    if h_atual:
-        st.download_button("💾 BAIXAR BACKUP", data=json.dumps(h_atual, ensure_ascii=False, indent=4), file_name="backup_historico.json", mime="application/json", type="primary", use_container_width=True)
-
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTAS ---
+# Alertas
 hoje = date.today()
 for p in carregar_historico():
     try:
@@ -89,7 +112,6 @@ with aba1:
     c1, c2 = st.columns(2)
     doc = c1.text_input("CPF / CNPJ", key=f"d_{fk}")
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
-    
     prod = st.text_input("Produto", key=f"p_{fk}")
     with st.expander("🎨 Personalização & Especificações", expanded=True):
         c1, c2 = st.columns(2)
@@ -98,10 +120,8 @@ with aba1:
         ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
         ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
         eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
-    
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
-    
     if st.button("➕ Adicionar Item"):
         detalhes = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
         st.session_state.temp_itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
@@ -113,7 +133,6 @@ with aba1:
         st.divider()
         desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
         dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
-        
         if st.button("🚀 SALVAR PROPOSTA"):
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
@@ -138,8 +157,7 @@ with aba2:
             for item in prop.get('itens', []): st.write(f"• {item['produto']} (Qtd: {item['quantidade']})")
             
             c1, c2 = st.columns(2)
-            msg_zap = f"Olá {prop['cliente_nome']}, seu orçamento {num_p} está pronto!"
-            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_zap)}")
+            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
             c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
             
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
