@@ -178,16 +178,47 @@ https://linkspix.app/alphafestitatiba
 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !"""
     return msg
 
-def criar_grafico_profissional(df, x_col, y_col, titulo):
-    chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
-        x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y(f'{y_col}:Q', title="", axis=None),
-        tooltip=[x_col, y_col]
-    ).properties(title=titulo, height=300)
-    text = chart.mark_text(align='center', baseline='bottom', dy=-5, fontWeight='bold', color='#2c3e50').encode(
-        text=alt.Text(y_col, format='.2f')
-    )
-    return (chart + text).configure_view(strokeWidth=0).configure_axis(grid=False)
+def criar_grafico_profissional(df, x_col, y_col, titulo, horizontal=False, formato=".2f"):
+    if df is None or df.empty:
+        return None
+
+    dados = df.copy()
+
+    if horizontal:
+        chart = alt.Chart(dados).mark_bar(cornerRadiusEnd=4).encode(
+            y=alt.Y(f"{x_col}:N", title="", sort="-x",
+                    axis=alt.Axis(labelLimit=260)),
+            x=alt.X(f"{y_col}:Q", title=""),
+            tooltip=[
+                alt.Tooltip(x_col, title="Produto"),
+                alt.Tooltip(y_col, title="Valor", format=formato)
+            ]
+        ).properties(title=titulo, height=max(300, len(dados) * 28))
+
+        texto = chart.mark_text(
+            align="left", baseline="middle", dx=5, fontWeight="bold"
+        ).encode(text=alt.Text(y_col, format=formato))
+    else:
+        chart = alt.Chart(dados).mark_bar(
+            cornerRadiusTopLeft=4, cornerRadiusTopRight=4
+        ).encode(
+            x=alt.X(f"{x_col}:N", title="",
+                    sort="-y", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y(f"{y_col}:Q", title=""),
+            tooltip=[
+                alt.Tooltip(x_col, title="Categoria"),
+                alt.Tooltip(y_col, title="Valor", format=formato)
+            ]
+        ).properties(title=titulo, height=320)
+
+        texto = chart.mark_text(
+            align="center", baseline="bottom", dy=-5, fontWeight="bold"
+        ).encode(text=alt.Text(y_col, format=formato))
+
+    return (chart + texto).configure_view(
+        strokeWidth=0
+    ).configure_axis(grid=False)
+
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -282,34 +313,318 @@ with aba2:
 
 with aba3:
     h = carregar_historico()
-    if h:
+
+    if not h:
+        st.info("📊 Ainda não existem propostas cadastradas para gerar relatórios.")
+    else:
         df = pd.DataFrame(h)
-        df['valor_total'] = df.apply(lambda row: sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in row.get('itens', [])) if (pd.isna(row.get('valor_total')) or row.get('valor_total') == 0) else row.get('valor_total', 0), axis=1)
-        df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
-        
-        per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"], key="per_rel")
-        
+
+        if "pago" not in df.columns:
+            df["pago"] = False
+        if "entregue" not in df.columns:
+            df["entregue"] = False
+        if "valor_total" not in df.columns:
+            df["valor_total"] = 0.0
+        if "itens" not in df.columns:
+            df["itens"] = [[] for _ in range(len(df))]
+
+        def calcular_total(row):
+            try:
+                valor = row.get("valor_total", 0)
+                if pd.isna(valor):
+                    valor = 0
+                valor = float(valor)
+                if valor != 0:
+                    return valor
+
+                total = 0.0
+                for item in row.get("itens", []) or []:
+                    try:
+                        total += float(item.get("quantidade", 0)) * float(item.get("valor_unitario", 0))
+                    except (TypeError, ValueError):
+                        pass
+                return total
+            except (TypeError, ValueError):
+                return 0.0
+
+        df["valor_total"] = df.apply(calcular_total, axis=1)
+        df["Data"] = pd.to_datetime(
+            df.get("data_geracao"), dayfirst=True, errors="coerce"
+        )
+
+        st.subheader("📊 Dashboard Comercial")
+
+        c1, c2 = st.columns(2)
+        periodo = c1.selectbox(
+            "Período de Agrupamento",
+            ["Dia", "Semana", "Mês", "Ano"],
+            key="per_rel"
+        )
+        top_n = c2.selectbox(
+            "Produtos no ranking",
+            [5, 10, 15, 20],
+            index=1,
+            key="top_produtos"
+        )
+
+        total_propostas = len(df)
+        total_orcado = float(df["valor_total"].sum())
+
+        df_pago_base = df[df["pago"].fillna(False).astype(bool)].copy()
+        total_recebido = float(df_pago_base["valor_total"].sum())
+
+        total_unidades = 0
+        for itens in df["itens"]:
+            for item in itens or []:
+                try:
+                    total_unidades += float(item.get("quantidade", 0))
+                except (TypeError, ValueError):
+                    pass
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("📝 Propostas", f"{total_propostas:,}".replace(",", "."))
+        m2.metric(
+            "💰 Total Orçado",
+            f"R$ {total_orcado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+        m3.metric(
+            "✅ Total Recebido",
+            f"R$ {total_recebido:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+        m4.metric("📦 Unidades", f"{total_unidades:,.0f}".replace(",", "."))
+
+        st.divider()
+
         st.subheader("👥 Total por Cliente")
-        st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
+        df_clientes = (
+            df.groupby("cliente_nome", dropna=False)["valor_total"]
+            .sum()
+            .reset_index()
+            .sort_values("valor_total", ascending=False)
+        )
+        grafico = criar_grafico_profissional(
+            df_clientes, "cliente_nome", "valor_total",
+            "Valor Total por Cliente", horizontal=True
+        )
+        if grafico:
+            st.altair_chart(grafico, use_container_width=True)
+
         st.divider()
-        
-        if per == "Dia": 
-            df_plot = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))
+
+        df_data = df.dropna(subset=["Data"]).copy()
+
+        if periodo == "Dia":
+            df_data["Periodo"] = df_data["Data"].dt.strftime("%d/%m/%Y")
+        elif periodo == "Semana":
+            df_data["Periodo"] = df_data["Data"].dt.to_period("W").apply(lambda x: x.start_time)
+        elif periodo == "Mês":
+            df_data["Periodo"] = df_data["Data"].dt.to_period("M").dt.to_timestamp()
         else:
-            r = {"Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
-            df_plot = df.set_index('Data').resample(r)
-        
-        df_vendas = df_plot['valor_total'].sum().reset_index()
-        col_x = 'Data' if per != "Dia" else 'Data'
+            df_data["Periodo"] = df_data["Data"].dt.to_period("Y").dt.to_timestamp()
+
+        df_vendas = (
+            df_data.groupby("Periodo")["valor_total"].sum().reset_index()
+            if not df_data.empty else pd.DataFrame(columns=["Periodo", "valor_total"])
+        )
+
         st.subheader("📊 Total de Vendas (Orçamentos Gerados)")
-        st.altair_chart(criar_grafico_profissional(df_vendas, col_x, 'valor_total', 'Valor Total Orçado (R$)'), use_container_width=True)
+        if not df_vendas.empty:
+            st.line_chart(
+                df_vendas.set_index("Periodo")["valor_total"],
+                use_container_width=True
+            )
+        else:
+            st.info("Não há dados suficientes para este período.")
+
         st.divider()
-        
-        df_pago = df[df['pago'] == True].groupby(df['Data'].dt.strftime('%d/%m/%Y') if per == "Dia" else df.set_index('Data').resample(r).groups)['valor_total'].sum().reset_index() if per == "Dia" else df[df['pago'] == True].set_index('Data').resample(r)['valor_total'].sum().reset_index()
+
         st.subheader("💰 Total Recebido (Valores Efetivamente PAGOS)")
-        st.altair_chart(criar_grafico_profissional(df_pago, 'Data' if per != "Dia" else 'Data', 'valor_total', 'Total em Caixa (R$)'), use_container_width=True)
+        if not df_pago_base.empty:
+            df_pago_data = df_pago_base.dropna(subset=["Data"]).copy()
+
+            if periodo == "Dia":
+                df_pago_data["Periodo"] = df_pago_data["Data"].dt.strftime("%d/%m/%Y")
+            elif periodo == "Semana":
+                df_pago_data["Periodo"] = df_pago_data["Data"].dt.to_period("W").apply(lambda x: x.start_time)
+            elif periodo == "Mês":
+                df_pago_data["Periodo"] = df_pago_data["Data"].dt.to_period("M").dt.to_timestamp()
+            else:
+                df_pago_data["Periodo"] = df_pago_data["Data"].dt.to_period("Y").dt.to_timestamp()
+
+            df_pago = (
+                df_pago_data.groupby("Periodo")["valor_total"].sum().reset_index()
+                if not df_pago_data.empty else pd.DataFrame()
+            )
+
+            if not df_pago.empty:
+                st.line_chart(
+                    df_pago.set_index("Periodo")["valor_total"],
+                    use_container_width=True
+                )
+            else:
+                st.info("Não há dados de pagamento para este período.")
+        else:
+            st.info("Ainda não existem propostas marcadas como pagas.")
+
         st.divider()
-        
-        df_prop = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))['numero_proposta'].count().reset_index() if per == "Dia" else df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
+
         st.subheader("📝 Volume de Propostas Geradas")
-        st.altair_chart(criar_grafico_profissional(df_prop, 'Data' if per != "Dia" else 'Data', 'numero_proposta', 'Quantidade de Propostas'), use_container_width=True)
+        if not df_data.empty:
+            df_volume = (
+                df_data.groupby("Periodo")["numero_proposta"]
+                .count()
+                .reset_index()
+            )
+            st.bar_chart(
+                df_volume.set_index("Periodo")["numero_proposta"],
+                use_container_width=True
+            )
+        else:
+            st.info("Não há dados para o volume de propostas.")
+
+        st.divider()
+
+        st.subheader("🏆 Produtos Mais Vendidos")
+
+        produtos = []
+        for prop in h:
+            for item in prop.get("itens", []) or []:
+                produto = str(item.get("produto", "")).strip()
+                try:
+                    quantidade = float(item.get("quantidade", 0))
+                except (TypeError, ValueError):
+                    quantidade = 0
+                try:
+                    valor_unitario = float(item.get("valor_unitario", 0))
+                except (TypeError, ValueError):
+                    valor_unitario = 0
+
+                if produto and quantidade > 0:
+                    produtos.append({
+                        "produto": produto,
+                        "quantidade": quantidade,
+                        "faturamento": quantidade * valor_unitario
+                    })
+
+        if produtos:
+            df_produtos = pd.DataFrame(produtos)
+
+            df_ranking = (
+                df_produtos.groupby("produto", as_index=False)
+                .agg(
+                    quantidade=("quantidade", "sum"),
+                    faturamento=("faturamento", "sum")
+                )
+                .sort_values("quantidade", ascending=False)
+            )
+
+            df_top = df_ranking.head(top_n).copy()
+
+            grafico_produtos = criar_grafico_profissional(
+                df_top, "produto", "quantidade",
+                f"Top {top_n} - Produtos Mais Vendidos",
+                horizontal=True, formato=".0f"
+            )
+            if grafico_produtos:
+                st.altair_chart(grafico_produtos, use_container_width=True)
+
+            tabela = df_top.copy()
+            tabela.insert(0, "Posição", range(1, len(tabela) + 1))
+            tabela["quantidade"] = tabela["quantidade"].apply(
+                lambda x: int(x) if float(x).is_integer() else round(x, 2)
+            )
+            tabela["faturamento"] = tabela["faturamento"].apply(
+                lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+            tabela.columns = ["Posição", "Produto", "Quantidade Vendida", "Faturamento"]
+
+            st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            st.subheader("💰 Produtos que Mais Faturam")
+
+            df_faturamento = (
+                df_ranking.sort_values("faturamento", ascending=False)
+                .head(top_n)
+                .copy()
+            )
+
+            grafico_faturamento = criar_grafico_profissional(
+                df_faturamento, "produto", "faturamento",
+                f"Top {top_n} - Produtos por Faturamento",
+                horizontal=True, formato=",.2f"
+            )
+            if grafico_faturamento:
+                st.altair_chart(grafico_faturamento, use_container_width=True)
+
+            st.divider()
+
+            st.subheader("✅ Produtos Efetivamente Vendidos (Propostas Pagas)")
+
+            produtos_pagos = []
+            for prop in h:
+                if not prop.get("pago", False):
+                    continue
+
+                for item in prop.get("itens", []) or []:
+                    produto = str(item.get("produto", "")).strip()
+                    try:
+                        quantidade = float(item.get("quantidade", 0))
+                    except (TypeError, ValueError):
+                        quantidade = 0
+                    try:
+                        valor_unitario = float(item.get("valor_unitario", 0))
+                    except (TypeError, ValueError):
+                        valor_unitario = 0
+
+                    if produto and quantidade > 0:
+                        produtos_pagos.append({
+                            "produto": produto,
+                            "quantidade": quantidade,
+                            "faturamento": quantidade * valor_unitario
+                        })
+
+            if produtos_pagos:
+                df_pagos = (
+                    pd.DataFrame(produtos_pagos)
+                    .groupby("produto", as_index=False)
+                    .agg(
+                        quantidade=("quantidade", "sum"),
+                        faturamento=("faturamento", "sum")
+                    )
+                    .sort_values("quantidade", ascending=False)
+                    .head(top_n)
+                )
+
+                grafico_pagos = criar_grafico_profissional(
+                    df_pagos, "produto", "quantidade",
+                    f"Top {top_n} - Produtos Pagos",
+                    horizontal=True, formato=".0f"
+                )
+                if grafico_pagos:
+                    st.altair_chart(grafico_pagos, use_container_width=True)
+
+                tabela_pagos = df_pagos.copy()
+                tabela_pagos.insert(0, "Posição", range(1, len(tabela_pagos) + 1))
+                tabela_pagos["quantidade"] = tabela_pagos["quantidade"].apply(
+                    lambda x: int(x) if float(x).is_integer() else round(x, 2)
+                )
+                tabela_pagos["faturamento"] = tabela_pagos["faturamento"].apply(
+                    lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                )
+                tabela_pagos.columns = [
+                    "Posição", "Produto", "Quantidade Vendida", "Faturamento"
+                ]
+                st.dataframe(
+                    tabela_pagos,
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info(
+                    "Ainda não existem produtos em propostas marcadas como pagas."
+                )
+        else:
+            st.info("Ainda não existem produtos registrados nas propostas.")
+
