@@ -38,50 +38,64 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
+# --- FUNÇÃO GERAR HTML (LAYOUT PROFISSIONAL ATUALIZADO) ---
 def gerar_html(prop):
-    # Segurança para calcular valor se não existir
     total = prop.get('valor_total', 0)
-    if total == 0: total = sum(i.get('quantidade',0) * i.get('valor_unitario',0) for i in prop.get('itens',[]))
+    if total == 0: total = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
     
-    # Construção do HTML com CSS embutido e Grid 2x2
+    itens_html = ""
+    for item in prop.get('itens', []):
+        subtotal_item = item.get('quantidade', 0) * item.get('valor_unitario', 0)
+        itens_html += f"""
+        <tr>
+            <td>{item.get('produto', '')}</td>
+            <td>{item.get('quantidade', 0)}</td>
+            <td>R$ {item.get('valor_unitario', 0):.2f}</td>
+            <td>R$ {subtotal_item:.2f}</td>
+        </tr>"""
+
+    wa_link = f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}"
+
     html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="pt-br">
     <head>
         <meta charset="utf-8">
         <style>
-            body {{ font-family: sans-serif; padding: 20px; }}
-            .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
-            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; }}
-            .info-item label {{ font-size: 10px; font-weight: bold; color: #555; text-transform: uppercase; display: block; }}
-            .info-item span {{ font-size: 13px; font-weight: 600; }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            th {{ background: #eee; padding: 8px; text-align: left; }}
-            td {{ padding: 8px; border-bottom: 1px solid #eee; }}
+            @page {{ size: A4 portrait; margin: 8mm; }}
+            * {{ box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 10px; }}
+            .container {{ max-width: 780px; margin: 0 auto; background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }}
+            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }}
+            .title-box {{ background: #1e293b; color: white; padding: 8px 14px; border-radius: 6px; margin-bottom: 12px; }}
+            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px 15px; margin-bottom: 12px; background: #f1f5f9; padding: 10px 14px; border-radius: 6px; }}
+            .info-item label {{ font-size: 9px; text-transform: uppercase; color: #64748b; font-weight: bold; display: block; }}
+            .info-item span {{ font-size: 12px; font-weight: 600; color: #0f172a; }}
+            table {{ width: 100%; border-collapse: collapse; margin-bottom: 12px; }}
+            th {{ background: #334155; color: white; padding: 6px 10px; text-align: left; font-size: 11px; }}
+            td {{ padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }}
+            .summary-row.total {{ font-size: 14px; font-weight: bold; color: #16a34a; border-top: 2px solid #e2e8f0; padding-top: 5px; text-align: right; }}
+            .btn-wa {{ display: block; width: 100%; background: #22c55e; color: white; text-align: center; padding: 10px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 13px; margin-top: 20px; }}
+            @media print {{ .btn-wa {{ display: none !important; }} }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>Orçamento {prop['numero_proposta']}</h1>
-            
-            <div class="info-grid">
-                <div class="info-item"><label>Cliente / Empresa</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
-                <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
-                <div class="info-item"><label>WhatsApp / Contato</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
-                <div class="info-item"><label>Data Prevista de Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+            <div class="header">
+                <h2>ALPHAFEST</h2>
+                <div>Itatiba - SP</div>
             </div>
-
+            <div class="title-box"><h2>Orçamento {prop.get('numero_proposta', 'N/A')}</h2></div>
+            <div class="info-grid">
+                <div class="info-item"><label>Cliente</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
+                <div class="info-item"><label>Data Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+            </div>
             <table>
-                <thead><tr><th>Produto</th><th>Qtd</th></tr></thead>
-                <tbody>
-    """
-    for item in prop.get('itens', []):
-        html += f"<tr><td>{item.get('produto', '')}</td><td>{item.get('quantidade', 0)}</td></tr>"
-    
-    html += f"""
-                </tbody>
+                <thead><tr><th>Produto</th><th>Qtd</th><th>Unit.</th><th>Total</th></tr></thead>
+                <tbody>{itens_html}</tbody>
             </table>
-            <h3>Total: R$ {total:.2f}</h3>
+            <div class="summary-row total">TOTAL: R$ {total:.2f}</div>
+            <a href="{wa_link}" class="btn-wa">📱 APROVAR PROPOSTA VIA WHATSAPP</a>
         </div>
     </body>
     </html>
