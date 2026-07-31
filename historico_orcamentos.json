@@ -1,1 +1,23 @@
-
+[
+    {
+        "numero_proposta": "PROP-202607310002",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "30/07/2026",
+        "cliente_nome": "PAULA FELIPE",
+        "cliente_cpf_cnpj": "",
+        "cliente_wa": "11976561566",
+        "itens": [
+            {
+                "produto": "PAPEL DE ARROZ",
+                "especificacoes": "Tema: QUADRA DE VOLEI | Nome:  | Idade:  | Cor:  | Obs: ARTE APROVADO CLIENTE",
+                "quantidade": 1,
+                "valor_unitario": 12.0
+            }
+        ],
+        "desconto_valor": 0.0,
+        "prazo_dias": "10",
+        "frete_tipo": "Retirada em Itatiba",
+        "pago": true,
+        "entregue": true
+    }
+]
