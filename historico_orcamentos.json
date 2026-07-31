@@ -1,5 +1,34 @@
 [
     {
+        "numero_proposta": "PROP-202607311222",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "DIPDRINKS MANU",
+        "itens": [
+            {
+                "produto": "PAPEL ARROZ 25/6",
+                "especificacoes": "Tema: VARIOS  | Nome:  | Idade:  | Cor:  | Obs: COPA - MONOGRAMA",
+                "quantidade": 5,
+                "valor_unitario": 10.0
+            },
+            {
+                "produto": "PAPEL ARROZ ",
+                "especificacoes": "Tema: MADU 18ANOS | Nome:  | Idade:  | Cor:  | Obs: ",
+                "quantidade": 4,
+                "valor_unitario": 10.0
+            },
+            {
+                "produto": "PAPEL ARROZ ",
+                "especificacoes": "Tema: THE WILKES | Nome:  | Idade:  | Cor:  | Obs: LOGO",
+                "quantidade": 7,
+                "valor_unitario": 10.0
+            }
+        ],
+        "valor_total": 160.0,
+        "pago": false,
+        "entregue": false
+    },
+    {
         "numero_proposta": "PROP-202607311200",
         "data_geracao": "31/07/2026",
         "data_entrega": "31/07/2026",
