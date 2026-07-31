@@ -102,7 +102,7 @@ def formatar_msg_whatsapp(prop):
         f"*Frete/Entrega:* {frete}",
         f"*Validade:* {validade} {unidade_validade}",
         sep,
-        "*PAGAMENTO VIA PIX (100%):*",
+        "*PAGAMENTO VIA PIX:*",
         "*Clique no link para pagar:* https://linkspix.app/alphafestitatiba",
         "",
         "* Titular: Ana Lúcia Zepelini",
@@ -119,6 +119,33 @@ def get_image_base64(path):
         with open(path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     return ""
+
+
+def encontrar_logo_base64():
+    """Localiza automaticamente o logo existente no repositório."""
+    nomes_preferidos = [
+        "logo.png", "Logo.png", "LOGO.png", "logo_alphafest.png",
+        "alphafest.png", "logo.jpg", "logo.jpeg", "logo.webp",
+    ]
+    for nome in nomes_preferidos:
+        if os.path.exists(nome):
+            return get_image_base64(nome), os.path.splitext(nome)[1].lower()
+
+    extensoes = (".png", ".jpg", ".jpeg", ".webp")
+    candidatos = []
+    try:
+        for nome in os.listdir("."):
+            nome_lower = nome.lower()
+            if nome_lower.endswith(extensoes) and ("logo" in nome_lower or "alpha" in nome_lower):
+                candidatos.append(nome)
+    except OSError:
+        candidatos = []
+
+    if candidatos:
+        candidatos.sort(key=lambda n: ("logo" not in n.lower(), len(n)))
+        nome = candidatos[0]
+        return get_image_base64(nome), os.path.splitext(nome)[1].lower()
+    return "", ""
 
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
@@ -327,12 +354,22 @@ def gerar_html(proposta):
     observacoes_txt = esc(observacoes, "Nenhuma observação adicional.")
     pagamento_txt = esc(pagamento, "A combinar")
 
-    # Dados de contato da empresa: usa os dados já existentes no aplicativo
-    # quando disponíveis, com fallback seguro.
-    empresa_nome = "ALPHAFEST"
-    empresa_subtitulo = "Personalizados • Impressão 3D • Papelaria"
-    empresa_whatsapp = "(41) 99999-9999"
-    empresa_instagram = "@alphafest"
+    empresa_nome = "Alphafest"
+    empresa_cnpj = "24.374.857/0001-30"
+    empresa_ie = "382105300112"
+    empresa_endereco = "Avenida Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP"
+    empresa_cep = "13251-530"
+    empresa_email = "alphafesti@gmail.com"
+    empresa_celular = "(11) 9724-9533"
+
+    logo_base64, logo_ext = encontrar_logo_base64()
+    mime_logo = {
+        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"
+    }.get(logo_ext, "image/png")
+    logo_html = (
+        f'<img class="brand-logo" src="data:{mime_logo};base64,{logo_base64}" alt="Logo Alphafest">'
+        if logo_base64 else '<div class="brand-mark">AF</div>'
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -392,6 +429,24 @@ def gerar_html(proposta):
         display: flex;
         align-items: center;
         gap: 14px;
+    }}
+
+    .brand-logo {{
+        width: 94px;
+        max-height: 78px;
+        object-fit: contain;
+        flex: 0 0 auto;
+    }}
+
+    .company-info {{
+        font-size: 9.5px;
+        line-height: 1.45;
+        color: #4b5563;
+        margin-top: 7px;
+    }}
+
+    .company-info strong {{
+        color: #111827;
     }}
 
     .brand-mark {{
@@ -794,10 +849,16 @@ def gerar_html(proposta):
 
     <header class="header">
         <div class="brand">
-            <div class="brand-mark">AF</div>
+            {logo_html}
             <div>
                 <div class="brand-name">{empresa_nome}</div>
-                <div class="brand-subtitle">{empresa_subtitulo}</div>
+                <div class="company-info">
+                    <strong>CNPJ:</strong> {empresa_cnpj} &nbsp; | &nbsp; <strong>IE:</strong> {empresa_ie}<br>
+                    {empresa_endereco}<br>
+                    <strong>CEP:</strong> {empresa_cep}<br>
+                    <strong>Email:</strong> {empresa_email}<br>
+                    <strong>Celular:</strong> {empresa_celular}
+                </div>
             </div>
         </div>
 
@@ -919,8 +980,9 @@ def gerar_html(proposta):
     <footer class="footer">
         <div class="footer-brand">{empresa_nome}</div>
         <div class="footer-contact">
-            WhatsApp: {empresa_whatsapp}<br>
-            Instagram: {empresa_instagram}
+            CNPJ: {empresa_cnpj}<br>
+            Celular: {empresa_celular}<br>
+            Email: {empresa_email}
         </div>
     </footer>
 
@@ -1008,7 +1070,7 @@ with st.sidebar:
             type="primary",
             use_container_width=True,
         )
-    st.caption("Versão 2.1")
+    st.caption("Versão 2.2")
 
 # --- ESTADO DO FORMULÁRIO ---
 def iniciar_estado(nome, valor):
@@ -1024,6 +1086,7 @@ iniciar_estado("form_prazo", "10")
 iniciar_estado("form_frete", "Retirada em Itatiba")
 iniciar_estado("form_validade", "5")
 iniciar_estado("editar_numero", None)
+iniciar_estado("alerta_proposta_numero", None)
 
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
@@ -1042,15 +1105,73 @@ for p in carregar_historico():
     elif dias <= 3:
         alertas_proximos.append((p, dias))
 
-if alertas_atrasados:
-    nomes = "; ".join(f"{p.get('numero_proposta')} - {p.get('cliente_nome')} ({dias} dia(s))" for p, dias in alertas_atrasados)
-    st.error(f"🚨 Entregas atrasadas: {nomes}")
-if alertas_hoje:
-    nomes = "; ".join(f"{p.get('numero_proposta')} - {p.get('cliente_nome')}" for p in alertas_hoje)
-    st.warning(f"⚠️ Entregas para hoje: {nomes}")
-if alertas_proximos:
-    nomes = "; ".join(f"{p.get('numero_proposta')} - {p.get('cliente_nome')} (em {dias} dia(s))" for p, dias in alertas_proximos)
-    st.info(f"📅 Próximas entregas: {nomes}")
+def renderizar_alertas_clicaveis(titulo, alertas, tipo):
+    if not alertas:
+        return
+    if tipo == "atrasado":
+        st.error(titulo)
+        pares = [(p, f"{dias} dia(s) em atraso") for p, dias in alertas]
+    elif tipo == "hoje":
+        st.warning(titulo)
+        pares = [(p, "Entrega hoje") for p in alertas]
+    else:
+        st.info(titulo)
+        pares = [(p, f"Entrega em {dias} dia(s)") for p, dias in alertas]
+
+    for p, situacao in pares:
+        numero_alerta = p.get("numero_proposta", "SEM-NÚMERO")
+        cliente_alerta = p.get("cliente_nome", "Cliente não informado")
+        c1, c2 = st.columns([7, 1])
+        c1.write(f"**{numero_alerta} — {cliente_alerta}** · {situacao}")
+        if c2.button("Abrir", key=f"abrir_alerta_{tipo}_{numero_alerta}", use_container_width=True):
+            st.session_state.alerta_proposta_numero = numero_alerta
+            st.rerun()
+
+renderizar_alertas_clicaveis("🚨 Entregas atrasadas", alertas_atrasados, "atrasado")
+renderizar_alertas_clicaveis("⚠️ Entregas para hoje", alertas_hoje, "hoje")
+renderizar_alertas_clicaveis("📅 Próximas entregas", alertas_proximos, "proximo")
+
+if st.session_state.alerta_proposta_numero:
+    proposta_alerta = next(
+        (p for p in carregar_historico() if p.get("numero_proposta") == st.session_state.alerta_proposta_numero),
+        None,
+    )
+    if proposta_alerta:
+        subtotal_alerta, desconto_alerta, total_alerta = calcular_valores_proposta(proposta_alerta)
+        with st.expander(
+            f"🔎 Proposta {proposta_alerta.get('numero_proposta')} — {proposta_alerta.get('cliente_nome')}",
+            expanded=True,
+        ):
+            st.write(f"**Entrega:** {proposta_alerta.get('data_entrega', 'Não informada')}")
+            st.write(f"**WhatsApp:** {proposta_alerta.get('whatsapp', proposta_alerta.get('cliente_wa', 'Não informado')) or 'Não informado'}")
+            st.write("**Itens:**")
+            for item in proposta_alerta.get("itens", []) or []:
+                st.write(
+                    f"• {item.get('produto', 'Produto')} — Qtd: {item.get('quantidade', 0)} — "
+                    f"R$ {valor_float(item.get('valor_unitario')):,.2f}"
+                )
+                if item.get("especificacoes"):
+                    st.caption(item.get("especificacoes"))
+            st.write(
+                f"**Total:** R$ {total_alerta:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            )
+            a1, a2, a3 = st.columns(3)
+            if a1.button("✏️ Editar proposta", key=f"editar_alerta_{proposta_alerta.get('numero_proposta')}"):
+                carregar_proposta_no_formulario(proposta_alerta, duplicar=False)
+                st.session_state.alerta_proposta_numero = None
+                st.rerun()
+            a2.download_button(
+                "📄 Baixar HTML",
+                gerar_html(proposta_alerta),
+                file_name=f"{proposta_alerta.get('numero_proposta', 'proposta')}.html",
+                mime="text/html",
+                key=f"html_alerta_{proposta_alerta.get('numero_proposta')}",
+            )
+            if a3.button("Fechar", key=f"fechar_alerta_{proposta_alerta.get('numero_proposta')}"):
+                st.session_state.alerta_proposta_numero = None
+                st.rerun()
+    else:
+        st.session_state.alerta_proposta_numero = None
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
