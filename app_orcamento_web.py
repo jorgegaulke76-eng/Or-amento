@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date
 import altair as alt
 
 # --- CONFIGURAÇÃO ---
@@ -34,28 +34,36 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
-# --- NOVO ESTILO PROFISSIONAL PARA GRÁFICOS ---
 def criar_grafico_profissional(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
         x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=0)),
-        y=alt.Y(f'{y_col}:Q', title="", axis=None), # Remove eixo Y para limpar
+        y=alt.Y(f'{y_col}:Q', title="", axis=None),
         tooltip=[x_col, y_col]
-    ).properties(title=titulo, height=350)
-    
+    ).properties(title=titulo, height=250)
     text = chart.mark_text(align='center', baseline='bottom', dy=-5, fontWeight='bold', color='#2c3e50').encode(
-        text=alt.Text(y_col, format='.2f')
+        text=alt.Text(y_col, format='.0f') # .0f para inteiros ou .2f para valores
     )
     return (chart + text).configure_view(strokeWidth=0).configure_axis(grid=False)
 
-# --- SIDEBAR: BACKUP ---
+# --- SIDEBAR E ALERTAS ---
 with st.sidebar:
     st.header("⚙️ Painel de Segurança")
     h_atual = carregar_historico()
     if h_atual:
         st.download_button("💾 BAIXAR BACKUP", data=json.dumps(h_atual, ensure_ascii=False, indent=4), file_name="backup_historico.json", mime="application/json", type="primary", use_container_width=True)
 
-# --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
+
+# Alertas de Vencimento
+hoje = date.today()
+for p in carregar_historico():
+    try:
+        data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
+        if (not p.get("pago", False) or not p.get("entregue", False)):
+            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
+            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
+    except: continue
+
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
@@ -66,13 +74,11 @@ with aba1:
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
     prod = st.text_input("Produto", key=f"p_{fk}")
     with st.expander("🎨 Personalização"):
-        c1, c2 = st.columns(2)
-        et = c1.text_input("Tema", key=f"et_{fk}")
-        en = c1.text_input("Nome", key=f"en_{fk}")
-        ec = c1.text_input("Cor", key=f"ec_{fk}")
-        ei = c2.text_input("Idade", key=f"ei_{fk}")
+        et = st.text_input("Tema", key=f"et_{fk}")
+        en = st.text_input("Nome", key=f"en_{fk}")
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
+    dt_entrega = st.date_input("Data Entrega", key=f"dt_{fk}")
     
     if st.button("➕ Adicionar Item"):
         if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
@@ -80,11 +86,11 @@ with aba1:
         st.rerun()
 
     if "temp_itens" in st.session_state and st.session_state.temp_itens:
-        st.dataframe(pd.DataFrame(st.session_state.temp_itens))
         if st.button("🚀 SALVAR PROPOSTA"):
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
+                "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
                 "cliente_nome": nome, "itens": list(st.session_state.temp_itens),
                 "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens),
                 "pago": False, "entregue": False
@@ -100,10 +106,10 @@ with aba2:
         num_p = prop['numero_proposta']
         with st.expander(f"{num_p} - {prop['cliente_nome']}"):
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
+            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
             if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
 
 with aba3:
-    st.subheader("📊 Relatórios Executivos")
     h = carregar_historico()
     if h:
         df = pd.DataFrame(h)
@@ -115,9 +121,9 @@ with aba3:
         
         col1, col2 = st.columns(2)
         with col1:
-            st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total por Cliente'), use_container_width=True)
-            st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Receita no Período'), use_container_width=True)
+            st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Total por Cliente'), use_container_width=True)
+            st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Valor no Período'), use_container_width=True)
         with col2:
-            st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd Propostas no Período'), use_container_width=True)
+            st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Propostas no Período'), use_container_width=True)
             df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade']} for p in h for it in p['itens']])
-            st.altair_chart(criar_grafico_profissional(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Produtos Mais Vendidos'), use_container_width=True)
+            st.altair_chart(criar_grafico_profissional(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Produtos Vendidos'), use_container_width=True)
