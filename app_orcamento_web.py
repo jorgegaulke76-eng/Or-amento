@@ -1060,6 +1060,26 @@ def atualizar_proposta(numero_original, dados_atualizados):
 
 
 def carregar_proposta_no_formulario(prop, duplicar=False):
+    """Agenda o carregamento para o próximo rerun.
+
+    No Streamlit, uma chave ligada a um widget não pode ser alterada depois que
+    o widget já foi criado no mesmo ciclo. Por isso, guardamos os dados em uma
+    chave temporária e aplicamos antes da criação dos campos no próximo rerun.
+    """
+    st.session_state._proposta_pendente_formulario = {
+        "prop": dict(prop),
+        "duplicar": bool(duplicar),
+    }
+
+
+def aplicar_proposta_pendente_no_formulario():
+    pendente = st.session_state.pop("_proposta_pendente_formulario", None)
+    if not pendente:
+        return
+
+    prop = pendente.get("prop", {}) or {}
+    duplicar = bool(pendente.get("duplicar", False))
+
     st.session_state.temp_itens = [dict(item) for item in prop.get("itens", []) or []]
     st.session_state.form_cliente = prop.get("cliente_nome", prop.get("cliente", ""))
     st.session_state.form_documento = prop.get("documento", prop.get("cliente_cpf_cnpj", ""))
@@ -1069,9 +1089,12 @@ def carregar_proposta_no_formulario(prop, duplicar=False):
     st.session_state.form_frete = str(prop.get("frete_tipo", "Retirada em Itatiba"))
     st.session_state.form_validade = str(prop.get("validade_dias", "5"))
     try:
-        st.session_state.form_entrega = datetime.strptime(str(prop.get("data_entrega", "")), "%d/%m/%Y").date()
-    except ValueError:
+        st.session_state.form_entrega = datetime.strptime(
+            str(prop.get("data_entrega", "")), "%d/%m/%Y"
+        ).date()
+    except (TypeError, ValueError):
         st.session_state.form_entrega = date.today()
+
     st.session_state.editar_numero = None if duplicar else prop.get("numero_proposta")
     st.session_state.form_key += 1
 
@@ -1111,7 +1134,7 @@ with st.sidebar:
             type="primary",
             use_container_width=True,
         )
-    st.caption("Versão 2.2")
+    st.caption("Versão 2.4")
 
 # --- ESTADO DO FORMULÁRIO ---
 def iniciar_estado(nome, valor):
@@ -1128,6 +1151,9 @@ iniciar_estado("form_frete", "Retirada em Itatiba")
 iniciar_estado("form_validade", "5")
 iniciar_estado("editar_numero", None)
 iniciar_estado("alerta_proposta_numero", None)
+
+# Deve acontecer antes da criação dos widgets vinculados às chaves form_*.
+aplicar_proposta_pendente_no_formulario()
 
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
