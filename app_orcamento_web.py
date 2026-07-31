@@ -9,6 +9,12 @@ import altair as alt
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
+# --- INICIALIZAÇÃO DE SEGURANÇA (PARA NÃO DAR ERRO) ---
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+if "temp_itens" not in st.session_state:
+    st.session_state.temp_itens = []
+
 # --- FUNÇÕES ---
 def carregar_historico():
     if os.path.exists(ARQUIVO_HISTORICO):
@@ -35,7 +41,7 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
-def criar_grafico_profissional(df, x_col, y_col, titulo):
+def criar_grafico_limpo(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
         x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
         y=alt.Y(f'{y_col}:Q', title="", axis=None),
@@ -58,14 +64,14 @@ st.title("📄 ORÇAMENTOS ALPHAFEST")
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
-    fk = st.session_state.get("form_key", 0)
+    fk = st.session_state.form_key
     nome = st.text_input("Nome / Razão Social", key=f"c_{fk}")
     c1, c2 = st.columns(2)
     doc = c1.text_input("CPF / CNPJ", key=f"d_{fk}")
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
     
     prod = st.text_input("Produto", key=f"p_{fk}")
-    with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
+    with st.expander("🎨 Personalização & Especificações", expanded=True):
         c1, c2 = st.columns(2)
         et = c1.text_input("Tema / Ocasião", key=f"et_{fk}")
         en = c1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
@@ -77,20 +83,17 @@ with aba1:
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
     
     if st.button("➕ Adicionar Item"):
-        if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
         detalhes = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
         st.session_state.temp_itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
-    if "temp_itens" in st.session_state and st.session_state.temp_itens:
+    if st.session_state.temp_itens:
         st.write("📋 **Prévia dos itens:**")
         st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
         
         st.divider()
         desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
-        prazo = st.text_input("Prazo (Dias)", value="10", key=f"prazo_{fk}")
         dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
-        frete = st.text_input("Frete", value="Retirada em Itatiba", key=f"frete_{fk}")
         
         if st.button("🚀 SALVAR PROPOSTA"):
             dados = {
@@ -127,14 +130,14 @@ with aba3:
         r = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
         
         st.subheader("👥 Total por Cliente")
-        st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
+        st.altair_chart(criar_grafico_limpo(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
         st.divider()
         st.subheader("💰 Faturamento no Período")
-        st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Receita (R$)'), use_container_width=True)
+        st.altair_chart(criar_grafico_limpo(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Receita (R$)'), use_container_width=True)
         st.divider()
         st.subheader("📝 Propostas Geradas no Período")
-        st.altair_chart(criar_grafico_profissional(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd Propostas'), use_container_width=True)
+        st.altair_chart(criar_grafico_limpo(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd Propostas'), use_container_width=True)
         st.divider()
         st.subheader("📦 Produtos Mais Vendidos no Período")
         df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade'], 'Data': pd.to_datetime(p['data_geracao'], dayfirst=True)} for p in h for it in p['itens']])
-        st.altair_chart(criar_grafico_profissional(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Qtd Vendida'), use_container_width=True)
+        st.altair_chart(criar_grafico_limpo(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Qtd Vendida'), use_container_width=True)
