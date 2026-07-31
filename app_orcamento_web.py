@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import html
+import re
 import urllib.parse
 from urllib.parse import quote
 from datetime import datetime, date
@@ -72,7 +74,7 @@ def carregar_historico():
     return []
 
 def salvar_historico_completo(historico):
-    if not historico: return
+    """Salva o histórico, inclusive quando a lista fica vazia."""
     with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
         json.dump(historico, f, ensure_ascii=False, indent=4)
 
@@ -87,6 +89,51 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
+def criar_grafico_profissional(df, campo_categoria, campo_valor, titulo, horizontal=False, formato=",.2f"):
+    """Cria gráfico Altair com validação para evitar erros nos relatórios."""
+    if df is None or df.empty:
+        return None
+    if campo_categoria not in df.columns or campo_valor not in df.columns:
+        return None
+
+    dados = df[[campo_categoria, campo_valor]].copy()
+    dados[campo_categoria] = dados[campo_categoria].fillna("Não informado").astype(str)
+    dados[campo_valor] = pd.to_numeric(dados[campo_valor], errors="coerce").fillna(0)
+    dados = dados[dados[campo_valor] >= 0]
+    if dados.empty:
+        return None
+
+    tooltip = [
+        alt.Tooltip(f"{campo_categoria}:N", title=campo_categoria.replace("_", " ").title()),
+        alt.Tooltip(f"{campo_valor}:Q", title=campo_valor.replace("_", " ").title(), format=formato),
+    ]
+
+    if horizontal:
+        ordem = alt.SortField(field=campo_valor, order="descending")
+        grafico = (
+            alt.Chart(dados)
+            .mark_bar(cornerRadiusEnd=4)
+            .encode(
+                x=alt.X(f"{campo_valor}:Q", title=None),
+                y=alt.Y(f"{campo_categoria}:N", title=None, sort=ordem),
+                tooltip=tooltip,
+            )
+        )
+    else:
+        ordem = alt.SortField(field=campo_valor, order="descending")
+        grafico = (
+            alt.Chart(dados)
+            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .encode(
+                x=alt.X(f"{campo_categoria}:N", title=None, sort=ordem),
+                y=alt.Y(f"{campo_valor}:Q", title=None),
+                tooltip=tooltip,
+            )
+        )
+
+    return grafico.properties(title=titulo, height=max(280, min(620, len(dados) * 34)))
+
+
 def gerar_html(proposta):
     """Gera uma proposta comercial A4, visualmente profissional e pronta para impressão/PDF.
 
@@ -98,12 +145,12 @@ def gerar_html(proposta):
     numero = proposta.get("numero_proposta", "")
     data = proposta.get("data_geracao", proposta.get("data", ""))
     cliente = proposta.get("cliente_nome", proposta.get("cliente", ""))
-    documento = proposta.get("documento", "")
-    whatsapp = proposta.get("whatsapp", "")
+    documento = proposta.get("documento", proposta.get("cliente_cpf_cnpj", ""))
+    whatsapp = proposta.get("whatsapp", proposta.get("cliente_wa", ""))
     data_entrega = proposta.get("data_entrega", "")
     itens = proposta.get("itens", []) or []
     subtotal = proposta.get("subtotal", 0)
-    desconto = proposta.get("desconto", 0)
+    desconto = proposta.get("desconto", proposta.get("desconto_valor", 0))
     total = proposta.get("valor_total", proposta.get("total", 0))
     pagamento = proposta.get("pagamento", "")
     observacoes = proposta.get("observacoes", "")
@@ -203,11 +250,22 @@ def gerar_html(proposta):
     except (TypeError, ValueError):
         subtotal_valor = 0
 
+    # Propostas antigas podem não ter o campo subtotal.
+    if subtotal_valor == 0 and itens:
+        for item in itens:
+            try:
+                subtotal_valor += float(item.get("quantidade", 0)) * float(item.get("valor_unitario", 0))
+            except (TypeError, ValueError, AttributeError):
+                pass
+
     total_valor = 0
     try:
         total_valor = float(total or 0)
     except (TypeError, ValueError):
         total_valor = 0
+
+    if total_valor == 0 and subtotal_valor:
+        total_valor = max(0, subtotal_valor - desconto_valor)
 
     observacoes_txt = esc(observacoes, "Nenhuma observação adicional.")
     pagamento_txt = esc(pagamento, "A combinar")
@@ -878,7 +936,9 @@ with aba1:
                 "documento": doc,
                 "whatsapp": wa,
                 "itens": list(st.session_state.temp_itens),
-                "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc,
+                "subtotal": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens),
+                "desconto": desc,
+                "valor_total": max(0.0, sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc),
                 "pago": False, "entregue": False
             }
             h = carregar_historico()
@@ -899,7 +959,7 @@ with aba2:
             
             c1, c2 = st.columns(2)
             c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={quote(formatar_msg_whatsapp(prop))}")
-            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
+            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html", mime="text/html")
             
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
             st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
