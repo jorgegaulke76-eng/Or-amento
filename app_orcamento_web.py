@@ -20,17 +20,20 @@ if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
 # --- FUNÇÕES AUXILIARES ---
 def formatar_msg_whatsapp(prop):
-    """Monta a mensagem padrão da proposta para envio pelo WhatsApp."""
+    """Monta a mensagem padrão aprovada para envio pelo WhatsApp."""
     prop = prop or {}
 
-    data_emissao = str(prop.get("data_geracao", prop.get("data", ""))).strip()
+    numero_proposta = str(prop.get("numero_proposta", "")).strip() or "N/A"
+    data_emissao = str(prop.get("data_geracao", prop.get("data", ""))).strip() or "N/A"
     cliente = str(prop.get("cliente_nome", prop.get("cliente", ""))).strip() or "N/A"
     documento = str(
         prop.get("documento", prop.get("cliente_cpf_cnpj", ""))
     ).strip() or "N/A"
     entrega = str(prop.get("data_entrega", "")).strip() or "A combinar"
-    prazo = str(prop.get("prazo_dias", "1")).strip() or "1"
-    frete = str(prop.get("frete_tipo", "Retirada em Itatiba")).strip() or "Retirada em Itatiba"
+    prazo = str(prop.get("prazo_dias", "10")).strip() or "10"
+    frete = str(
+        prop.get("frete_tipo", "Retirada em Itatiba")
+    ).strip() or "Retirada em Itatiba"
     validade = str(prop.get("validade_dias", "5")).strip() or "5"
 
     def numero(valor, padrao=0.0):
@@ -41,59 +44,100 @@ def formatar_msg_whatsapp(prop):
 
     def qtd_txt(valor):
         qtd = numero(valor)
-        return str(int(qtd)) if qtd.is_integer() else f"{qtd:.2f}".rstrip("0").rstrip(".")
+        if qtd.is_integer():
+            return str(int(qtd))
+        return f"{qtd:.2f}".rstrip("0").rstrip(".").replace(".", ",")
 
+    def moeda(valor):
+        return f"R$ {numero(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    itens = prop.get("itens", []) or []
     itens_txt = []
-    total_calculado = 0.0
-    for item in prop.get("itens", []) or []:
-        produto = str(item.get("produto", "")).strip()
+    subtotal_calculado = 0.0
+
+    for indice, item in enumerate(itens, start=1):
+        produto = str(item.get("produto", "")).strip() or "Produto não informado"
+        detalhes = str(item.get("especificacoes", "")).strip() or "Não informado"
         quantidade = numero(item.get("quantidade", 0))
         valor_unitario = numero(item.get("valor_unitario", 0))
-        total_item = quantidade * valor_unitario
-        total_calculado += total_item
+        subtotal_item = quantidade * valor_unitario
+        subtotal_calculado += subtotal_item
 
-        if produto:
-            itens_txt.append(
-                f"{qtd_txt(quantidade)} {produto} --- "
-                f"R${valor_unitario:.2f} --- R${total_item:.2f}"
-            )
+        itens_txt.extend([
+            f"*{indice}. {produto}*",
+            f"   └ _Detalhes:_ _{detalhes}_",
+            (
+                f"   └ _Qtd:_ _{qtd_txt(quantidade)} un._ | "
+                f"_Unitário:_ _{moeda(valor_unitario)}_ | "
+                f"_Subtotal:_ _{moeda(subtotal_item)}_"
+            ),
+            "",
+        ])
+
+    if not itens_txt:
+        itens_txt = ["_Nenhum item informado_", ""]
 
     desconto = numero(prop.get("desconto", prop.get("desconto_valor", 0)))
-    total = prop.get("valor_total", prop.get("total"))
-    total_valor = numero(total, total_calculado - desconto)
-    if total is None:
-        total_valor = max(total_calculado - desconto, 0.0)
+    subtotal_salvo = prop.get("subtotal")
+    subtotal = numero(subtotal_salvo, subtotal_calculado)
+    if subtotal_salvo is None or subtotal <= 0:
+        subtotal = subtotal_calculado
+
+    total_salvo = prop.get("valor_total", prop.get("total"))
+    total = numero(total_salvo, max(subtotal - desconto, 0.0))
+    if total_salvo is None:
+        total = max(subtotal - desconto, 0.0)
 
     unidade_prazo = "dia útil" if prazo == "1" else "dias úteis"
     unidade_validade = "dia corrido" if validade == "1" else "dias corridos"
+    separador = "────────────────────────"
 
     linhas = [
-        "PROPOSTA ALPHAFEST ITATIBA",
-        f"Emissão: {data_emissao}",
+        "*📄 PROPOSTA ALPHAFEST ITATIBA*",
         "",
-        f"CLIENTE: {cliente}",
-        f"CPF/CNPJ: {documento}",
-        "-----------------------------------",
-        "ITENS DO PEDIDO:",
+        f"*Nº:* _{numero_proposta}_",
+        f"*Emissão:* _{data_emissao}_",
+        "",
+        f"*CLIENTE:* _{cliente}_",
+        f"*CPF/CNPJ:* _{documento}_",
+        "",
+        separador,
+        "",
+        "*🛒 ITENS DO PEDIDO*",
+        "",
     ]
 
-    linhas.extend(itens_txt or ["Nenhum item informado"])
+    linhas.extend(itens_txt)
 
     linhas.extend([
+        separador,
         "",
-        "-----------------------------------",
-        f"VALOR TOTAL DO PEDIDO: R$ {total_valor:.2f}",
-        "-----------------------------------",
-        f"Previsão de Entrega: {entrega}",
-        f"Prazo de Produção: {prazo} {unidade_prazo}",
-        f"Frete/Entrega: {frete}",
-        f"Validade: {validade} {unidade_validade}",
+        f"*Subtotal:* _{moeda(subtotal)}_",
+        f"*Desconto:* _- {moeda(desconto)}_",
         "",
-        "PAGAMENTO VIA PIX:",
+        "*💰 VALOR TOTAL DO PEDIDO*",
+        f"*{moeda(total)}*",
+        "",
+        separador,
+        "",
+        f"*📅 Previsão de Entrega:* _{entrega}_",
+        f"*⏳ Prazo de Produção:* _{prazo} {unidade_prazo}_",
+        f"*🚚 Frete/Entrega:* _{frete}_",
+        f"*📌 Validade:* _{validade} {unidade_validade}_",
+        "",
+        separador,
+        "",
+        "*💳 PAGAMENTO VIA PIX (100%)*",
+        "",
+        "_Clique no link para pagar:_",
         "https://linkspix.app/alphafestitatiba",
         "",
-        "* Titular: Ana Lúcia Zepelini | Conta: 2515972-5",
-        "*Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !",
+        "*Titular:* _Ana Lúcia Zepelini_",
+        "*Banco:* _Cora SCD (403)_",
+        "*Agência:* _0001_ | *Conta:* _2515972-5_",
+        "*Empresa:* _ANA LUCIA VIEIRA ZEPELINI 29480359880_",
+        "",
+        "⚠️ *Somente após realizado o pagamento e o envio do comprovante daremos seguimento ao seu pedido!*",
     ])
 
     return "\n".join(linhas)
