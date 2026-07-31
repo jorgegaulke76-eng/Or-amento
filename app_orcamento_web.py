@@ -9,11 +9,9 @@ import altair as alt
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
-# --- INICIALIZAÇÃO DE SEGURANÇA (PARA NÃO DAR ERRO) ---
-if "form_key" not in st.session_state:
-    st.session_state.form_key = 0
-if "temp_itens" not in st.session_state:
-    st.session_state.temp_itens = []
+# --- INICIALIZAÇÃO DE SEGURANÇA ---
+if "form_key" not in st.session_state: st.session_state.form_key = 0
+if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
 # --- FUNÇÕES ---
 def carregar_historico():
@@ -27,19 +25,16 @@ def salvar_historico_completo(historico):
     if not historico: return
     with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
         json.dump(historico, f, ensure_ascii=False, indent=4)
-    st.toast("Dados salvos!", icon="✅")
 
 def alternar_status(num_proposta, campo, novo_valor):
     historico = carregar_historico()
     for p in historico:
         if p.get("numero_proposta") == num_proposta: p[campo] = novo_valor
     salvar_historico_completo(historico)
-    st.rerun()
 
 def excluir_proposta(num_proposta):
     historico = [p for p in carregar_historico() if p.get("numero_proposta") != num_proposta]
     salvar_historico_completo(historico)
-    st.rerun()
 
 def criar_grafico_limpo(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
@@ -61,6 +56,17 @@ with st.sidebar:
 
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
+
+# --- ALERTAS DE VENCIMENTO ---
+hoje = date.today()
+for p in carregar_historico():
+    try:
+        data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
+        if (not p.get("pago", False) or not p.get("entregue", False)):
+            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
+            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
+    except: continue
+
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
@@ -69,39 +75,28 @@ with aba1:
     c1, c2 = st.columns(2)
     doc = c1.text_input("CPF / CNPJ", key=f"d_{fk}")
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
-    
     prod = st.text_input("Produto", key=f"p_{fk}")
-    with st.expander("🎨 Personalização & Especificações", expanded=True):
+    with st.expander("🎨 Personalização"):
         c1, c2 = st.columns(2)
-        et = c1.text_input("Tema / Ocasião", key=f"et_{fk}")
-        en = c1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
-        ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
-        ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
-        eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
-    
+        et = c1.text_input("Tema", key=f"et_{fk}")
+        en = c1.text_input("Nome", key=f"en_{fk}")
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
+    dt_entrega = st.date_input("Data Entrega", key=f"dt_{fk}")
     
     if st.button("➕ Adicionar Item"):
-        detalhes = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
-        st.session_state.temp_itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
+        st.session_state.temp_itens.append({"produto": prod, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
     if st.session_state.temp_itens:
-        st.write("📋 **Prévia dos itens:**")
-        st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
-        
-        st.divider()
-        desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
-        dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
-        
+        st.dataframe(pd.DataFrame(st.session_state.temp_itens))
         if st.button("🚀 SALVAR PROPOSTA"):
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
                 "cliente_nome": nome, "itens": list(st.session_state.temp_itens),
-                "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc,
+                "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens),
                 "pago": False, "entregue": False
             }
             h = carregar_historico()
@@ -115,6 +110,11 @@ with aba2:
     for prop in carregar_historico():
         num_p = prop['numero_proposta']
         with st.expander(f"{num_p} - {prop['cliente_nome']}"):
+            # RESUMO DA PROPOSTA
+            st.write(f"📅 **Entrega:** {prop.get('data_entrega')}")
+            for item in prop.get('itens', []):
+                st.write(f"• {item['produto']} (Qtd: {item['quantidade']})")
+            
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
             st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
             if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
