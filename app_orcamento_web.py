@@ -11,11 +11,11 @@ import base64
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
-# --- INICIALIZAÇÃO ---
+# --- INICIALIZAÇÃO DE SEGURANÇA ---
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
-# --- FUNÇÕES ---
+# --- FUNÇÕES AUXILIARES ---
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as image_file:
@@ -55,7 +55,7 @@ def gerar_html(prop):
     itens_html = ""
     for item in prop.get('itens', []):
         sub_item = item.get('quantidade', 0) * item.get('valor_unitario', 0)
-        itens_html += f"<tr><td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td><td>{item.get('quantidade', 0)}</td><td>R$ {item.get('valor_unitario', 0):.2f}</td><td>R$ {sub_item:.2f}</td></tr>"
+        itens_html += f"<tr><td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td><td>{item.get('quantidade', 0)}</td><td>R$ {sub_item:.2f}</td></tr>"
 
     html = f"""
     <!DOCTYPE html>
@@ -66,7 +66,7 @@ def gerar_html(prop):
             body {{ font-family: sans-serif; padding: 20px; color: #333; }}
             .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
             .header {{ display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #1e293b; margin-bottom: 20px; padding-bottom: 10px; }}
-            .header-info {{ text-align: right; font-size: 10px; line-height: 1.4; color: #333; }}
+            .header-info {{ text-align: right; font-size: 10px; line-height: 1.4; }}
             .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f1f5f9; border: 1px solid #e2e8f0; }}
             .info-item label {{ font-size: 10px; font-weight: bold; color: #1e293b; text-transform: uppercase; display: block; }}
             .info-item span {{ font-size: 13px; font-weight: 600; }}
@@ -75,7 +75,7 @@ def gerar_html(prop):
             td {{ padding: 8px; border-bottom: 1px solid #eee; }}
             .resumo {{ text-align: right; margin-top: 20px; font-weight: bold; color: #1e293b; }}
             .footer {{ margin-top: 30px; font-size: 11px; border-top: 2px solid #1e293b; padding-top: 10px; }}
-            .pix-section {{ display: flex; align-items: start; gap: 20px; margin-top: 15px; border: 1px solid #1e293b; padding: 10px; }}
+            .pix-section {{ display: flex; align-items: start; gap: 20px; margin-top: 15px; }}
         </style>
     </head>
     <body>
@@ -90,15 +90,15 @@ def gerar_html(prop):
                     <strong>Emissão: {prop.get('data_geracao', 'N/A')}</strong>
                 </div>
             </div>
-            <h2 style="color: #1e293b;">PROPOSTA {prop.get('numero_proposta', '')}</h2>
+            <h2>PROPOSTA {prop.get('numero_proposta', '')}</h2>
             <div class="info-grid">
                 <div class="info-item"><label>Cliente</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
-                <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
+                <div class="info-item"><label>CPF/CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
                 <div class="info-item"><label>WhatsApp</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
                 <div class="info-item"><label>Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
             </div>
             <table>
-                <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>UNIT.</th><th>SUBTOTAL</th></tr></thead>
+                <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>SUBTOTAL</th></tr></thead>
                 <tbody>{itens_html}</tbody>
             </table>
             <div class="resumo">
@@ -110,10 +110,11 @@ def gerar_html(prop):
                 <div class="pix-section">
                     <img src="data:image/png;base64,{pix_base64}" style="width: 100px;">
                     <div style="line-height: 1.5;">
-                        🤝 Para fechar seu pedido, trabalhamos com pagamento do valor total!<br>
+                        🤝 Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!<br>
+                        *Tivemos algumas mudanças devido ao novo regime de tributação.<br>
                         💳 <strong>PAGAMENTO VIA PIX</strong>: 24374857000130 (CNPJ)<br>
-                        👉 <a href="https://linkspix.app/alphafestitatiba">Link para pagamento</a> | Banco CORA | Ana Lúcia Zepelini<br>
-                        <strong>Conta Jurídica:</strong> Ag: 0001 | CC: 2515972-5<br>
+                        <a href="https://linkspix.app/alphafestitatiba">Link para pagamento</a> | Banco CORA | Ana Lúcia Zepelini<br>
+                        <strong>Conta Jurídica</strong>: Ag: 0001 | CC: 2515972-5<br>
                         <strong>Ps. Orçamento válido por 5 dias.</strong>
                     </div>
                 </div>
@@ -126,10 +127,14 @@ def gerar_html(prop):
 
 def formatar_msg_whatsapp(prop):
     total = prop.get('valor_total', 0)
+    if total == 0:
+        total = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
     itens_str = ""
     for item in prop.get('itens', []):
-        itens_str += f"{item.get('quantidade', 0)} {item.get('produto', '')} - R${item.get('valor_unitario', 0):.2f}\n"
-    return f"*PROPOSTA ALPHAFEST*\nCliente: {prop.get('cliente_nome', '')}\nTotal: R$ {total:.2f}\n\nItens:\n{itens_str}\nPagamento: https://linkspix.app/alphafestitatiba"
+        valor_unit = item.get('valor_unitario', 0)
+        total_item = item.get('quantidade', 0) * valor_unit
+        itens_str += f"{item.get('quantidade', 0)} {item.get('produto', '')} --- R${valor_unit:.2f} --- R${total_item:.2f}\n"
+    return f"*PROPOSTA ALPHAFEST ITATIBA*\n*Cliente:* {prop.get('cliente_nome', '')}\n*Valor Total:* R$ {total:.2f}\n\nItens:\n{itens_str}\n\n*Pagamento:* https://linkspix.app/alphafestitatiba"
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
@@ -141,13 +146,6 @@ def criar_grafico_profissional(df, x_col, y_col, titulo):
 
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
-hoje = date.today()
-for p in carregar_historico():
-    try:
-        if (not p.get("pago", False) or not p.get("entregue", False)) and datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date() == hoje:
-            st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
-    except: continue
-
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
@@ -171,6 +169,8 @@ with aba1:
         st.session_state.temp_itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
         st.rerun()
     if st.session_state.temp_itens:
+        st.write("📋 **Prévia dos itens:**")
+        st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
         desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
         dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
         if st.button("🚀 SALVAR PROPOSTA"):
@@ -197,10 +197,10 @@ with aba2:
             c1, c2 = st.columns(2)
             c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
             c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
-            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
-            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
             if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
 
 with aba3:
     h = carregar_historico()
-    if h: st.altair_chart(criar_grafico_profissional(pd.DataFrame(h).groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total'), use_container_width=True)
+    if h:
+        df = pd.DataFrame(h)
+        st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
