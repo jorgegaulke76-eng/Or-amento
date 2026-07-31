@@ -20,45 +20,83 @@ if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
 # --- FUNÇÕES AUXILIARES ---
 def formatar_msg_whatsapp(prop):
-    """Monta uma mensagem simples e segura para envio da proposta pelo WhatsApp."""
-    cliente = str(prop.get("cliente_nome", "")).strip()
-    numero = str(prop.get("numero_proposta", "")).strip()
-    entrega = str(prop.get("data_entrega", "")).strip()
-    total = prop.get("valor_total", 0)
+    """Monta a mensagem padrão da proposta para envio pelo WhatsApp."""
+    prop = prop or {}
 
-    try:
-        total_txt = f"R$ {float(total):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except (TypeError, ValueError):
-        total_txt = "R$ 0,00"
+    data_emissao = str(prop.get("data_geracao", prop.get("data", ""))).strip()
+    cliente = str(prop.get("cliente_nome", prop.get("cliente", ""))).strip() or "N/A"
+    documento = str(
+        prop.get("documento", prop.get("cliente_cpf_cnpj", ""))
+    ).strip() or "N/A"
+    entrega = str(prop.get("data_entrega", "")).strip() or "A combinar"
+    prazo = str(prop.get("prazo_dias", "1")).strip() or "1"
+    frete = str(prop.get("frete_tipo", "Retirada em Itatiba")).strip() or "Retirada em Itatiba"
+    validade = str(prop.get("validade_dias", "5")).strip() or "5"
 
-    itens = []
+    def numero(valor, padrao=0.0):
+        try:
+            return float(valor)
+        except (TypeError, ValueError):
+            return float(padrao)
+
+    def qtd_txt(valor):
+        qtd = numero(valor)
+        return str(int(qtd)) if qtd.is_integer() else f"{qtd:.2f}".rstrip("0").rstrip(".")
+
+    itens_txt = []
+    total_calculado = 0.0
     for item in prop.get("itens", []) or []:
         produto = str(item.get("produto", "")).strip()
-        qtd = item.get("quantidade", 0)
+        quantidade = numero(item.get("quantidade", 0))
+        valor_unitario = numero(item.get("valor_unitario", 0))
+        total_item = quantidade * valor_unitario
+        total_calculado += total_item
+
         if produto:
-            itens.append(f"- {produto} (Qtd: {qtd})")
+            itens_txt.append(
+                f"{qtd_txt(quantidade)} {produto} --- "
+                f"R${valor_unitario:.2f} --- R${total_item:.2f}"
+            )
 
-    texto = [
-        "Olá! 😊",
+    desconto = numero(prop.get("desconto", prop.get("desconto_valor", 0)))
+    total = prop.get("valor_total", prop.get("total"))
+    total_valor = numero(total, total_calculado - desconto)
+    if total is None:
+        total_valor = max(total_calculado - desconto, 0.0)
+
+    unidade_prazo = "dia útil" if prazo == "1" else "dias úteis"
+    unidade_validade = "dia corrido" if validade == "1" else "dias corridos"
+
+    linhas = [
+        "PROPOSTA ALPHAFEST ITATIBA",
+        f"Emissão: {data_emissao}",
         "",
-        "Segue a sua proposta comercial da Alphafest.",
-        f"Proposta: {numero}" if numero else "",
-        f"Cliente: {cliente}" if cliente else "",
-        f"Entrega: {entrega}" if entrega else "",
+        f"CLIENTE: {cliente}",
+        f"CPF/CNPJ: {documento}",
+        "-----------------------------------",
+        "ITENS DO PEDIDO:",
     ]
 
-    if itens:
-        texto += ["", "Itens:", *itens]
+    linhas.extend(itens_txt or ["Nenhum item informado"])
 
-    texto += [
+    linhas.extend([
         "",
-        f"Valor total: {total_txt}",
+        "-----------------------------------",
+        f"VALOR TOTAL DO PEDIDO: R$ {total_valor:.2f}",
+        "-----------------------------------",
+        f"Previsão de Entrega: {entrega}",
+        f"Prazo de Produção: {prazo} {unidade_prazo}",
+        f"Frete/Entrega: {frete}",
+        f"Validade: {validade} {unidade_validade}",
         "",
-        "Qualquer dúvida, estamos à disposição! 😊",
-        "Alphafest"
-    ]
+        "PAGAMENTO VIA PIX:",
+        "https://linkspix.app/alphafestitatiba",
+        "",
+        "* Titular: Ana Lúcia Zepelini | Conta: 2515972-5",
+        "*Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !",
+    ])
 
-    return "\n".join(x for x in texto if x != "")
+    return "\n".join(linhas)
 
 def get_image_base64(path):
     if os.path.exists(path):
@@ -1282,3 +1320,4 @@ with aba3:
                 )
         else:
             st.info("Ainda não existem produtos registrados nas propostas.")
+
