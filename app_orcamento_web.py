@@ -9,7 +9,7 @@ import altair as alt
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
-# --- INICIALIZAÇÃO ---
+# --- INICIALIZAÇÃO DE SEGURANÇA ---
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
@@ -31,7 +31,6 @@ def alternar_status(num_proposta, campo, novo_valor):
     for p in historico:
         if p.get("numero_proposta") == num_proposta: p[campo] = novo_valor
     salvar_historico_completo(historico)
-    st.rerun()
 
 def excluir_proposta(num_proposta):
     historico = [p for p in carregar_historico() if p.get("numero_proposta") != num_proposta]
@@ -39,7 +38,6 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
-    # Usamos o eixo X como Nominal (texto) para forçar a exibição do que está escrito (Data formatada)
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
         x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
         y=alt.Y(f'{y_col}:Q', title="", axis=None),
@@ -60,17 +58,14 @@ with st.sidebar:
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTAS DE VENCIMENTO (LOGICA REVISADA) ---
+# --- ALERTAS DE VENCIMENTO (ESTRITOS) ---
 hoje = date.today()
 for p in carregar_historico():
     try:
         data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
-        # Alerta apenas se for HOJE ou atrasado
         if (not p.get("pago", False) or not p.get("entregue", False)):
-            if data_entrega == hoje: 
-                st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
-            elif data_entrega < hoje: 
-                st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
+            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
+            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
     except: continue
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
@@ -136,34 +131,32 @@ with aba3:
     h = carregar_historico()
     if h:
         df = pd.DataFrame(h)
-        # Recalculo forçado para garantir valores
         df['valor_total'] = df.apply(lambda row: sum(i['quantidade'] * i['valor_unitario'] for i in row['itens']) if (pd.isna(row.get('valor_total')) or row.get('valor_total') == 0) else row['valor_total'], axis=1)
-        
         df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
-        per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"])
+        
+        per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"], key="per_rel")
         r = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
         
         st.subheader("👥 Total por Cliente")
         st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
-        
         st.divider()
         
-        # --- PREPARAÇÃO DAS DATAS FORMATADAS PARA EVITAR O NÚMERO ESTRANHO ---
-        df_temp = df.set_index('Data').resample(r)['valor_total'].sum().reset_index()
-        df_temp['Data_Label'] = df_temp['Data'].dt.strftime('%d/%m/%Y')
-        
-        st.subheader("💰 Faturamento no Período")
-        st.altair_chart(criar_grafico_profissional(df_temp, 'Data_Label', 'valor_total', 'Receita (R$)'), use_container_width=True)
-        
+        # Vendas Totais (Orçamentos)
+        df_vendas = df.set_index('Data').resample(r)['valor_total'].sum().reset_index()
+        df_vendas['Data_Label'] = df_vendas['Data'].dt.strftime('%d/%m/%Y')
+        st.subheader("📊 Total de Vendas (Orçamentos Gerados)")
+        st.altair_chart(criar_grafico_profissional(df_vendas, 'Data_Label', 'valor_total', 'Valor Total Orçado (R$)'), use_container_width=True)
         st.divider()
         
+        # Pagamentos Efetivos
+        df_pago = df[df['pago'] == True].set_index('Data').resample(r)['valor_total'].sum().reset_index()
+        df_pago['Data_Label'] = df_pago['Data'].dt.strftime('%d/%m/%Y')
+        st.subheader("💰 Total Recebido (Valores Efetivamente PAGOS)")
+        st.altair_chart(criar_grafico_profissional(df_pago, 'Data_Label', 'valor_total', 'Total em Caixa (R$)'), use_container_width=True)
+        st.divider()
+        
+        # Volume de Propostas
         df_prop = df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
         df_prop['Data_Label'] = df_prop['Data'].dt.strftime('%d/%m/%Y')
-        
-        st.subheader("📝 Propostas Geradas no Período")
-        st.altair_chart(criar_grafico_profissional(df_prop, 'Data_Label', 'numero_proposta', 'Qtd Propostas'), use_container_width=True)
-        
-        st.divider()
-        st.subheader("📦 Produtos Mais Vendidos")
-        df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade']} for p in h for it in p['itens']])
-        st.altair_chart(criar_grafico_profissional(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Qtd Vendida'), use_container_width=True)
+        st.subheader("📝 Volume de Propostas Geradas")
+        st.altair_chart(criar_grafico_profissional(df_prop, 'Data_Label', 'numero_proposta', 'Quantidade de Propostas'), use_container_width=True)
