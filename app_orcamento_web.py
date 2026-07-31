@@ -74,8 +74,8 @@ def gerar_html(prop):
         <style>
             body {{ font-family: sans-serif; padding: 20px; color: #333; }}
             .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
-            .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e293b; margin-bottom: 20px; padding-bottom: 10px; }}
-            .header h1 {{ color: #1e293b; }}
+            .header {{ display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #1e293b; margin-bottom: 20px; padding-bottom: 10px; }}
+            .header-info {{ text-align: right; font-size: 10px; line-height: 1.4; color: #333; }}
             .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f1f5f9; border: 1px solid #e2e8f0; }}
             .info-item label {{ font-size: 10px; font-weight: bold; color: #1e293b; text-transform: uppercase; display: block; }}
             .info-item span {{ font-size: 13px; font-weight: 600; }}
@@ -91,7 +91,14 @@ def gerar_html(prop):
         <div class="container">
             <div class="header">
                 <div><img src="data:image/png;base64,{logo_base64}" style="max-width: 150px;"></div>
-                <div style="text-align: right; font-size: 12px;">Emissão: {prop.get('data_geracao', 'N/A')}</div>
+                <div class="header-info">
+                    <strong>Alphafest Itatiba</strong><br>
+                    CNPJ - 24.374.857/0001-30 | IE - 382105300112<br>
+                    Avenida Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP<br>
+                    CEP - 13251-530 | Email - alphafesti@gmail.com<br>
+                    Celular - ( 11 ) 9724-9533<br>
+                    <strong>Emissão: {prop.get('data_geracao', 'N/A')}</strong>
+                </div>
             </div>
             
             <h2 style="color: #1e293b;">PROPOSTA {prop['numero_proposta']}</h2>
