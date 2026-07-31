@@ -39,10 +39,15 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def gerar_html(prop):
+    # SEGURANÇA: Calcula o total se a chave não existir ou for zero
+    total = prop.get('valor_total', 0)
+    if total == 0 and 'itens' in prop:
+        total = sum(item.get('quantidade', 0) * item.get('valor_unitario', 0) for item in prop['itens'])
+        
     html = f"<h1>Orçamento {prop['numero_proposta']}</h1><p>Cliente: {prop['cliente_nome']}</p><ul>"
     for item in prop['itens']:
         html += f"<li>{item['produto']} - Qtd: {item['quantidade']}</li>"
-    html += "</ul><h3>Total: R$ {:.2f}</h3>".format(prop['valor_total'])
+    html += "</ul><h3>Total: R$ {:.2f}</h3>".format(total)
     return html
 
 def criar_grafico_profissional(df, x_col, y_col, titulo):
@@ -132,7 +137,6 @@ with aba2:
             st.write(f"📅 **Entrega:** {prop.get('data_entrega')}")
             for item in prop.get('itens', []): st.write(f"• {item['produto']} (Qtd: {item['quantidade']})")
             
-            # BOTÕES DE AÇÃO RESTAURADOS
             c1, c2 = st.columns(2)
             msg_zap = f"Olá {prop['cliente_nome']}, seu orçamento {num_p} está pronto!"
             c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_zap)}")
