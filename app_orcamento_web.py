@@ -2,13 +2,10 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import re
-import urllib.parse
-from datetime import datetime, date
-import altair as alt
+from datetime import datetime
 
 # --- CONFIGURAÇÃO ---
-st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
+st.set_config = st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
 # --- FUNÇÕES ---
@@ -23,7 +20,6 @@ def salvar_historico_completo(historico):
     if not historico: return
     with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
         json.dump(historico, f, ensure_ascii=False, indent=4)
-    st.toast("Dados salvos!", icon="✅")
 
 def alternar_status(num_proposta, campo, novo_valor):
     historico = carregar_historico()
@@ -51,21 +47,15 @@ st.title("📄 ORÇAMENTOS ALPHAFEST")
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
 with aba1:
-    nome = st.text_input("Nome / Razão Social")
-    c1, c2 = st.columns(2)
-    doc = c1.text_input("CPF / CNPJ")
-    wa = c2.text_input("WhatsApp")
-    prod = st.text_input("Produto")
-    with st.expander("🎨 Detalhes"):
-        c1, c2 = st.columns(2)
-        et = c1.text_input("Tema")
-        ei = c2.text_input("Idade/Data")
-    q = st.number_input("Qtd", min_value=1, value=1)
-    v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5)
+    fk = st.session_state.get("form_key", 0)
+    nome = st.text_input("Nome / Razão Social", key=f"c_{fk}")
+    prod = st.text_input("Produto", key=f"p_{fk}")
+    q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
+    v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
     
-    if st.button("➕ Adicionar Item à Lista"):
+    if st.button("➕ Adicionar Item"):
         if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
-        st.session_state.temp_itens.append({"produto": prod, "especificacoes": f"{et}/{ei}", "quantidade": q, "valor_unitario": v})
+        st.session_state.temp_itens.append({"produto": prod, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
     if "temp_itens" in st.session_state and st.session_state.temp_itens:
@@ -85,18 +75,19 @@ with aba1:
             st.rerun()
 
 with aba2:
-    # AQUI CORRIGIMOS A LÓGICA PARA NÃO DAR ERRO
     for prop in carregar_historico():
         num_p = prop['numero_proposta']
         with st.expander(f"{num_p} - {prop['cliente_nome']}"):
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
-            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
-            if st.button("🗑️ Excluir", key=f"del_{num_p}"):
-                excluir_proposta(num_p)
+            if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
 
 with aba3:
+    st.subheader("📊 Relatórios")
     h = carregar_historico()
     if h:
         df = pd.DataFrame(h)
-        st.subheader("Pedidos por Cliente")
+        # SEGURANÇA: Se 'valor_total' não existir nos dados antigos, calcula na hora
+        if 'valor_total' not in df.columns:
+            df['valor_total'] = df['itens'].apply(lambda itens: sum(i['quantidade'] * i['valor_unitario'] for i in itens))
+        
         st.bar_chart(df.groupby('cliente_nome')['valor_total'].sum())
