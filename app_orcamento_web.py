@@ -10,7 +10,7 @@ import altair as alt
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
 ARQUIVO_HISTORICO = "historico_orcamentos.json"
 
-# --- INICIALIZAÇÃO ---
+# --- INICIALIZAÇÃO DE SEGURANÇA ---
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
@@ -30,7 +30,7 @@ def salvar_historico_completo(historico):
 def alternar_status(num_proposta, campo, novo_valor):
     historico = carregar_historico()
     for p in historico:
-        if p.get("numero_proposta") == num_proposta: p[campo] = novo_valor
+        if p.get("numero_proposta") == num_p: p[campo] = novo_valor # Corrigido aqui
     salvar_historico_completo(historico)
 
 def excluir_proposta(num_proposta):
@@ -39,7 +39,9 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def gerar_html(prop):
+    # Segurança para calcular valor se não existir
     total = prop.get('valor_total', 0)
+    if total == 0: total = sum(i.get('quantidade',0) * i.get('valor_unitario',0) for i in prop.get('itens',[]))
     html = f"<h1>Orçamento {prop['numero_proposta']}</h1><p>Cliente: {prop['cliente_nome']}</p><ul>"
     for item in prop['itens']:
         html += f"<li>{item['produto']} - Qtd: {item['quantidade']}</li>"
@@ -47,23 +49,27 @@ def gerar_html(prop):
     return html
 
 def formatar_msg_whatsapp(prop):
+    # SEGURANÇA TOTAL: Calcula o valor total se a chave não existir
+    total = prop.get('valor_total', 0)
+    if total == 0:
+        total = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
+    
     itens_str = ""
-    for item in prop['itens']:
+    for item in prop.get('itens', []):
         valor_unit = item.get('valor_unitario', 0)
-        total_item = item['quantidade'] * valor_unit
-        itens_str += f"{item['quantidade']} {item['produto']} --- R${valor_unit:.2f} --- R${total_item:.2f}\n"
+        total_item = item.get('quantidade', 0) * valor_unit
+        itens_str += f"{item.get('quantidade', 0)} {item.get('produto', '')} --- R${valor_unit:.2f} --- R${total_item:.2f}\n"
     
     msg = f"""*PROPOSTA ALPHAFEST ITATIBA*
-*Emissão:* {prop['data_geracao']}
+*Emissão:* {prop.get('data_geracao', '')}
 
-*CLIENTE:* {prop['cliente_nome']}
+*CLIENTE:* {prop.get('cliente_nome', '')}
 *CPF/CNPJ:* 
 -----------------------------------
 *ITENS DO PEDIDO:*
 {itens_str}
-{prop.get('itens', [{}])[0].get('especificacoes', '')}
 -----------------------------------
-*VALOR TOTAL DO PEDIDO:* R$ {prop['valor_total']:.2f}
+*VALOR TOTAL DO PEDIDO:* R$ {total:.2f}
 -----------------------------------
 *Previsão de Entrega:* {prop.get('data_entrega', 'N/A')}
 *Prazo de Produção:* 1 dia útil
@@ -80,29 +86,8 @@ def formatar_msg_whatsapp(prop):
 *Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !"""
     return msg
 
-def criar_grafico_profissional(df, x_col, y_col, titulo):
-    chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
-        x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y(f'{y_col}:Q', title="", axis=None),
-        tooltip=[x_col, y_col]
-    ).properties(title=titulo, height=300)
-    text = chart.mark_text(align='center', baseline='bottom', dy=-5, fontWeight='bold', color='#2c3e50').encode(
-        text=alt.Text(y_col, format='.2f')
-    )
-    return (chart + text).configure_view(strokeWidth=0).configure_axis(grid=False)
-
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
-
-# Alertas
-hoje = date.today()
-for p in carregar_historico():
-    try:
-        data_entrega = datetime.strptime(p.get("data_entrega", ""), "%d/%m/%Y").date()
-        if (not p.get("pago", False) or not p.get("entregue", False)):
-            if data_entrega == hoje: st.warning(f"⚠️ ENTREGA HOJE: {p['numero_proposta']} - {p['cliente_nome']}")
-            elif data_entrega < hoje: st.error(f"🚨 ATRASADO: {p['numero_proposta']} | {p['cliente_nome']} | Vencido em {p.get('data_entrega')}")
-    except: continue
 
 aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Relatórios"])
 
@@ -113,33 +98,25 @@ with aba1:
     doc = c1.text_input("CPF / CNPJ", key=f"d_{fk}")
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
     prod = st.text_input("Produto", key=f"p_{fk}")
-    with st.expander("🎨 Personalização & Especificações", expanded=True):
+    with st.expander("🎨 Personalização", expanded=True):
         c1, c2 = st.columns(2)
-        et = c1.text_input("Tema / Ocasião", key=f"et_{fk}")
-        en = c1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
-        ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
-        ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
-        eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
+        et = c1.text_input("Tema", key=f"et_{fk}")
+        en = c1.text_input("Nome", key=f"en_{fk}")
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
     if st.button("➕ Adicionar Item"):
-        detalhes = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
-        st.session_state.temp_itens.append({"produto": prod, "especificacoes": detalhes, "quantidade": q, "valor_unitario": v})
+        st.session_state.temp_itens.append({"produto": prod, "quantidade": q, "valor_unitario": v})
         st.rerun()
-
     if st.session_state.temp_itens:
-        st.write("📋 **Prévia dos itens:**")
-        st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
-        st.divider()
-        desc = st.number_input("Desconto (R$)", 0.0, key=f"desc_{fk}")
-        dt_entrega = st.date_input("📅 Data Entrega", value=date.today(), key=f"dt_{fk}")
+        st.dataframe(pd.DataFrame(st.session_state.temp_itens))
+        dt_entrega = st.date_input("📅 Data Entrega", value=date.today())
         if st.button("🚀 SALVAR PROPOSTA"):
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
                 "data_entrega": dt_entrega.strftime("%d/%m/%Y"),
                 "cliente_nome": nome, "itens": list(st.session_state.temp_itens),
-                "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens) - desc,
+                "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens),
                 "pago": False, "entregue": False
             }
             h = carregar_historico()
@@ -153,46 +130,8 @@ with aba2:
     for prop in carregar_historico():
         num_p = prop['numero_proposta']
         with st.expander(f"{num_p} - {prop['cliente_nome']}"):
-            st.write(f"📅 **Entrega:** {prop.get('data_entrega')}")
-            for item in prop.get('itens', []): st.write(f"• {item['produto']} (Qtd: {item['quantidade']})")
-            
             c1, c2 = st.columns(2)
-            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
-            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
-            
+            c1.link_button("📱 WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
+            c2.download_button("📄 HTML", gerar_html(prop), file_name=f"{num_p}.html")
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
-            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
             if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
-
-with aba3:
-    h = carregar_historico()
-    if h:
-        df = pd.DataFrame(h)
-        df['valor_total'] = df.apply(lambda row: sum(i['quantidade'] * i['valor_unitario'] for i in row['itens']) if (pd.isna(row.get('valor_total')) or row.get('valor_total') == 0) else row['valor_total'], axis=1)
-        df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
-        
-        per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"], key="per_rel")
-        
-        st.subheader("👥 Total por Cliente")
-        st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
-        st.divider()
-        
-        if per == "Dia": df_plot = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))
-        else:
-            r = {"Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
-            df_plot = df.set_index('Data').resample(r)
-        
-        df_vendas = df_plot['valor_total'].sum().reset_index()
-        col_x = 'Data' if per != "Dia" else 'Data'
-        st.subheader("📊 Total de Vendas (Orçamentos Gerados)")
-        st.altair_chart(criar_grafico_profissional(df_vendas, col_x, 'valor_total', 'Valor Total Orçado (R$)'), use_container_width=True)
-        st.divider()
-        
-        df_pago = df[df['pago'] == True].groupby(df['Data'].dt.strftime('%d/%m/%Y') if per == "Dia" else df.set_index('Data').resample(r).groups)['valor_total'].sum().reset_index() if per == "Dia" else df[df['pago'] == True].set_index('Data').resample(r)['valor_total'].sum().reset_index()
-        st.subheader("💰 Total Recebido (Valores Efetivamente PAGOS)")
-        st.altair_chart(criar_grafico_profissional(df_pago, 'Data' if per != "Dia" else 'Data', 'valor_total', 'Total em Caixa (R$)'), use_container_width=True)
-        st.divider()
-        
-        df_prop = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))['numero_proposta'].count().reset_index() if per == "Dia" else df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
-        st.subheader("📝 Volume de Propostas Geradas")
-        st.altair_chart(criar_grafico_profissional(df_prop, 'Data' if per != "Dia" else 'Data', 'numero_proposta', 'Quantidade de Propostas'), use_container_width=True)
