@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
+import altair as alt
 
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Orçamento Alphafest", layout="wide")
@@ -20,14 +21,11 @@ def salvar_historico_completo(historico):
     if not historico: return
     with open(ARQUIVO_HISTORICO, "w", encoding="utf-8") as f:
         json.dump(historico, f, ensure_ascii=False, indent=4)
-    st.toast("Dados salvos!", icon="✅")
 
 def alternar_status(num_proposta, campo, novo_valor):
     historico = carregar_historico()
     for p in historico:
-        if p.get("numero_proposta") == num_proposta:
-            p[campo] = novo_valor
-            break
+        if p.get("numero_proposta") == num_proposta: p[campo] = novo_valor
     salvar_historico_completo(historico)
     st.rerun()
 
@@ -36,13 +34,21 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
+def criar_grafico(df, x_col, y_col, titulo):
+    chart = alt.Chart(df).mark_bar().encode(
+        x=alt.X(f'{x_col}:O', title=x_col),
+        y=alt.Y(f'{y_col}:Q', title=y_col),
+        tooltip=[x_col, y_col]
+    ).properties(title=titulo, height=300)
+    text = chart.mark_text(align='center', baseline='bottom', dy=-5).encode(text=alt.Text(y_col, format='.2f'))
+    return chart + text
+
 # --- SIDEBAR: BACKUP ---
 with st.sidebar:
     st.header("⚙️ Painel de Segurança")
-    st.info("⚠️ Proteja seu trabalho! Baixe o backup após cada alteração.")
     h_atual = carregar_historico()
     if h_atual:
-        st.download_button("💾 BAIXAR BACKUP AGORA", data=json.dumps(h_atual, ensure_ascii=False, indent=4), file_name="historico_orcamentos.json", mime="application/json", type="primary", use_container_width=True)
+        st.download_button("💾 BAIXAR BACKUP", data=json.dumps(h_atual, ensure_ascii=False, indent=4), file_name="backup_historico.json", mime="application/json", type="primary", use_container_width=True)
 
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
@@ -50,41 +56,32 @@ aba1, aba2, aba3 = st.tabs(["➕ Novo Orçamento", "📋 Histórico", "📊 Rela
 
 with aba1:
     fk = st.session_state.get("form_key", 0)
-    st.subheader("1. Dados do Cliente")
     nome = st.text_input("Nome / Razão Social", key=f"c_{fk}")
     c1, c2 = st.columns(2)
     doc = c1.text_input("CPF / CNPJ", key=f"d_{fk}")
     wa = c2.text_input("WhatsApp", key=f"w_{fk}")
-    
-    st.divider()
-    st.subheader("2. Adicionar Itens")
     prod = st.text_input("Produto", key=f"p_{fk}")
-    with st.expander("🎨 Personalização & Especificações (Opcionais)", expanded=True):
+    with st.expander("🎨 Personalização"):
         c1, c2 = st.columns(2)
-        et = c1.text_input("Tema / Ocasião", key=f"et_{fk}")
-        en = c1.text_input("Nome(s) Personalizado(s)", key=f"en_{fk}")
-        ec = c1.text_input("Cor / Material", key=f"ec_{fk}")
-        ei = c2.text_input("Idade / Data do Evento", key=f"ei_{fk}")
-        eg = c2.text_input("Outros Detalhes", key=f"eg_{fk}")
-    
+        et = c1.text_input("Tema", key=f"et_{fk}")
+        en = c1.text_input("Nome", key=f"en_{fk}")
+        ec = c1.text_input("Cor", key=f"ec_{fk}")
+        ei = c2.text_input("Idade", key=f"ei_{fk}")
     q = st.number_input("Qtd", min_value=1, value=1, key=f"q_{fk}")
     v = st.number_input("Valor Unitário (R$)", value=0.0, step=0.5, key=f"v_{fk}")
     
-    if st.button("➕ Adicionar Item à Lista"):
+    if st.button("➕ Adicionar Item"):
         if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
-        det = f"Tema: {et} | Nome: {en} | Idade: {ei} | Cor: {ec} | Obs: {eg}"
-        st.session_state.temp_itens.append({"produto": prod, "especificacoes": det, "quantidade": q, "valor_unitario": v})
+        st.session_state.temp_itens.append({"produto": prod, "quantidade": q, "valor_unitario": v})
         st.rerun()
 
     if "temp_itens" in st.session_state and st.session_state.temp_itens:
-        st.write("📋 **Prévia dos itens:**")
-        st.dataframe(pd.DataFrame(st.session_state.temp_itens), use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state.temp_itens))
         if st.button("🚀 SALVAR PROPOSTA"):
             dados = {
                 "numero_proposta": f"PROP-{datetime.now().strftime('%Y%m%d%H%M')}",
                 "data_geracao": datetime.now().strftime("%d/%m/%Y"),
-                "cliente_nome": nome, 
-                "itens": list(st.session_state.temp_itens),
+                "cliente_nome": nome, "itens": list(st.session_state.temp_itens),
                 "valor_total": sum(i['quantidade'] * i['valor_unitario'] for i in st.session_state.temp_itens),
                 "pago": False, "entregue": False
             }
@@ -95,21 +92,30 @@ with aba1:
             st.rerun()
 
 with aba2:
-    st.subheader("📋 Central de Propostas")
     for prop in carregar_historico():
-        num_p = prop['numero_proposta']
-        with st.expander(f"{num_p} - {prop['cliente_nome']}"):
-            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
-            st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
-            if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
+        with st.expander(f"{prop['numero_proposta']} - {prop['cliente_nome']}"):
+            st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{prop['numero_proposta']}", on_change=alternar_status, args=(prop['numero_proposta'], "pago", not prop.get("pago", False)))
+            if st.button("🗑️ Excluir", key=f"del_{prop['numero_proposta']}"): excluir_proposta(prop['numero_proposta'])
 
 with aba3:
-    st.subheader("📊 Relatórios")
     h = carregar_historico()
     if h:
         df = pd.DataFrame(h)
-        # SEGURANÇA: Se 'valor_total' não existir nos dados antigos, calcula na hora
-        if 'valor_total' not in df.columns:
-            df['valor_total'] = df['itens'].apply(lambda itens: sum(i['quantidade'] * i['valor_unitario'] for i in itens))
+        df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
+        if 'valor_total' not in df.columns: df['valor_total'] = df['itens'].apply(lambda itens: sum(i['quantidade'] * i['valor_unitario'] for i in itens))
         
-        st.bar_chart(df.groupby('cliente_nome')['valor_total'].sum())
+        per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"])
+        r = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
+        
+        st.subheader("👥 Total por Cliente")
+        st.altair_chart(criar_grafico(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor (R$)'), use_container_width=True)
+        
+        st.subheader("💰 Valor Pago por Periodo")
+        st.altair_chart(criar_grafico(df.set_index('Data').resample(r)['valor_total'].sum().reset_index(), 'Data', 'valor_total', 'Valor (R$)'), use_container_width=True)
+        
+        st.subheader("📝 Propostas Geradas por Periodo")
+        st.altair_chart(criar_grafico(df.set_index('Data').resample(r)['numero_proposta'].count().reset_index(), 'Data', 'numero_proposta', 'Qtd'), use_container_width=True)
+
+        st.subheader("📦 Produtos Mais Vendidos")
+        df_exp = pd.DataFrame([{'produto': it['produto'], 'qtd': it['quantidade'], 'Data': pd.to_datetime(p['data_geracao'], dayfirst=True)} for p in h for it in p['itens']])
+        st.altair_chart(criar_grafico(df_exp.groupby('produto')['qtd'].sum().reset_index(), 'produto', 'qtd', 'Total Vendido'), use_container_width=True)
