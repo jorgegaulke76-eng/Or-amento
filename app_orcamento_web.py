@@ -45,179 +45,725 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
-def gerar_html(prop):
-    subtotal = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
-    total = prop.get('valor_total', subtotal)
-    desconto = subtotal - total
-    logo_base64 = get_image_base64("logo.png")
-    pix_base64 = get_image_base64("pix.png")
-    
-    itens_html = ""
-    for item in prop.get('itens', []):
-        sub_item = item.get('quantidade', 0) * item.get('valor_unitario', 0)
-        itens_html += f"""
-        <tr>
-            <td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td>
-            <td>{item.get('quantidade', 0)}</td>
-            <td>R$ {item.get('valor_unitario', 0):.2f}</td>
-            <td>R$ {sub_item:.2f}</td>
-        </tr>"""
+def gerar_html(
+    numero,
+    data,
+    cliente,
+    documento,
+    whatsapp,
+    data_entrega,
+    itens,
+    subtotal,
+    desconto,
+    total,
+    pagamento,
+    observacoes
+):
+    """Gera uma proposta comercial A4, visualmente profissional e pronta para impressão/PDF."""
 
-    html = f"""
-    <!DOCTYPE html>
-    <html lang="pt-br">
-    <head>
-        <meta charset="utf-8">
-        <style>
-            body {{ font-family: sans-serif; padding: 20px; color: #333; }}
-            .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
-            .header {{ display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #1e293b; margin-bottom: 20px; padding-bottom: 10px; }}
-            .header-info {{ text-align: right; font-size: 10px; line-height: 1.4; color: #333; }}
-            .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f1f5f9; border: 1px solid #e2e8f0; }}
-            .info-item label {{ font-size: 10px; font-weight: bold; color: #1e293b; text-transform: uppercase; display: block; }}
-            .info-item span {{ font-size: 13px; font-weight: 600; }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            th {{ background: #1e293b; color: white; padding: 8px; text-align: left; }}
-            td {{ padding: 8px; border-bottom: 1px solid #eee; }}
-            .resumo {{ text-align: right; margin-top: 20px; font-weight: bold; color: #1e293b; }}
-            .footer {{ margin-top: 30px; font-size: 11px; border-top: 2px solid #1e293b; padding-top: 10px; }}
-            .pix-section {{ display: flex; align-items: start; gap: 20px; margin-top: 15px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <div><img src="data:image/png;base64,{logo_base64}" style="max-width: 150px;"></div>
-                <div class="header-info">
-                    <strong>Alphafest Itatiba</strong><br>
-                    CNPJ - 24.374.857/0001-30 | IE - 382105300112<br>
-                    Avenida Manoel Verginio de Almeida, 442 - Alto Santa Cruz - Itatiba - SP<br>
-                    CEP - 13251-530 | Email - alphafesti@gmail.com | Celular - ( 11 ) 9724-9533<br>
-                    <strong>Emissão: {prop.get('data_geracao', 'N/A')}</strong>
+    def esc(valor, vazio="Não informado"):
+        if valor is None:
+            return vazio
+        texto = str(valor).strip()
+        return html.escape(texto) if texto else vazio
+
+    def moeda(valor):
+        try:
+            return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        except (TypeError, ValueError):
+            return "R$ 0,00"
+
+    def data_br(valor):
+        if valor is None:
+            return ""
+        texto = str(valor).strip()
+
+        # Datas ISO: 2026-07-31 ou 2026-07-31T...
+        m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", texto)
+        if m:
+            return f"{m.group(3)}/{m.group(2)}/{m.group(1)}"
+
+        # Datas já no padrão brasileiro
+        m = re.match(r"^(\d{2})[/-](\d{2})[/-](\d{4})", texto)
+        if m:
+            return f"{m.group(1)}/{m.group(2)}/{m.group(3)}"
+
+        return esc(texto, "")
+
+    numero_txt = esc(numero)
+    data_txt = data_br(data)
+    cliente_txt = esc(cliente)
+    documento_txt = esc(documento)
+    whatsapp_txt = esc(whatsapp)
+    entrega_txt = data_br(data_entrega) or "A combinar"
+
+    linhas = []
+
+    for item in itens or []:
+        produto = esc(item.get("produto", ""), "Produto não informado")
+        especificacoes = esc(
+            item.get("especificacoes", ""),
+            "—"
+        )
+
+        try:
+            quantidade = float(item.get("quantidade", 0))
+        except (TypeError, ValueError):
+            quantidade = 0
+
+        quantidade_txt = (
+            str(int(quantidade))
+            if quantidade.is_integer()
+            else f"{quantidade:.2f}".replace(".", ",")
+        )
+
+        try:
+            valor_unitario = float(item.get("valor_unitario", 0))
+        except (TypeError, ValueError):
+            valor_unitario = 0
+
+        total_item = quantidade * valor_unitario
+
+        linhas.append(f"""
+            <tr>
+                <td class="produto">
+                    <strong>{produto}</strong>
+                </td>
+                <td class="spec">{especificacoes}</td>
+                <td class="qtd">{quantidade_txt}</td>
+                <td class="money">{moeda(valor_unitario)}</td>
+                <td class="money total-item">{moeda(total_item)}</td>
+            </tr>
+        """)
+
+    if not linhas:
+        linhas.append("""
+            <tr>
+                <td colspan="5" class="empty-row">Nenhum item informado.</td>
+            </tr>
+        """)
+
+    desconto_valor = 0
+    try:
+        desconto_valor = float(desconto or 0)
+    except (TypeError, ValueError):
+        desconto_valor = 0
+
+    subtotal_valor = 0
+    try:
+        subtotal_valor = float(subtotal or 0)
+    except (TypeError, ValueError):
+        subtotal_valor = 0
+
+    total_valor = 0
+    try:
+        total_valor = float(total or 0)
+    except (TypeError, ValueError):
+        total_valor = 0
+
+    observacoes_txt = esc(observacoes, "Nenhuma observação adicional.")
+    pagamento_txt = esc(pagamento, "A combinar")
+
+    # Dados de contato da empresa: usa os dados já existentes no aplicativo
+    # quando disponíveis, com fallback seguro.
+    empresa_nome = "ALPHAFEST"
+    empresa_subtitulo = "Personalizados • Impressão 3D • Papelaria"
+    empresa_whatsapp = "(41) 99999-9999"
+    empresa_instagram = "@alphafest"
+
+    return f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposta {numero_txt} - {cliente_txt}</title>
+
+<style>
+    @page {{
+        size: A4;
+        margin: 12mm;
+    }}
+
+    * {{
+        box-sizing: border-box;
+    }}
+
+    html, body {{
+        margin: 0;
+        padding: 0;
+        background: #eef1f5;
+        color: #20252b;
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }}
+
+    body {{
+        padding: 24px;
+    }}
+
+    .page {{
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        background: #ffffff;
+        box-shadow: 0 8px 30px rgba(0,0,0,.10);
+        overflow: hidden;
+    }}
+
+    .top-line {{
+        height: 6px;
+        background: linear-gradient(90deg, #111827, #374151, #9ca3af);
+    }}
+
+    .header {{
+        padding: 25px 30px 20px;
+        display: flex;
+        justify-content: space-between;
+        gap: 30px;
+        align-items: flex-start;
+        border-bottom: 1px solid #e5e7eb;
+    }}
+
+    .brand {{
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }}
+
+    .brand-mark {{
+        width: 52px;
+        height: 52px;
+        border-radius: 13px;
+        background: #111827;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: -1px;
+    }}
+
+    .brand-name {{
+        font-size: 25px;
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: .5px;
+        color: #111827;
+    }}
+
+    .brand-subtitle {{
+        margin-top: 6px;
+        font-size: 10px;
+        color: #6b7280;
+        letter-spacing: .5px;
+    }}
+
+    .proposal-meta {{
+        text-align: right;
+        min-width: 180px;
+    }}
+
+    .proposal-label {{
+        font-size: 10px;
+        color: #6b7280;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+    }}
+
+    .proposal-number {{
+        margin-top: 4px;
+        font-size: 23px;
+        font-weight: 900;
+        color: #111827;
+    }}
+
+    .proposal-date {{
+        margin-top: 5px;
+        font-size: 11px;
+        color: #6b7280;
+    }}
+
+    .content {{
+        padding: 22px 30px 28px;
+    }}
+
+    .section-title {{
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 0 0 11px;
+        font-size: 11px;
+        font-weight: 900;
+        color: #111827;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }}
+
+    .section-title::before {{
+        content: "";
+        width: 4px;
+        height: 16px;
+        border-radius: 3px;
+        background: #111827;
+    }}
+
+    .client-card {{
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fafafa;
+        padding: 16px;
+        margin-bottom: 23px;
+    }}
+
+    .client-grid {{
+        display: grid;
+        grid-template-columns: 1.8fr 1fr 1fr 1fr;
+        gap: 14px;
+    }}
+
+    .field-label {{
+        font-size: 9px;
+        color: #6b7280;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        margin-bottom: 5px;
+    }}
+
+    .field-value {{
+        font-size: 12px;
+        color: #111827;
+        font-weight: 600;
+        word-break: break-word;
+    }}
+
+    .client-main .field-value {{
+        font-size: 15px;
+        font-weight: 800;
+    }}
+
+    .delivery {{
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px dashed #d1d5db;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }}
+
+    .delivery strong {{
+        color: #111827;
+    }}
+
+    .badge {{
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #111827;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 800;
+    }}
+
+    table {{
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }}
+
+    thead th {{
+        background: #111827;
+        color: #fff;
+        padding: 11px 9px;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        text-align: left;
+    }}
+
+    thead th.qtd,
+    thead th.money {{
+        text-align: right;
+    }}
+
+    tbody td {{
+        padding: 12px 9px;
+        border-top: 1px solid #edf0f2;
+        font-size: 10px;
+        vertical-align: top;
+    }}
+
+    tbody tr:nth-child(even) td {{
+        background: #fafafa;
+    }}
+
+    td.produto {{
+        width: 25%;
+        color: #111827;
+    }}
+
+    td.spec {{
+        width: 36%;
+        color: #6b7280;
+        line-height: 1.45;
+    }}
+
+    td.qtd {{
+        width: 8%;
+        text-align: right;
+        font-weight: 700;
+        white-space: nowrap;
+    }}
+
+    td.money {{
+        width: 15%;
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }}
+
+    td.total-item {{
+        font-weight: 800;
+        color: #111827;
+    }}
+
+    .empty-row {{
+        text-align: center;
+        color: #9ca3af;
+        padding: 22px !important;
+    }}
+
+    .bottom-grid {{
+        display: grid;
+        grid-template-columns: 1.35fr .65fr;
+        gap: 18px;
+        align-items: start;
+    }}
+
+    .info-card {{
+        border: 1px solid #e5e7eb;
+        border-radius: 11px;
+        padding: 15px;
+        background: #fff;
+        margin-bottom: 13px;
+    }}
+
+    .info-card-title {{
+        font-size: 10px;
+        font-weight: 900;
+        color: #111827;
+        text-transform: uppercase;
+        letter-spacing: .8px;
+        margin-bottom: 8px;
+    }}
+
+    .info-text {{
+        font-size: 10px;
+        line-height: 1.55;
+        color: #4b5563;
+        white-space: pre-line;
+    }}
+
+    .totals {{
+        border-radius: 12px;
+        background: #f7f7f8;
+        border: 1px solid #e5e7eb;
+        padding: 16px;
+    }}
+
+    .total-row {{
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 7px 0;
+        font-size: 11px;
+        color: #4b5563;
+    }}
+
+    .total-row.discount {{
+        color: #15803d;
+    }}
+
+    .grand-total {{
+        margin-top: 7px;
+        padding-top: 13px;
+        border-top: 2px solid #111827;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+    }}
+
+    .grand-total span:first-child {{
+        font-size: 11px;
+        font-weight: 900;
+        color: #111827;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+    }}
+
+    .grand-total .value {{
+        font-size: 21px;
+        font-weight: 900;
+        color: #111827;
+        white-space: nowrap;
+    }}
+
+    .payment-highlight {{
+        background: #111827;
+        color: #fff;
+        border-radius: 11px;
+        padding: 15px;
+        margin-bottom: 13px;
+    }}
+
+    .payment-highlight .info-card-title {{
+        color: #fff;
+    }}
+
+    .payment-highlight .info-text {{
+        color: #e5e7eb;
+    }}
+
+    .footer {{
+        margin-top: 24px;
+        padding: 17px 30px;
+        background: #111827;
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        gap: 25px;
+        align-items: center;
+    }}
+
+    .footer-brand {{
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: .5px;
+    }}
+
+    .footer-contact {{
+        text-align: right;
+        font-size: 9px;
+        line-height: 1.5;
+        color: #d1d5db;
+    }}
+
+    .validity {{
+        margin-top: 18px;
+        font-size: 8.5px;
+        line-height: 1.45;
+        color: #9ca3af;
+        text-align: center;
+    }}
+
+    @media print {{
+        html, body {{
+            background: #fff;
+        }}
+
+        body {{
+            padding: 0;
+        }}
+
+        .page {{
+            width: 100%;
+            min-height: auto;
+            margin: 0;
+            box-shadow: none;
+        }}
+
+        .no-print {{
+            display: none !important;
+        }}
+
+        tr, .client-card, .info-card, .totals, .payment-highlight {{
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }}
+    }}
+
+    @media (max-width: 800px) {{
+        body {{
+            padding: 0;
+        }}
+
+        .page {{
+            width: 100%;
+        }}
+
+        .header {{
+            flex-direction: column;
+        }}
+
+        .proposal-meta {{
+            text-align: left;
+        }}
+
+        .client-grid,
+        .bottom-grid {{
+            grid-template-columns: 1fr 1fr;
+        }}
+
+        .footer {{
+            flex-direction: column;
+            align-items: flex-start;
+        }}
+
+        .footer-contact {{
+            text-align: left;
+        }}
+    }}
+</style>
+</head>
+
+<body>
+<div class="page">
+
+    <div class="top-line"></div>
+
+    <header class="header">
+        <div class="brand">
+            <div class="brand-mark">AF</div>
+            <div>
+                <div class="brand-name">{empresa_nome}</div>
+                <div class="brand-subtitle">{empresa_subtitulo}</div>
+            </div>
+        </div>
+
+        <div class="proposal-meta">
+            <div class="proposal-label">Proposta Comercial</div>
+            <div class="proposal-number">#{numero_txt}</div>
+            <div class="proposal-date">Emissão: {data_txt}</div>
+        </div>
+    </header>
+
+    <main class="content">
+
+        <div class="section-title">Dados do cliente</div>
+
+        <section class="client-card">
+            <div class="client-grid">
+
+                <div class="client-main">
+                    <div class="field-label">Cliente / Razão Social</div>
+                    <div class="field-value">{cliente_txt}</div>
                 </div>
-            </div>
-            
-            <h2 style="color: #1e293b;">PROPOSTA {prop.get('numero_proposta', '')}</h2>
-            
-            <div class="info-grid">
-                <div class="info-item"><label>Cliente / Empresa</label><span>{prop.get('cliente_nome', 'N/A')}</span></div>
-                <div class="info-item"><label>CPF / CNPJ</label><span>{prop.get('documento', 'Não informado')}</span></div>
-                <div class="info-item"><label>WhatsApp / Contato</label><span>{prop.get('whatsapp', 'Não informado')}</span></div>
-                <div class="info-item"><label>Data Prevista de Entrega</label><span>{prop.get('data_entrega', 'N/A')}</span></div>
+
+                <div>
+                    <div class="field-label">CPF / CNPJ</div>
+                    <div class="field-value">{documento_txt}</div>
+                </div>
+
+                <div>
+                    <div class="field-label">WhatsApp</div>
+                    <div class="field-value">{whatsapp_txt}</div>
+                </div>
+
+                <div>
+                    <div class="field-label">Proposta</div>
+                    <div class="field-value">#{numero_txt}</div>
+                </div>
+
             </div>
 
-            <table>
-                <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>UNIT.</th><th>SUBTOTAL</th></tr></thead>
-                <tbody>{itens_html}</tbody>
-            </table>
-            
-            <div class="resumo">
-                <p>Subtotal: R$ {subtotal:.2f}</p>
-                <p>Desconto: R$ {desconto:.2f}</p>
-                <p style="font-size: 16px;">VALOR TOTAL DO PEDIDO: R$ {total:.2f}</p>
+            <div class="delivery">
+                <div>
+                    <span class="field-label">Previsão de entrega</span><br>
+                    <strong>{entrega_txt}</strong>
+                </div>
+                <span class="badge">PROPOSTA COMERCIAL</span>
             </div>
-            
-            <div class="footer">
-                <div class="pix-section">
-                    <img src="data:image/png;base64,{pix_base64}" style="width: 100px;">
-                    <div style="line-height: 1.5;">
-                        🤝 Para fechar seu pedido, trabalhamos com pagamento do valor total no pedido!<br>
-                        *Tivemos algumas mudanças devido ao novo regime de tributação.<br><br>
-                        💳 <strong>PAGAMENTO VIA PIX</strong> - Segue abaixo nossa conta e pix:<br>
-                        💳💳 Pix- 24374857000130 (CNPJ)<br>
-                        👉 <a href="https://linkspix.app/alphafestitatiba">Clique no link para pagar</a><br>
-                        Banco CORA | Ana Lúcia Zepelini<br><br>
-                        <strong>Conta Jurídica</strong><br>
-                        Agência: 0001 | Conta: 2515972-5<br>
-                        Instituição: 403 - Cora SCD<br>
-                        Nome da Empresa: ANA LUCIA VIEIRA ZEPELINI 29480359880<br>
-                        CNPJ: 24.374.857/0001-30<br><br>
-                        👇<br>
-                        <em>Somente após realizado pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !!🥰</em><br>
-                        <strong>Ps. Orçamento válido por 5 dias.</strong>
+        </section>
+
+        <div class="section-title">Itens da proposta</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Especificações</th>
+                    <th class="qtd">Qtd.</th>
+                    <th class="money">Valor unit.</th>
+                    <th class="money">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {''.join(linhas)}
+            </tbody>
+        </table>
+
+        <div class="bottom-grid">
+
+            <div>
+                <div class="section-title">Condições comerciais</div>
+
+                <div class="payment-highlight">
+                    <div class="info-card-title">Forma de pagamento</div>
+                    <div class="info-text">{pagamento_txt}</div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-card-title">Observações</div>
+                    <div class="info-text">{observacoes_txt}</div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-card-title">Validade e produção</div>
+                    <div class="info-text">
+                        Esta proposta está sujeita à disponibilidade de materiais e à confirmação do pedido.
+                        O prazo de produção/entrega deverá ser confirmado no fechamento da proposta.
                     </div>
                 </div>
             </div>
+
+            <div>
+                <div class="section-title">Resumo financeiro</div>
+
+                <div class="totals">
+                    <div class="total-row">
+                        <span>Subtotal</span>
+                        <strong>{moeda(subtotal_valor)}</strong>
+                    </div>
+
+                    <div class="total-row discount">
+                        <span>Desconto</span>
+                        <strong>- {moeda(desconto_valor)}</strong>
+                    </div>
+
+                    <div class="grand-total">
+                        <span>Total</span>
+                        <span class="value">{moeda(total_valor)}</span>
+                    </div>
+                </div>
+            </div>
+
         </div>
-    </body>
-    </html>
-    """
-    return html
 
-def formatar_msg_whatsapp(prop):
-    total = prop.get('valor_total', 0)
-    if total == 0:
-        total = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
-    
-    itens_str = ""
-    for item in prop.get('itens', []):
-        valor_unit = item.get('valor_unitario', 0)
-        total_item = item.get('quantidade', 0) * valor_unit
-        itens_str += f"{item.get('quantidade', 0)} {item.get('produto', '')} --- R${valor_unit:.2f} --- R${total_item:.2f}\n"
-    
-    msg = f"""*PROPOSTA ALPHAFEST ITATIBA*
-*Emissão:* {prop.get('data_geracao', '')}
+        <div class="validity">
+            Documento gerado eletronicamente • Proposta #{numero_txt} • {empresa_nome}
+        </div>
 
-*CLIENTE:* {prop.get('cliente_nome', '')}
-*CPF/CNPJ:* {prop.get('documento', 'N/A')}
------------------------------------
-*ITENS DO PEDIDO:*
-{itens_str}
------------------------------------
-*VALOR TOTAL DO PEDIDO:* R$ {total:.2f}
------------------------------------
-*Previsão de Entrega:* {prop.get('data_entrega', 'N/A')}
-*Prazo de Produção:* 1 dia útil
-*Frete/Entrega:* Retirada em Itatiba
-*Validade:* 5 dias corridos
+    </main>
 
-*PAGAMENTO VIA PIX:*
-https://linkspix.app/alphafestitatiba
+    <footer class="footer">
+        <div class="footer-brand">{empresa_nome}</div>
+        <div class="footer-contact">
+            WhatsApp: {empresa_whatsapp}<br>
+            Instagram: {empresa_instagram}
+        </div>
+    </footer>
 
-* Titular: Ana Lúcia Zepelini | *Conta:* 2515972-5
-*Somente após realizado o pagamento e nos enviando o comprovante daremos seguimento ao seu pedido !"""
-    return msg
-
-def criar_grafico_profissional(df, x_col, y_col, titulo, horizontal=False, formato=".2f"):
-    if df is None or df.empty:
-        return None
-
-    dados = df.copy()
-
-    if horizontal:
-        chart = alt.Chart(dados).mark_bar(cornerRadiusEnd=4).encode(
-            y=alt.Y(f"{x_col}:N", title="", sort="-x",
-                    axis=alt.Axis(labelLimit=260)),
-            x=alt.X(f"{y_col}:Q", title=""),
-            tooltip=[
-                alt.Tooltip(x_col, title="Produto"),
-                alt.Tooltip(y_col, title="Valor", format=formato)
-            ]
-        ).properties(title=titulo, height=max(300, len(dados) * 28))
-
-        texto = chart.mark_text(
-            align="left", baseline="middle", dx=5, fontWeight="bold"
-        ).encode(text=alt.Text(y_col, format=formato))
-    else:
-        chart = alt.Chart(dados).mark_bar(
-            cornerRadiusTopLeft=4, cornerRadiusTopRight=4
-        ).encode(
-            x=alt.X(f"{x_col}:N", title="",
-                    sort="-y", axis=alt.Axis(labelAngle=-45)),
-            y=alt.Y(f"{y_col}:Q", title=""),
-            tooltip=[
-                alt.Tooltip(x_col, title="Categoria"),
-                alt.Tooltip(y_col, title="Valor", format=formato)
-            ]
-        ).properties(title=titulo, height=320)
-
-        texto = chart.mark_text(
-            align="center", baseline="bottom", dy=-5, fontWeight="bold"
-        ).encode(text=alt.Text(y_col, format=formato))
-
-    return (chart + texto).configure_view(
-        strokeWidth=0
-    ).configure_axis(grid=False)
+</div>
+</body>
+</html>"""
 
 
 # --- SIDEBAR ---
@@ -627,4 +1173,3 @@ with aba3:
                 )
         else:
             st.info("Ainda não existem produtos registrados nas propostas.")
-
