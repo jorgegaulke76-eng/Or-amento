@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import os
 import urllib.parse
+from urllib.parse import quote
 from datetime import datetime, date
 import altair as alt
 import base64
@@ -16,6 +17,47 @@ if "form_key" not in st.session_state: st.session_state.form_key = 0
 if "temp_itens" not in st.session_state: st.session_state.temp_itens = []
 
 # --- FUNÇÕES AUXILIARES ---
+def formatar_msg_whatsapp(prop):
+    """Monta uma mensagem simples e segura para envio da proposta pelo WhatsApp."""
+    cliente = str(prop.get("cliente_nome", "")).strip()
+    numero = str(prop.get("numero_proposta", "")).strip()
+    entrega = str(prop.get("data_entrega", "")).strip()
+    total = prop.get("valor_total", 0)
+
+    try:
+        total_txt = f"R$ {float(total):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except (TypeError, ValueError):
+        total_txt = "R$ 0,00"
+
+    itens = []
+    for item in prop.get("itens", []) or []:
+        produto = str(item.get("produto", "")).strip()
+        qtd = item.get("quantidade", 0)
+        if produto:
+            itens.append(f"- {produto} (Qtd: {qtd})")
+
+    texto = [
+        "Olá! 😊",
+        "",
+        "Segue a sua proposta comercial da Alphafest.",
+        f"Proposta: {numero}" if numero else "",
+        f"Cliente: {cliente}" if cliente else "",
+        f"Entrega: {entrega}" if entrega else "",
+    ]
+
+    if itens:
+        texto += ["", "Itens:", *itens]
+
+    texto += [
+        "",
+        f"Valor total: {total_txt}",
+        "",
+        "Qualquer dúvida, estamos à disposição! 😊",
+        "Alphafest"
+    ]
+
+    return "\n".join(x for x in texto if x != "")
+
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as image_file:
@@ -45,21 +87,27 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
-def gerar_html(
-    numero,
-    data,
-    cliente,
-    documento,
-    whatsapp,
-    data_entrega,
-    itens,
-    subtotal,
-    desconto,
-    total,
-    pagamento,
-    observacoes
-):
-    """Gera uma proposta comercial A4, visualmente profissional e pronta para impressão/PDF."""
+def gerar_html(proposta):
+    """Gera uma proposta comercial A4, visualmente profissional e pronta para impressão/PDF.
+
+    Recebe diretamente o dicionário salvo no historico_orcamentos.json, evitando
+    divergência entre os campos usados na tela de Histórico e os campos do HTML.
+    """
+    proposta = proposta or {}
+
+    numero = proposta.get("numero_proposta", "")
+    data = proposta.get("data_geracao", proposta.get("data", ""))
+    cliente = proposta.get("cliente_nome", proposta.get("cliente", ""))
+    documento = proposta.get("documento", "")
+    whatsapp = proposta.get("whatsapp", "")
+    data_entrega = proposta.get("data_entrega", "")
+    itens = proposta.get("itens", []) or []
+    subtotal = proposta.get("subtotal", 0)
+    desconto = proposta.get("desconto", 0)
+    total = proposta.get("valor_total", proposta.get("total", 0))
+    pagamento = proposta.get("pagamento", "")
+    observacoes = proposta.get("observacoes", "")
+
 
     def esc(valor, vazio="Não informado"):
         if valor is None:
@@ -842,14 +890,15 @@ with aba1:
 
 with aba2:
     for prop in carregar_historico():
-        num_p = prop['numero_proposta']
-        with st.expander(f"{num_p} - {prop['cliente_nome']}"):
+        num_p = prop.get("numero_proposta", "SEM-NÚMERO")
+        cliente_p = prop.get("cliente_nome", "Cliente não informado")
+        with st.expander(f"{num_p} - {cliente_p}"):
             st.write(f"📅 **Entrega:** {prop.get('data_entrega')}")
             for item in prop.get('itens', []): 
                 st.write(f"• {item.get('produto', '')} (Qtd: {item.get('quantidade', 0)})")
             
             c1, c2 = st.columns(2)
-            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(formatar_msg_whatsapp(prop))}")
+            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={quote(formatar_msg_whatsapp(prop))}")
             c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
             
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
