@@ -1,5 +1,32 @@
 [
     {
+        "numero_proposta": "PROP-202607310016",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "15/08/2026",
+        "cliente_nome": "HELOISA PANCOTO",
+        "cliente_cpf_cnpj": "",
+        "cliente_wa": "11999551084",
+        "itens": [
+            {
+                "produto": "CHAVEIRO 3D",
+                "especificacoes": "Tema: ESPORTES MATERNIDADE | Nome: VICENTE | Idade: NASCIMENTO | Cor:  | Obs: COM CARTÃO ESPORTES",
+                "quantidade": 16,
+                "valor_unitario": 3.8
+            },
+            {
+                "produto": "TUBOLATA ESPORTES",
+                "especificacoes": "Tema: ESPORTES MATERNIDADE | Nome: VICENTE | Idade: NASCIMENTO | Cor: BRANCO | Obs: RÓTULO /COM TAG ESPORTES",
+                "quantidade": 16,
+                "valor_unitario": 5.5
+            }
+        ],
+        "desconto_valor": 0.0,
+        "prazo_dias": "10",
+        "frete_tipo": "Retirada em Itatiba",
+        "pago": false,
+        "entregue": false
+    },
+    {
         "numero_proposta": "PROP-202607310002",
         "data_geracao": "31/07/2026",
         "data_entrega": "30/07/2026",
