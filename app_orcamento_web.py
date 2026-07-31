@@ -58,7 +58,7 @@ with st.sidebar:
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTAS DE VENCIMENTO (ESTRITOS) ---
+# --- ALERTAS DE VENCIMENTO ---
 hoje = date.today()
 for p in carregar_historico():
     try:
@@ -135,28 +135,35 @@ with aba3:
         df['Data'] = pd.to_datetime(df['data_geracao'], dayfirst=True)
         
         per = st.selectbox("Período de Agrupamento", ["Dia", "Semana", "Mês", "Ano"], key="per_rel")
-        r = {"Dia": "D", "Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
         
         st.subheader("👥 Total por Cliente")
         st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
         st.divider()
         
-        # Vendas Totais (Orçamentos)
-        df_vendas = df.set_index('Data').resample(r)['valor_total'].sum().reset_index()
-        df_vendas['Data_Label'] = df_vendas['Data'].dt.strftime('%d/%m/%Y')
+        # LOGICA CORRIGIDA: Se for DIA, agrupa direto pela data para não perder barras
+        if per == "Dia":
+            df_plot = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))
+        else:
+            r = {"Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
+            df_plot = df.set_index('Data').resample(r)
+        
+        # Valores (Total de Vendas)
+        df_vendas = df_plot['valor_total'].sum().reset_index()
+        # Se for resample, a coluna data chama 'Data', se for groupby chama 'Data' (como string)
+        col_x = 'Data' if per != "Dia" else 'Data'
         st.subheader("📊 Total de Vendas (Orçamentos Gerados)")
-        st.altair_chart(criar_grafico_profissional(df_vendas, 'Data_Label', 'valor_total', 'Valor Total Orçado (R$)'), use_container_width=True)
+        st.altair_chart(criar_grafico_profissional(df_vendas, col_x, 'valor_total', 'Valor Total Orçado (R$)'), use_container_width=True)
         st.divider()
         
         # Pagamentos Efetivos
-        df_pago = df[df['pago'] == True].set_index('Data').resample(r)['valor_total'].sum().reset_index()
-        df_pago['Data_Label'] = df_pago['Data'].dt.strftime('%d/%m/%Y')
+        df_pago = df[df['pago'] == True].groupby(df['Data'].dt.strftime('%d/%m/%Y') if per == "Dia" else df.set_index('Data').resample(r).groups)['valor_total'].sum().reset_index() if per == "Dia" else df[df['pago'] == True].set_index('Data').resample(r)['valor_total'].sum().reset_index()
+        
         st.subheader("💰 Total Recebido (Valores Efetivamente PAGOS)")
-        st.altair_chart(criar_grafico_profissional(df_pago, 'Data_Label', 'valor_total', 'Total em Caixa (R$)'), use_container_width=True)
+        st.altair_chart(criar_grafico_profissional(df_pago, 'Data' if per != "Dia" else 'Data', 'valor_total', 'Total em Caixa (R$)'), use_container_width=True)
         st.divider()
         
         # Volume de Propostas
-        df_prop = df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
-        df_prop['Data_Label'] = df_prop['Data'].dt.strftime('%d/%m/%Y')
+        df_prop = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))['numero_proposta'].count().reset_index() if per == "Dia" else df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
+        
         st.subheader("📝 Volume de Propostas Geradas")
-        st.altair_chart(criar_grafico_profissional(df_prop, 'Data_Label', 'numero_proposta', 'Quantidade de Propostas'), use_container_width=True)
+        st.altair_chart(criar_grafico_profissional(df_prop, 'Data' if per != "Dia" else 'Data', 'numero_proposta', 'Quantidade de Propostas'), use_container_width=True)
