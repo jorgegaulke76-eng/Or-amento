@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+import urllib.parse
 from datetime import datetime, date
 import altair as alt
 
@@ -37,6 +38,13 @@ def excluir_proposta(num_proposta):
     salvar_historico_completo(historico)
     st.rerun()
 
+def gerar_html(prop):
+    html = f"<h1>Orçamento {prop['numero_proposta']}</h1><p>Cliente: {prop['cliente_nome']}</p><ul>"
+    for item in prop['itens']:
+        html += f"<li>{item['produto']} - Qtd: {item['quantidade']}</li>"
+    html += "</ul><h3>Total: R$ {:.2f}</h3>".format(prop['valor_total'])
+    return html
+
 def criar_grafico_profissional(df, x_col, y_col, titulo):
     chart = alt.Chart(df).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color='#2e86de').encode(
         x=alt.X(f'{x_col}:O', title="", axis=alt.Axis(labelAngle=-45)),
@@ -58,7 +66,7 @@ with st.sidebar:
 # --- INTERFACE ---
 st.title("📄 ORÇAMENTOS ALPHAFEST")
 
-# --- ALERTAS DE VENCIMENTO ---
+# --- ALERTAS ---
 hoje = date.today()
 for p in carregar_historico():
     try:
@@ -123,6 +131,13 @@ with aba2:
         with st.expander(f"{num_p} - {prop['cliente_nome']}"):
             st.write(f"📅 **Entrega:** {prop.get('data_entrega')}")
             for item in prop.get('itens', []): st.write(f"• {item['produto']} (Qtd: {item['quantidade']})")
+            
+            # BOTÕES DE AÇÃO RESTAURADOS
+            c1, c2 = st.columns(2)
+            msg_zap = f"Olá {prop['cliente_nome']}, seu orçamento {num_p} está pronto!"
+            c1.link_button("📱 Enviar WhatsApp", f"https://wa.me/?text={urllib.parse.quote(msg_zap)}")
+            c2.download_button("📄 Gerar HTML", gerar_html(prop), file_name=f"{num_p}.html")
+            
             st.checkbox("Pago", value=prop.get("pago", False), key=f"p_{num_p}", on_change=alternar_status, args=(num_p, "pago", not prop.get("pago", False)))
             st.checkbox("Entregue", value=prop.get("entregue", False), key=f"e_{num_p}", on_change=alternar_status, args=(num_p, "entregue", not prop.get("entregue", False)))
             if st.button("🗑️ Excluir", key=f"del_{num_p}"): excluir_proposta(num_p)
@@ -140,30 +155,22 @@ with aba3:
         st.altair_chart(criar_grafico_profissional(df.groupby('cliente_nome')['valor_total'].sum().reset_index(), 'cliente_nome', 'valor_total', 'Valor Total (R$)'), use_container_width=True)
         st.divider()
         
-        # LOGICA CORRIGIDA: Se for DIA, agrupa direto pela data para não perder barras
-        if per == "Dia":
-            df_plot = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))
+        if per == "Dia": df_plot = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))
         else:
             r = {"Semana": "W-MON", "Mês": "ME", "Ano": "YE"}[per]
             df_plot = df.set_index('Data').resample(r)
         
-        # Valores (Total de Vendas)
         df_vendas = df_plot['valor_total'].sum().reset_index()
-        # Se for resample, a coluna data chama 'Data', se for groupby chama 'Data' (como string)
         col_x = 'Data' if per != "Dia" else 'Data'
         st.subheader("📊 Total de Vendas (Orçamentos Gerados)")
         st.altair_chart(criar_grafico_profissional(df_vendas, col_x, 'valor_total', 'Valor Total Orçado (R$)'), use_container_width=True)
         st.divider()
         
-        # Pagamentos Efetivos
         df_pago = df[df['pago'] == True].groupby(df['Data'].dt.strftime('%d/%m/%Y') if per == "Dia" else df.set_index('Data').resample(r).groups)['valor_total'].sum().reset_index() if per == "Dia" else df[df['pago'] == True].set_index('Data').resample(r)['valor_total'].sum().reset_index()
-        
         st.subheader("💰 Total Recebido (Valores Efetivamente PAGOS)")
         st.altair_chart(criar_grafico_profissional(df_pago, 'Data' if per != "Dia" else 'Data', 'valor_total', 'Total em Caixa (R$)'), use_container_width=True)
         st.divider()
         
-        # Volume de Propostas
         df_prop = df.groupby(df['Data'].dt.strftime('%d/%m/%Y'))['numero_proposta'].count().reset_index() if per == "Dia" else df.set_index('Data').resample(r)['numero_proposta'].count().reset_index()
-        
         st.subheader("📝 Volume de Propostas Geradas")
         st.altair_chart(criar_grafico_profissional(df_prop, 'Data' if per != "Dia" else 'Data', 'numero_proposta', 'Quantidade de Propostas'), use_container_width=True)
