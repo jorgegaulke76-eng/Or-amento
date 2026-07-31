@@ -1156,7 +1156,7 @@ with st.sidebar:
             type="primary",
             use_container_width=True,
         )
-    st.caption("Versão 2.6")
+    st.caption("Versão 2.7")
 
 # --- ESTADO DO FORMULÁRIO ---
 def iniciar_estado(nome, valor):
@@ -1178,7 +1178,19 @@ iniciar_estado("alerta_proposta_numero", None)
 aplicar_limpeza_formulario_pendente()
 aplicar_proposta_pendente_no_formulario()
 
+# --- IDENTIDADE VISUAL NO PAINEL DE ENTRADA ---
+logo_painel_base64, logo_painel_ext = encontrar_logo_base64()
+if logo_painel_base64:
+    try:
+        st.image(
+            base64.b64decode(logo_painel_base64),
+            width=230,
+        )
+    except Exception:
+        pass
+
 st.title("📄 ORÇAMENTOS ALPHAFEST")
+st.caption("Personalizados • Impressão 3D • Papelaria")
 
 # --- ALERTAS DE ENTREGA MELHORADOS ---
 hoje = date.today()
