@@ -1,5 +1,114 @@
 [
     {
+        "numero_proposta": "PROP-202607310123",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "09/08/2026",
+        "cliente_nome": "THAIS CRIVELARO",
+        "itens": [
+            {
+                "produto": "CENTRO DE MESA CACHEPO",
+                "especificacoes": "Tema: BRANCA DE NEVE | Nome: VALENTINA | Idade: 2 | Cor: VERMELHO E AMARELO | Obs: HASTE COM BALÃO",
+                "quantidade": 29,
+                "valor_unitario": 4.9
+            },
+            {
+                "produto": "MONTAGEM E ENTREGA",
+                "especificacoes": "Tema: BRANCA DE NEVE | Nome: VALENTINA | Idade: 2 | Cor: VERMELHO E AMARELO | Obs: HASTE COM BALÃO",
+                "quantidade": 1,
+                "valor_unitario": 25.0
+            }
+        ],
+        "valor_total": 167.10000000000002,
+        "pago": false,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607310120",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "05/08/2026",
+        "cliente_nome": "ADRIANA DAMIM",
+        "itens": [
+            {
+                "produto": "TOPO DE BOLO 3D",
+                "especificacoes": "Tema: FELIZ DIA DOS PAIS | Nome:  | Idade:  | Cor: AZUL | Obs: 8X6 COM PALITO 3D PLA",
+                "quantidade": 60,
+                "valor_unitario": 6.0
+            }
+        ],
+        "valor_total": 360.0,
+        "pago": false,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607310118",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "ADRIANA DAMIM",
+        "itens": [
+            {
+                "produto": "TOPO DE BOLO 3D",
+                "especificacoes": "Tema: HAPPY BIRTHDAY | Nome:  | Idade:  | Cor: DOURADO | Obs: 3D PLA",
+                "quantidade": 7,
+                "valor_unitario": 5.0
+            },
+            {
+                "produto": "TOPO DE BOLO 3D",
+                "especificacoes": "Tema: FELIZ ANIVERSÁRIO | Nome:  | Idade:  | Cor: DOURADO | Obs: 3D PLA",
+                "quantidade": 2,
+                "valor_unitario": 5.0
+            },
+            {
+                "produto": "CAIXA DE PÓ PARA DOCES PEQ",
+                "especificacoes": "Tema: PORTA PÓ PARA DOCE | Nome:  | Idade:  | Cor: LILAS | Obs: 3D PLA",
+                "quantidade": 2,
+                "valor_unitario": 19.0
+            }
+        ],
+        "valor_total": 83.0,
+        "pago": false,
+        "entregue": false
+    },
+    {
+        "numero_proposta": "PROP-202607310115",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "CRISTIANE REGINA",
+        "itens": [
+            {
+                "produto": "PAPEL DE ARROZ",
+                "especificacoes": "Tema: FLORK | Nome:  | Idade:  | Cor:  | Obs: DESENHO CLIENTE 20X28",
+                "quantidade": 2,
+                "valor_unitario": 10.0
+            },
+            {
+                "produto": "PAPEL DE ARROZ",
+                "especificacoes": "Tema: FELIZ DIA DOS PAIS | Nome:  | Idade:  | Cor:  | Obs: DESENHO CLIENTE 20X28",
+                "quantidade": 1,
+                "valor_unitario": 10.0
+            }
+        ],
+        "valor_total": 30.0,
+        "pago": true,
+        "entregue": true
+    },
+    {
+        "numero_proposta": "PROP-202607310111",
+        "data_geracao": "31/07/2026",
+        "data_entrega": "31/07/2026",
+        "cliente_nome": "CARLA BOLOS",
+        "itens": [
+            {
+                "produto": "TOPO DE BOLO",
+                "especificacoes": "Tema: GUERREIRA K-POP | Nome: LUNA | Idade: 4 | Cor:  | Obs: S5 DIAMETRO E 10 ALT BOLO",
+                "quantidade": 1,
+                "valor_unitario": 15.0
+            }
+        ],
+        "valor_total": 15.0,
+        "pago": true,
+        "entregue": false
+    },
+    {
         "numero_proposta": "PROP-202607310054",
         "data_geracao": "31/07/2026",
         "data_entrega": "31/07/2026",
