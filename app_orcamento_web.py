@@ -39,12 +39,21 @@ def excluir_proposta(num_proposta):
     st.rerun()
 
 def gerar_html(prop):
-    # Cálculo dos valores para o resumo
+    # Cálculo para o resumo conforme sua imagem
     subtotal = sum(i.get('quantidade', 0) * i.get('valor_unitario', 0) for i in prop.get('itens', []))
     total = prop.get('valor_total', subtotal)
     desconto = subtotal - total
     
-    # HTML mantendo a estrutura original que você precisa
+    itens_html = ""
+    for item in prop.get('itens', []):
+        sub_item = item.get('quantidade', 0) * item.get('valor_unitario', 0)
+        itens_html += f"""
+        <tr>
+            <td><strong>{item.get('produto', '')}</strong><br><small>{item.get('especificacoes', '')}</small></td>
+            <td>{item.get('quantidade', 0)}</td>
+            <td>R$ {sub_item:.2f}</td>
+        </tr>"""
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -53,24 +62,23 @@ def gerar_html(prop):
         <style>
             body {{ font-family: sans-serif; padding: 20px; }}
             .container {{ max-width: 800px; margin: auto; border: 1px solid #ccc; padding: 20px; }}
-            .header {{ display: flex; justify-content: space-between; border-bottom: 2px solid #333; margin-bottom: 10px; padding-bottom: 10px; }}
+            .header {{ display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #333; margin-bottom: 20px; }}
             .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; }}
             .info-item label {{ font-size: 10px; font-weight: bold; color: #555; text-transform: uppercase; display: block; }}
             .info-item span {{ font-size: 13px; font-weight: 600; }}
             table {{ width: 100%; border-collapse: collapse; }}
             th {{ background: #333; color: white; padding: 8px; text-align: left; }}
             td {{ padding: 8px; border-bottom: 1px solid #eee; }}
-            .resumo {{ text-align: right; margin-top: 15px; font-weight: bold; }}
-            .footer {{ margin-top: 20px; font-size: 12px; border-top: 1px solid #ddd; padding-top: 10px; }}
+            .resumo {{ text-align: right; margin-top: 20px; font-size: 14px; font-weight: bold; }}
+            .footer {{ margin-top: 30px; font-size: 11px; border-top: 1px solid #ddd; padding-top: 10px; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
                 <div><h1>ALPHAFEST</h1></div>
-                <div style="font-size: 11px;">
-                    Dados da Empresa: Itatiba - SP<br>
-                    Emissão: {prop.get('data_geracao', 'N/A')}
+                <div style="text-align: right; font-size: 11px;">
+                    Dados da Empresa: Itatiba - SP<br>Emissão: {prop.get('data_geracao', 'N/A')}
                 </div>
             </div>
             <h3>PROPOSTA {prop['numero_proposta']}</h3>
@@ -84,14 +92,7 @@ def gerar_html(prop):
 
             <table>
                 <thead><tr><th>ITEM / DESCRIÇÃO</th><th>QTD</th><th>SUBTOTAL</th></tr></thead>
-                <tbody>
-    """
-    for item in prop.get('itens', []):
-        sub = item.get('quantidade', 0) * item.get('valor_unitario', 0)
-        html += f"<tr><td><strong>{item.get('produto', '')}</strong><br>{item.get('especificacoes', '')}</td><td>{item.get('quantidade', 0)}</td><td>R$ {sub:.2f}</td></tr>"
-    
-    html += f"""
-                </tbody>
+                <tbody>{itens_html}</tbody>
             </table>
             
             <div class="resumo">
@@ -99,7 +100,7 @@ def gerar_html(prop):
                 <p>Desconto: R$ {desconto:.2f}</p>
                 <p>VALOR TOTAL DO PEDIDO: R$ {total:.2f}</p>
             </div>
-
+            
             <div class="footer">
                 <p><strong>Condições de Produção & Pagamento:</strong><br>
                 Para firmar seu pedido, trabalhamos com pagamento do valor total no pedido.<br>
